@@ -45,11 +45,12 @@ Return a JSON object with this EXACT structure:
   "url": "Official URL (the actual government portal or official website)",
   "category": "One of: Students, Farmers, Senior Citizens, Health & Insurance, Women & Children, Jobs",
   
-  "important_dates": [
-    {"label": "Application Start", "date": "YYYY-MM-DD"},
-    {"label": "Application End", "date": "YYYY-MM-DD"},
-    {"label": "Exam Date", "date": "YYYY-MM-DD"}
-  ],
+  "important_dates": {
+    "application_start": "YYYY-MM-DD or 'Not yet announced'",
+    "application_end": "YYYY-MM-DD or 'Not yet announced'",
+    "exam_date": "YYYY-MM-DD or 'Not yet announced'",
+    "result_date": "YYYY-MM-DD or 'Not yet announced' (if applicable)"
+  },
   
   "eligibility": "Complete eligibility criteria as detailed text (age, education, etc.)",
   
@@ -84,6 +85,13 @@ Return a JSON object with this EXACT structure:
     {"days_before": 3, "message": "3-day reminder message"},
     {"days_before": 1, "message": "Urgent 1-day reminder message"}
   ]
+}
+
+CRITICAL RULES - IMPORTANT DATES FORMAT:
+- important_dates MUST be an object with snake_case keys (not an array!)
+- Example: {"application_start": "2025-01-15", "application_end": "2025-02-15", "exam_date": "2025-03-10"}
+- Use snake_case for keys: application_start, application_end, exam_date, result_date, etc.
+- Values should be "YYYY-MM-DD" format or "Not yet announced" / "N/A" for unreleased information
 }
 
 CRITICAL RULES - READ CAREFULLY:

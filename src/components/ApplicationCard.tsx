@@ -340,11 +340,28 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
     }
   };
 
-  const importantDates = application.important_dates 
-    ? (typeof application.important_dates === 'string' 
-        ? JSON.parse(application.important_dates) 
-        : application.important_dates)
-    : null;
+  // Normalize important_dates to handle both object and array formats (backwards compatibility)
+  const importantDates = (() => {
+    if (!application.important_dates) return null;
+    
+    const dates = typeof application.important_dates === 'string' 
+      ? JSON.parse(application.important_dates) 
+      : application.important_dates;
+    
+    // If it's already an object (correct format), return as-is
+    if (!Array.isArray(dates)) return dates;
+    
+    // If it's an array (buggy format), convert to object
+    const converted: any = {};
+    dates.forEach((item: any) => {
+      if (item.label && item.date) {
+        const key = item.label.toLowerCase().replace(/\s+/g, '_');
+        converted[key] = item.date;
+      }
+    });
+    
+    return Object.keys(converted).length > 0 ? converted : null;
+  })();
 
   const documentsRequired = application.documents_required
     ? (typeof application.documents_required === 'string'
