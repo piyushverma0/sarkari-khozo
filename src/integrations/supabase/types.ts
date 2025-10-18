@@ -14,7 +14,84 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      applications: {
+        Row: {
+          application_steps: string | null
+          category: string | null
+          deadline_reminders: Json | null
+          description: string | null
+          documents_required: Json | null
+          eligibility: string | null
+          fee_structure: string | null
+          id: string
+          important_dates: Json | null
+          saved_at: string | null
+          title: string
+          updated_at: string | null
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          application_steps?: string | null
+          category?: string | null
+          deadline_reminders?: Json | null
+          description?: string | null
+          documents_required?: Json | null
+          eligibility?: string | null
+          fee_structure?: string | null
+          id?: string
+          important_dates?: Json | null
+          saved_at?: string | null
+          title: string
+          updated_at?: string | null
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          application_steps?: string | null
+          category?: string | null
+          deadline_reminders?: Json | null
+          description?: string | null
+          documents_required?: Json | null
+          eligibility?: string | null
+          fee_structure?: string | null
+          id?: string
+          important_dates?: Json | null
+          saved_at?: string | null
+          title?: string
+          updated_at?: string | null
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

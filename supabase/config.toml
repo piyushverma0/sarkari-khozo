@@ -1,1 +1,10 @@
 project_id = "rmgtjzeuhckqhuwwzrlm"
+
+[functions.process-query]
+verify_jwt = false
+
+[functions.find-category-schemes]
+verify_jwt = false
+
+[functions.generate-eligibility-quiz]
+verify_jwt = false
