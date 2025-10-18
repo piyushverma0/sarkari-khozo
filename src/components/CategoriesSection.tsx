@@ -1,15 +1,16 @@
+import { useNavigate } from "react-router-dom";
 import { GraduationCap, Sprout, Users, Heart, Baby, Briefcase } from "lucide-react";
 import CategoryCard from "./CategoryCard";
 import type { User } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/use-toast";
 
 const categories = [
-  { icon: GraduationCap, title: "Students" },
-  { icon: Sprout, title: "Farmers" },
-  { icon: Users, title: "Senior Citizens" },
-  { icon: Heart, title: "Health & Insurance" },
-  { icon: Baby, title: "Women & Children" },
-  { icon: Briefcase, title: "Jobs" },
+  { icon: GraduationCap, title: "Students", slug: "students" },
+  { icon: Sprout, title: "Farmers", slug: "farmers" },
+  { icon: Users, title: "Senior Citizens", slug: "senior-citizens" },
+  { icon: Heart, title: "Health & Insurance", slug: "health-insurance" },
+  { icon: Baby, title: "Women & Children", slug: "women-children" },
+  { icon: Briefcase, title: "Jobs", slug: "jobs" },
 ];
 
 interface CategoriesSectionProps {
@@ -19,15 +20,18 @@ interface CategoriesSectionProps {
 
 const CategoriesSection = ({ user, onAuthRequired }: CategoriesSectionProps) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  const handleCategoryClick = () => {
+  const handleCategoryClick = (slug: string) => {
     if (!user) {
       toast({
         title: "Authentication Required",
         description: "Please sign in to explore categories.",
       });
       onAuthRequired();
+      return;
     }
+    navigate(`/category/${slug}`);
   };
 
   return (
@@ -39,7 +43,11 @@ const CategoriesSection = ({ user, onAuthRequired }: CategoriesSectionProps) => 
         
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {categories.map((category, index) => (
-            <div key={index} onClick={!user ? handleCategoryClick : undefined}>
+            <div 
+              key={index} 
+              onClick={() => handleCategoryClick(category.slug)}
+              className="cursor-pointer"
+            >
               <CategoryCard
                 icon={category.icon}
                 title={category.title}
