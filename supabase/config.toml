@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.generate-eligibility-quiz]
 verify_jwt = false
+
+[functions.find-nearest-csc]
+verify_jwt = false
+
+[functions.translate-content]
+verify_jwt = false

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Trash2, ClipboardCheck, Bell, Calendar, FileText, DollarSign, ClipboardList, ExternalLink, Clock, CheckCircle2, AlertCircle, GraduationCap, CreditCard, IdCard, User, FileCheck, Save, Edit, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Trash2, ClipboardCheck, Bell, Calendar, FileText, DollarSign, ClipboardList, ExternalLink, Clock, CheckCircle2, AlertCircle, GraduationCap, CreditCard, IdCard, User, FileCheck, Save, Edit, X, Volume2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,10 @@ import EligibilityQuiz from "./EligibilityQuiz";
 import DeadlineCountdown from "./DeadlineCountdown";
 import ReminderDialog from "./ReminderDialog";
 import HowToApplySection from "./HowToApplySection";
+import LanguageToolbar from "./LanguageToolbar";
+import { useTranslation } from "@/hooks/useTranslation";
+import { useTextToSpeech } from "@/hooks/useTextToSpeech";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ApplicationData {
   id?: string;
@@ -58,6 +62,57 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
   const [editedData, setEditedData] = useState<ApplicationData>(application);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Translation and Audio hooks
+  const { currentLanguage, changeLanguage, translateText, isTranslating, getLanguageLabel } = useTranslation();
+  const { speak, pause, resume, stop, isSpeaking, isPaused, currentSection, isSupported: isAudioSupported } = useTextToSpeech();
+
+  // Translated content state
+  const [translatedTitle, setTranslatedTitle] = useState(application.title);
+  const [translatedDescription, setTranslatedDescription] = useState(application.description);
+  const [translatedEligibility, setTranslatedEligibility] = useState(application.eligibility || '');
+  const [translatedFeeStructure, setTranslatedFeeStructure] = useState(application.fee_structure || '');
+  const [translatedApplicationSteps, setTranslatedApplicationSteps] = useState(application.application_steps || '');
+
+  // Translate content when language changes
+  useEffect(() => {
+    const translateContent = async () => {
+      if (currentLanguage === 'en') {
+        // Reset to original content
+        setTranslatedTitle(application.title);
+        setTranslatedDescription(application.description);
+        setTranslatedEligibility(application.eligibility || '');
+        setTranslatedFeeStructure(application.fee_structure || '');
+        setTranslatedApplicationSteps(application.application_steps || '');
+        return;
+      }
+
+      // Translate all content
+      const [title, description, eligibility, feeStructure, appSteps] = await Promise.all([
+        translateText(application.title, currentLanguage),
+        translateText(application.description, currentLanguage),
+        application.eligibility ? translateText(application.eligibility, currentLanguage) : Promise.resolve(''),
+        application.fee_structure ? translateText(application.fee_structure, currentLanguage) : Promise.resolve(''),
+        application.application_steps ? translateText(application.application_steps, currentLanguage) : Promise.resolve(''),
+      ]);
+
+      setTranslatedTitle(title);
+      setTranslatedDescription(description);
+      setTranslatedEligibility(eligibility);
+      setTranslatedFeeStructure(feeStructure);
+      setTranslatedApplicationSteps(appSteps);
+    };
+
+    translateContent();
+  }, [currentLanguage, application, translateText]);
+
+  const handleSpeakSection = (text: string, sectionId: string) => {
+    if (currentSection === sectionId && isSpeaking) {
+      stop();
+    } else {
+      speak(text, currentLanguage, sectionId);
+    }
+  };
 
   const handleSave = async () => {
     if (!application.id) return;
@@ -176,6 +231,19 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
   return (
     <Card className="w-full animate-fade-in">
       <CardHeader className="pb-4">
+        {/* Language and Audio Toolbar */}
+        <LanguageToolbar
+          currentLanguage={currentLanguage}
+          onLanguageChange={changeLanguage}
+          isSpeaking={isSpeaking}
+          isPaused={isPaused}
+          onPause={pause}
+          onResume={resume}
+          onStop={stop}
+          isAudioSupported={isAudioSupported}
+          getLanguageLabel={getLanguageLabel}
+        />
+
         <div className="flex items-start justify-between gap-4 mb-3">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-3">
@@ -185,8 +253,10 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
                   onChange={(e) => setEditedData({ ...editedData, title: e.target.value })}
                   className="text-4xl font-bold h-auto py-2"
                 />
+              ) : isTranslating && currentLanguage !== 'en' ? (
+                <Skeleton className="h-12 w-3/4" />
               ) : (
-                <CardTitle className="text-4xl">{application.title}</CardTitle>
+                <CardTitle className="text-4xl">{translatedTitle}</CardTitle>
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -293,9 +363,14 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
               placeholder="Description"
               className="text-lg leading-relaxed min-h-24"
             />
+          ) : isTranslating && currentLanguage !== 'en' ? (
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-5/6" />
+            </div>
           ) : (
             <CardDescription className="text-lg leading-relaxed">
-              {application.description}
+              {translatedDescription}
             </CardDescription>
           )
         )}
@@ -367,9 +442,22 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           {application.eligibility && (
             <AccordionItem value="eligibility">
               <AccordionTrigger className="text-xl font-semibold hover:no-underline">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-1">
                   <CheckCircle2 className="w-6 h-6 text-primary" />
                   Quick Eligibility Snapshot
+                  {isAudioSupported && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="ml-auto"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSpeakSection(translatedEligibility, 'eligibility');
+                      }}
+                    >
+                      <Volume2 className={`w-4 h-4 ${currentSection === 'eligibility' && isSpeaking ? 'text-primary animate-pulse' : ''}`} />
+                    </Button>
+                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent>
@@ -387,9 +475,16 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
                         </div>
                       </div>
                     </div>
-                  ) : null}
-                  <div className="space-y-2 text-base leading-relaxed whitespace-pre-line">
-                    {application.eligibility.split('\n').map((line, idx) => {
+                   ) : null}
+                  {isTranslating && currentLanguage !== 'en' ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-5/6" />
+                      <Skeleton className="h-4 w-4/5" />
+                    </div>
+                  ) : (
+                    <div className="space-y-2 text-base leading-relaxed whitespace-pre-line">
+                      {translatedEligibility.split('\n').map((line, idx) => {
                       if (line.trim().startsWith('•') || line.trim().startsWith('-')) {
                         return (
                           <div key={idx} className="flex items-start gap-2 p-2 rounded hover:bg-muted/50">
@@ -398,9 +493,10 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
                           </div>
                         );
                       }
-                      return line.trim() ? <p key={idx}>{line}</p> : null;
-                    })}
-                  </div>
+                        return line.trim() ? <p key={idx}>{line}</p> : null;
+                      })}
+                    </div>
+                  )}
                   <Button
                     onClick={() => setShowQuiz(true)}
                     variant="secondary"
@@ -449,24 +545,46 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           {application.fee_structure && (
             <AccordionItem value="fees">
               <AccordionTrigger className="text-xl font-semibold hover:no-underline">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-1">
                   <DollarSign className="w-6 h-6 text-primary" />
                   Fees Summary 💰
+                  {isAudioSupported && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="ml-auto"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSpeakSection(translatedFeeStructure, 'fees');
+                      }}
+                    >
+                      <Volume2 className={`w-4 h-4 ${currentSection === 'fees' && isSpeaking ? 'text-primary animate-pulse' : ''}`} />
+                    </Button>
+                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="pt-2 space-y-2">
-                  {application.fee_structure.toLowerCase().includes('not yet released') || 
-                   application.fee_structure.toLowerCase().includes('not released') ? (
-                    <div className="p-3 bg-muted/50 rounded-lg mb-3">
-                      <p className="text-base">
-                        Exact fees coming soon — but here's last year's pattern so you can plan ahead 💰
-                      </p>
+                  {isTranslating && currentLanguage !== 'en' ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-5/6" />
                     </div>
-                  ) : null}
-                  <div className="text-base leading-relaxed whitespace-pre-line">
-                    {application.fee_structure}
-                  </div>
+                  ) : (
+                    <>
+                      {translatedFeeStructure.toLowerCase().includes('not yet released') ||
+                       translatedFeeStructure.toLowerCase().includes('not released') ? (
+                        <div className="p-3 bg-muted/50 rounded-lg mb-3">
+                          <p className="text-base">
+                            Exact fees coming soon — but here's last year's pattern so you can plan ahead 💰
+                          </p>
+                        </div>
+                      ) : null}
+                      <div className="text-base leading-relaxed whitespace-pre-line">
+                        {translatedFeeStructure}
+                      </div>
+                    </>
+                  )}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -476,16 +594,37 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           {application.application_steps && (
             <AccordionItem value="steps">
               <AccordionTrigger className="text-xl font-semibold hover:no-underline">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-1">
                   <ClipboardList className="w-6 h-6 text-primary" />
                   How to Apply
+                  {isAudioSupported && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="ml-auto"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSpeakSection(translatedApplicationSteps, 'steps');
+                      }}
+                    >
+                      <Volume2 className={`w-4 h-4 ${currentSection === 'steps' && isSpeaking ? 'text-primary animate-pulse' : ''}`} />
+                    </Button>
+                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent>
-                <HowToApplySection 
-                  applicationSteps={application.application_steps}
-                  applicationUrl={application.url}
-                />
+                {isTranslating && currentLanguage !== 'en' ? (
+                  <div className="space-y-2 pt-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-5/6" />
+                    <Skeleton className="h-4 w-4/5" />
+                  </div>
+                ) : (
+                  <HowToApplySection 
+                    applicationSteps={translatedApplicationSteps}
+                    applicationUrl={application.url}
+                  />
+                )}
               </AccordionContent>
             </AccordionItem>
           )}
