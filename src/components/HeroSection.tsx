@@ -65,6 +65,7 @@ const HeroSection = ({ user, onAuthRequired }: HeroSectionProps) => {
           documents_required: data.documents_required || null,
           fee_structure: data.fee_structure || null,
           deadline_reminders: data.deadline_reminders || null,
+          application_guidance: data.application_guidance || null,
         })
         .select()
         .single();

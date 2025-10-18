@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       applications: {
         Row: {
+          application_guidance: Json | null
           application_steps: string | null
           category: string | null
           deadline_reminders: Json | null
@@ -32,6 +33,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          application_guidance?: Json | null
           application_steps?: string | null
           category?: string | null
           deadline_reminders?: Json | null
@@ -48,6 +50,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          application_guidance?: Json | null
           application_steps?: string | null
           category?: string | null
           deadline_reminders?: Json | null

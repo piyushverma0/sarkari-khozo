@@ -46,6 +46,7 @@ interface ApplicationData {
   documents_required?: any;
   fee_structure?: string;
   deadline_reminders?: any;
+  application_guidance?: any;
 }
 
 interface ApplicationCardProps {
@@ -688,6 +689,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
                   <HowToApplySection 
                     applicationSteps={translatedApplicationSteps}
                     applicationUrl={application.url}
+                    applicationGuidance={application.application_guidance}
                   />
                 )}
               </AccordionContent>

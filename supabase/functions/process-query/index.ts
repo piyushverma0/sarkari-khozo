@@ -182,11 +182,59 @@ Return JSON array with reminders for 7 days, 3 days, and 1 day before:
       }
     }
 
+    // Step 4: Generate structured application guidance
+    const guidancePrompt = `Based on this application:
+Title: ${extractedInfo.title}
+URL: ${extractedInfo.url}
+Steps: ${extractedInfo.application_steps}
+
+Generate a JSON object with REAL, SPECIFIC information for this exact application:
+{
+  "online_steps": ["Step 1 specific to this app", "Step 2...", ...],
+  "csc_applicable": true/false,
+  "csc_guidance": "Specific CSC guidance if applicable, or empty string",
+  "state_officials_applicable": true/false,
+  "state_officials_guidance": "Specific state official guidance if applicable, or empty string",
+  "helpline": "actual helpline number(s) from the scheme",
+  "email": "actual contact email from the scheme",
+  "estimated_time": "estimated time in minutes"
+}
+
+CRITICAL: Use ONLY information from the actual scheme/exam. Don't use generic PM Kisan details!`;
+
+    const guidanceResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [{ role: 'user', content: guidancePrompt }],
+        temperature: 0.2,
+      }),
+    });
+
+    let applicationGuidance = null;
+    if (guidanceResponse.ok) {
+      const guidanceData = await guidanceResponse.json();
+      try {
+        const content = guidanceData.choices[0].message.content;
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          applicationGuidance = JSON.parse(jsonMatch[0]);
+        }
+      } catch (e) {
+        console.error('Failed to parse guidance:', e);
+      }
+    }
+
     // Combine all data
     const result = {
       ...extractedInfo,
       documents_required: documentChecklist,
       deadline_reminders: deadlineReminders,
+      application_guidance: applicationGuidance,
     };
 
     console.log('Final result:', JSON.stringify(result));
