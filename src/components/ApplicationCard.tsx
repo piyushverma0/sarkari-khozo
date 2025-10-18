@@ -303,6 +303,15 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
 
       if (refreshError) throw refreshError;
 
+      // Validate application_guidance structure
+      if (refreshData?.application_guidance) {
+        const guidance = refreshData.application_guidance;
+        if (!Array.isArray(guidance.online_steps) || !guidance.online_steps.every((step: any) => typeof step === 'string')) {
+          console.error('Invalid online_steps structure:', guidance.online_steps);
+          throw new Error('Invalid application guidance structure');
+        }
+      }
+
       const { error: updateError } = await supabase
         .from('applications')
         .update({

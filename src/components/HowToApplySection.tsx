@@ -51,7 +51,7 @@ const HowToApplySection = ({
   }
 
   // Use AI-generated guidance if available, otherwise use defaults
-  const onlineSteps = hasGuidance ? applicationGuidance.online_steps : [
+  const defaultSteps = [
     "Visit the official portal and click on 'New Registration' or 'Apply Now'",
     "Enter your Aadhaar Number and complete the captcha verification",
     "Select your State and District",
@@ -59,6 +59,14 @@ const HowToApplySection = ({
     "Upload the required documents (Aadhaar, photos, certificates, etc.)",
     "Review your information and click Submit"
   ];
+
+  // Validate and filter online_steps to ensure only strings
+  const onlineSteps = hasGuidance && Array.isArray(applicationGuidance.online_steps)
+    ? applicationGuidance.online_steps.filter((step: any) => typeof step === 'string')
+    : defaultSteps;
+
+  // Fallback if filtered array is empty
+  const validOnlineSteps = onlineSteps.length > 0 ? onlineSteps : defaultSteps;
 
   const cscApplicable = hasGuidance ? applicationGuidance.csc_applicable !== false : true;
   const cscGuidance = hasGuidance && applicationGuidance.csc_guidance 
@@ -138,16 +146,23 @@ const HowToApplySection = ({
           <CollapsibleContent>
             <div className="p-4 pt-0 space-y-4 border-t">
               <div className="space-y-3">
-                {onlineSteps.map((step, index) => (
-                  <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
-                    <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-xs font-bold text-primary">{index + 1}</span>
+                {validOnlineSteps.map((step, index) => {
+                  // Runtime validation to ensure step is a string
+                  if (typeof step !== 'string') {
+                    console.warn('Invalid step at index', index, ':', step);
+                    return null;
+                  }
+                  return (
+                    <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
+                      <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-xs font-bold text-primary">{index + 1}</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-base">{step}</p>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-base">{step}</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
