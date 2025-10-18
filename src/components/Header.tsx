@@ -11,18 +11,6 @@ const Header = () => {
           </div>
           <h1 className="text-xl font-bold">FormVerse</h1>
         </div>
-        
-        <nav className="hidden md:flex items-center gap-6">
-          <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-            Home
-          </a>
-          <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-            My Applications
-          </a>
-          <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-            About
-          </a>
-        </nav>
 
         <Button variant="outline" size="sm" className="rounded-full">
           Sign In
