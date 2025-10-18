@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { Trash2, ClipboardCheck } from "lucide-react";
-import { Calendar, FileText, DollarSign, ClipboardList, ExternalLink } from "lucide-react";
+import { Trash2, ClipboardCheck, Bell, Calendar, FileText, DollarSign, ClipboardList, ExternalLink, Clock, CheckCircle2, AlertCircle, GraduationCap, CreditCard, IdCard, User, FileCheck } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -81,6 +80,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
       setIsDeleting(false);
     }
   };
+
   const importantDates = application.important_dates 
     ? (typeof application.important_dates === 'string' 
         ? JSON.parse(application.important_dates) 
@@ -99,22 +99,50 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
         : application.deadline_reminders)
     : null;
 
+  // Helper to get document icon
+  const getDocIcon = (doc: string) => {
+    const docLower = doc.toLowerCase();
+    if (docLower.includes('degree') || docLower.includes('certificate')) return GraduationCap;
+    if (docLower.includes('aadhaar') || docLower.includes('id')) return IdCard;
+    if (docLower.includes('photo')) return User;
+    if (docLower.includes('pan')) return CreditCard;
+    if (docLower.includes('mark') || docLower.includes('sheet')) return FileCheck;
+    return FileText;
+  };
+
+  // Helper to determine status badge
+  const getStatusBadge = () => {
+    if (!importantDates) return null;
+    // This is a simplified version - in production you'd check actual dates
+    return (
+      <Badge variant="secondary" className="gap-1">
+        <Clock className="w-3 h-3" />
+        Expected Soon
+      </Badge>
+    );
+  };
+
   return (
     <Card className="w-full animate-fade-in">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="space-y-2 flex-1">
-            <CardTitle className="text-2xl">{application.title}</CardTitle>
-            {application.category && (
-              <Badge variant="secondary">{application.category}</Badge>
-            )}
+      <CardHeader className="pb-4">
+        <div className="flex items-start justify-between gap-4 mb-3">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <CardTitle className="text-3xl">{application.title}</CardTitle>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {application.category && (
+                <Badge variant="secondary" className="text-sm">{application.category}</Badge>
+              )}
+              {getStatusBadge()}
+            </div>
           </div>
           <div className="flex gap-2">
             {application.url && (
               <Button variant="outline" size="sm" asChild>
                 <a href={application.url} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="w-4 h-4 mr-2" />
-                  View Official Page
+                  Official Page
                 </a>
               </Button>
             )}
@@ -149,131 +177,212 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
             )}
           </div>
         </div>
+
         {application.description && (
-          <CardDescription className="text-base mt-4">
+          <CardDescription className="text-base leading-relaxed">
             {application.description}
           </CardDescription>
         )}
+
+        {/* Quick Actions */}
+        <div className="flex gap-2 mt-4">
+          {application.url && (
+            <Button asChild size="lg" className="flex-1">
+              <a href={application.url} target="_blank" rel="noopener noreferrer">
+                Apply Now
+              </a>
+            </Button>
+          )}
+          {application.eligibility && (
+            <Button
+              onClick={() => setShowQuiz(true)}
+              variant="outline"
+              size="lg"
+              className="flex-1"
+            >
+              <ClipboardCheck className="w-4 h-4 mr-2" />
+              See if You Qualify
+            </Button>
+          )}
+          {importantDates && (
+            <Button variant="outline" size="lg">
+              <Bell className="w-4 h-4 mr-2" />
+              Set Reminder
+            </Button>
+          )}
+        </div>
       </CardHeader>
 
-      <CardContent className="space-y-6">
-        {/* Important Dates */}
-        {importantDates && Object.keys(importantDates).length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-primary" />
-              <h3 className="text-lg font-semibold">Important Dates</h3>
-            </div>
-            <div className="space-y-2 pl-7">
-              {Object.entries(importantDates).map(([key, value]) => (
-                <div key={key} className="flex justify-between items-center py-2">
-                  <span className="text-muted-foreground capitalize">
-                    {key.replace(/_/g, ' ')}
-                  </span>
-                  <span className="font-medium">{value as string}</span>
+      <CardContent className="pt-0">
+        <Accordion type="multiple" defaultValue={["dates", "eligibility"]} className="w-full">
+          {/* Important Dates - Open by default */}
+          {importantDates && Object.keys(importantDates).length > 0 && (
+            <AccordionItem value="dates">
+              <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-primary" />
+                  Key Dates
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-3 pt-2">
+                  {Object.entries(importantDates).map(([key, value]) => (
+                    <div key={key} className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+                      <span className="text-sm font-medium capitalize">
+                        {key.replace(/_/g, ' ').replace(/date/i, '').trim()}
+                      </span>
+                      <span className="text-sm font-semibold">{value as string}</span>
+                    </div>
+                  ))}
+                  {deadlineReminders && deadlineReminders.length > 0 && (
+                    <div className="mt-4">
+                      <DeadlineCountdown 
+                        importantDates={importantDates} 
+                        reminders={deadlineReminders}
+                      />
+                    </div>
+                  )}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          )}
 
-        {/* Deadline Reminders */}
-        {deadlineReminders && deadlineReminders.length > 0 && (
-          <>
-            <Separator />
-            <div className="space-y-3">
-              <h3 className="text-lg font-semibold">Deadline Reminders</h3>
-              <DeadlineCountdown 
-                importantDates={importantDates} 
-                reminders={deadlineReminders}
-              />
-              <div className="space-y-2 mt-4">
-                {deadlineReminders.map((reminder: any, index: number) => (
-                  <div key={index} className="p-3 bg-muted rounded-lg">
-                    <p className="text-sm font-medium">{reminder.days_before} days before</p>
-                    <p className="text-sm text-muted-foreground">{reminder.message}</p>
+          {/* Eligibility - Open by default */}
+          {application.eligibility && (
+            <AccordionItem value="eligibility">
+              <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-primary" />
+                  Quick Eligibility Snapshot
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 pt-2">
+                  {application.eligibility.toLowerCase().includes('not yet released') || 
+                   application.eligibility.toLowerCase().includes('not released') ? (
+                    <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium">Eligibility details will be officially announced soon</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Here's what we expect based on previous years 👇
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                  <div className="space-y-2 text-sm leading-relaxed whitespace-pre-line">
+                    {application.eligibility.split('\n').map((line, idx) => {
+                      if (line.trim().startsWith('•') || line.trim().startsWith('-')) {
+                        return (
+                          <div key={idx} className="flex items-start gap-2 p-2 rounded hover:bg-muted/50">
+                            <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                            <span>{line.replace(/^[•-]\s*/, '')}</span>
+                          </div>
+                        );
+                      }
+                      return line.trim() ? <p key={idx}>{line}</p> : null;
+                    })}
                   </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
+                  <Button
+                    onClick={() => setShowQuiz(true)}
+                    variant="secondary"
+                    className="w-full mt-4"
+                  >
+                    <ClipboardCheck className="w-4 h-4 mr-2" />
+                    Take Quick Eligibility Check →
+                  </Button>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          )}
 
-        {/* Eligibility */}
-        {application.eligibility && (
-          <>
-            <Separator />
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
+          {/* Documents - Collapsed by default */}
+          {documentsRequired && documentsRequired.length > 0 && (
+            <AccordionItem value="documents">
+              <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-primary" />
+                  Keep These Ready 📂
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="pt-2">
+                  <div className="flex flex-wrap gap-2">
+                    {documentsRequired.map((doc: string, index: number) => {
+                      const DocIcon = getDocIcon(doc);
+                      return (
+                        <Badge
+                          key={index}
+                          variant="outline"
+                          className="py-2 px-3 text-sm gap-2 hover:bg-muted"
+                        >
+                          <DocIcon className="w-4 h-4" />
+                          {doc}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
+          {/* Fee Structure - Collapsed by default */}
+          {application.fee_structure && (
+            <AccordionItem value="fees">
+              <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-primary" />
+                  Fees Summary 💰
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="pt-2 space-y-2">
+                  {application.fee_structure.toLowerCase().includes('not yet released') || 
+                   application.fee_structure.toLowerCase().includes('not released') ? (
+                    <div className="p-3 bg-muted/50 rounded-lg mb-3">
+                      <p className="text-sm">
+                        Exact fees coming soon — but here's last year's pattern so you can plan ahead 💰
+                      </p>
+                    </div>
+                  ) : null}
+                  <div className="text-sm leading-relaxed whitespace-pre-line">
+                    {application.fee_structure}
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
+          {/* Application Steps - Collapsed by default */}
+          {application.application_steps && (
+            <AccordionItem value="steps">
+              <AccordionTrigger className="text-lg font-semibold hover:no-underline">
                 <div className="flex items-center gap-2">
                   <ClipboardList className="w-5 h-5 text-primary" />
-                  <h3 className="text-lg font-semibold">Eligibility Criteria</h3>
+                  How to Apply
                 </div>
-                <Button
-                  onClick={() => setShowQuiz(true)}
-                  variant="outline"
-                  size="sm"
-                >
-                  <ClipboardCheck className="w-4 h-4 mr-2" />
-                  Check Eligibility
-                </Button>
-              </div>
-              <p className="text-muted-foreground pl-7 whitespace-pre-line">
-                {application.eligibility}
-              </p>
-            </div>
-          </>
-        )}
-
-        {/* Documents Required */}
-        {documentsRequired && documentsRequired.length > 0 && (
-          <>
-            <Separator />
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-primary" />
-                <h3 className="text-lg font-semibold">Documents Required</h3>
-              </div>
-              <ul className="space-y-2 pl-7">
-                {documentsRequired.map((doc: string, index: number) => (
-                  <li key={index} className="flex items-start gap-2">
-                    <span className="text-primary mt-1">•</span>
-                    <span className="text-muted-foreground">{doc}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </>
-        )}
-
-        {/* Fee Structure */}
-        {application.fee_structure && (
-          <>
-            <Separator />
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-primary" />
-                <h3 className="text-lg font-semibold">Fee Structure</h3>
-              </div>
-              <p className="text-muted-foreground pl-7 whitespace-pre-line">
-                {application.fee_structure}
-              </p>
-            </div>
-          </>
-        )}
-
-        {/* Application Steps */}
-        {application.application_steps && (
-          <>
-            <Separator />
-            <div className="space-y-3">
-              <h3 className="text-lg font-semibold">How to Apply</h3>
-              <p className="text-muted-foreground whitespace-pre-line">
-                {application.application_steps}
-              </p>
-            </div>
-        </>
-        )}
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="pt-2 space-y-2">
+                  {application.application_steps.toLowerCase().includes('not yet released') || 
+                   application.application_steps.toLowerCase().includes('not released') ? (
+                    <div className="p-3 bg-muted/50 rounded-lg mb-3">
+                      <p className="text-sm">
+                        We'll update full steps when the official notice is released. For now, here's what last year's process looked like 👇
+                      </p>
+                    </div>
+                  ) : null}
+                  <div className="text-sm leading-relaxed whitespace-pre-line">
+                    {application.application_steps}
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          )}
+        </Accordion>
       </CardContent>
 
       {/* Eligibility Quiz Dialog */}
