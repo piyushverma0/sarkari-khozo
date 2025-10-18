@@ -29,8 +29,8 @@ const Application = () => {
       if (!id) {
         toast({
           variant: "destructive",
-          title: "Error",
-          description: "No application data found.",
+          title: "Program Not Saved",
+          description: "This program hasn't been tracked yet. Please track it first to save it permanently.",
         });
         navigate("/");
         setIsLoading(false);
@@ -47,7 +47,7 @@ const Application = () => {
         if (error) throw error;
 
         if (!data) {
-          throw new Error("Application not found");
+          throw new Error("Program not found in your saved applications");
         }
 
         setApplication(data);

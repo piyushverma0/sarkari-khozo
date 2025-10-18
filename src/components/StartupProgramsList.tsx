@@ -39,6 +39,7 @@ const StartupProgramsList = ({
   searchQuery,
   onModifySearch,
 }: StartupProgramsListProps) => {
+  const [allPrograms, setAllPrograms] = useState<Program[]>(programs);
   const [filteredPrograms, setFilteredPrograms] = useState<Program[]>(programs);
   const [selectedStage, setSelectedStage] = useState<string>("all");
   const [selectedSector, setSelectedSector] = useState<string>("all");
@@ -51,7 +52,7 @@ const StartupProgramsList = ({
 
   // Update filtered programs when filters change
   useState(() => {
-    let filtered = [...programs];
+    let filtered = [...allPrograms];
 
     // Apply filters
     if (selectedStage !== "all") {
@@ -150,25 +151,41 @@ const StartupProgramsList = ({
 
       const programsToTrack = filteredPrograms.filter(p => selectedPrograms.has(p.title));
       
-      for (const program of programsToTrack) {
-        await supabase.from('applications').insert({
-          user_id: user.id,
-          title: program.title,
-          description: program.description,
-          url: program.url,
-          category: 'Startups',
-          program_type: program.program_type,
-          funding_amount: program.funding_amount,
-          sector: program.sector,
-          stage: program.stage,
-          state_specific: program.state_specific,
-          success_rate: program.success_rate,
-          dpiit_required: program.dpiit_required,
-          important_dates: program.important_dates,
-          eligibility: program.eligibility,
-          documents_required: program.documents_required,
-        });
-      }
+      const programsToInsert = programsToTrack.map(program => ({
+        user_id: user.id,
+        title: program.title,
+        description: program.description,
+        url: program.url,
+        category: 'Startups',
+        program_type: program.program_type,
+        funding_amount: program.funding_amount,
+        sector: program.sector,
+        stage: program.stage,
+        state_specific: program.state_specific,
+        success_rate: program.success_rate,
+        dpiit_required: program.dpiit_required,
+        important_dates: program.important_dates,
+        eligibility: program.eligibility,
+        documents_required: program.documents_required,
+      }));
+
+      const { data: insertedPrograms, error } = await supabase
+        .from('applications')
+        .insert(programsToInsert)
+        .select('id, title');
+
+      if (error) throw error;
+
+      // Create a map of title → database ID
+      const idMap = new Map(insertedPrograms?.map(app => [app.title, app.id]) || []);
+
+      // Update local programs array with database IDs
+      const updatedPrograms = allPrograms.map(p => 
+        selectedPrograms.has(p.title) && idMap.has(p.title)
+          ? { ...p, id: idMap.get(p.title) }
+          : p
+      );
+      setAllPrograms(updatedPrograms);
 
       toast({
         title: 'Programs Tracked',
@@ -186,7 +203,13 @@ const StartupProgramsList = ({
   };
 
   const handleViewDetails = (program: Program) => {
-    navigate('/application', { state: { application: program } });
+    if (program.id) {
+      // Tracked program - use database route (persists across refreshes)
+      navigate(`/application/${program.id}`);
+    } else {
+      // Untracked program - use state (for preview only, won't survive refresh)
+      navigate('/application', { state: { application: program } });
+    }
   };
 
   const activeFiltersCount = 
