@@ -13,21 +13,54 @@ export const useTextToSpeech = () => {
     setIsSupported('speechSynthesis' in window);
   }, []);
 
+  const waitForVoices = (): Promise<SpeechSynthesisVoice[]> => {
+    return new Promise((resolve) => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        resolve(voices);
+        return;
+      }
+      
+      // Voices not loaded yet, wait for the event
+      window.speechSynthesis.onvoiceschanged = () => {
+        resolve(window.speechSynthesis.getVoices());
+      };
+      
+      // Fallback timeout after 2 seconds
+      setTimeout(() => {
+        resolve(window.speechSynthesis.getVoices());
+      }, 2000);
+    });
+  };
+
   const getVoiceForLanguage = useCallback((lang: Language): SpeechSynthesisVoice | null => {
     const voices = window.speechSynthesis.getVoices();
+    
+    console.log(`Available voices: ${voices.length}`, voices.map(v => v.lang));
     
     let voicePrefix = 'en-IN';
     if (lang === 'hi') voicePrefix = 'hi-IN';
     if (lang === 'kn') voicePrefix = 'kn-IN';
 
-    // Try to find a voice matching the language
-    const voice = voices.find(v => v.lang.startsWith(voicePrefix));
+    // Try exact match first
+    let voice = voices.find(v => v.lang === voicePrefix);
     
-    // Fallback to any voice containing the language code
-    return voice || voices.find(v => v.lang.includes(lang.toUpperCase())) || null;
+    // Try prefix match
+    if (!voice) {
+      voice = voices.find(v => v.lang.startsWith(voicePrefix.split('-')[0]));
+    }
+    
+    // Fallback to first available voice
+    if (!voice && voices.length > 0) {
+      console.warn(`No ${voicePrefix} voice found, using default`);
+      voice = voices[0];
+    }
+    
+    console.log(`Selected voice for ${lang}:`, voice?.name, voice?.lang);
+    return voice || null;
   }, []);
 
-  const speak = useCallback((text: string, lang: Language = 'en', sectionId?: string) => {
+  const speak = useCallback(async (text: string, lang: Language = 'en', sectionId?: string) => {
     if (!isSupported) {
       console.warn('Text-to-speech is not supported in this browser');
       return;
@@ -35,6 +68,10 @@ export const useTextToSpeech = () => {
 
     // Stop any ongoing speech
     window.speechSynthesis.cancel();
+
+    // Wait for voices to be loaded
+    await waitForVoices();
+    console.log('Voices loaded, starting speech...');
 
     // For very long text (over 4000 characters), split into chunks
     const MAX_LENGTH = 4000;
@@ -98,7 +135,7 @@ export const useTextToSpeech = () => {
       };
 
       utterance.onerror = (event) => {
-        console.error('Speech synthesis error:', event);
+        console.error('Speech synthesis error:', event.error, event);
         setIsSpeaking(false);
         setIsPaused(false);
         setCurrentSection(null);

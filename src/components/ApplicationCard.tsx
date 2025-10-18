@@ -131,7 +131,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
       if (error) throw error;
 
       if (data?.summary) {
-        speak(data.summary, currentLanguage, 'full-summary');
+        await speak(data.summary, currentLanguage, 'full-summary');
       } else {
         throw new Error('No summary generated');
       }
