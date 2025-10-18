@@ -43,16 +43,12 @@ const CategoriesSection = ({ user, onAuthRequired }: CategoriesSectionProps) => 
         
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {categories.map((category, index) => (
-            <div 
-              key={index} 
+            <CategoryCard
+              key={index}
+              icon={category.icon}
+              title={category.title}
               onClick={() => handleCategoryClick(category.slug)}
-              className="cursor-pointer"
-            >
-              <CategoryCard
-                icon={category.icon}
-                title={category.title}
-              />
-            </div>
+            />
           ))}
         </div>
       </div>
