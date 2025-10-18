@@ -127,12 +127,12 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between gap-4 mb-3">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <CardTitle className="text-3xl">{application.title}</CardTitle>
+            <div className="flex items-center gap-2 mb-3">
+              <CardTitle className="text-4xl">{application.title}</CardTitle>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               {application.category && (
-                <Badge variant="secondary" className="text-sm">{application.category}</Badge>
+                <Badge variant="secondary" className="text-base px-3 py-1">{application.category}</Badge>
               )}
               {getStatusBadge()}
             </div>
@@ -179,7 +179,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
         </div>
 
         {application.description && (
-          <CardDescription className="text-base leading-relaxed">
+          <CardDescription className="text-lg leading-relaxed">
             {application.description}
           </CardDescription>
         )}
@@ -218,9 +218,9 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           {/* Important Dates - Open by default */}
           {importantDates && Object.keys(importantDates).length > 0 && (
             <AccordionItem value="dates">
-              <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+              <AccordionTrigger className="text-xl font-semibold hover:no-underline">
                 <div className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-primary" />
+                  <Calendar className="w-6 h-6 text-primary" />
                   Key Dates
                 </div>
               </AccordionTrigger>
@@ -228,10 +228,10 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
                 <div className="space-y-3 pt-2">
                   {Object.entries(importantDates).map(([key, value]) => (
                     <div key={key} className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-                      <span className="text-sm font-medium capitalize">
+                      <span className="text-base font-medium capitalize">
                         {key.replace(/_/g, ' ').replace(/date/i, '').trim()}
                       </span>
-                      <span className="text-sm font-semibold">{value as string}</span>
+                      <span className="text-base font-semibold">{value as string}</span>
                     </div>
                   ))}
                   {deadlineReminders && deadlineReminders.length > 0 && (
@@ -250,9 +250,9 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           {/* Eligibility - Open by default */}
           {application.eligibility && (
             <AccordionItem value="eligibility">
-              <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+              <AccordionTrigger className="text-xl font-semibold hover:no-underline">
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-primary" />
+                  <CheckCircle2 className="w-6 h-6 text-primary" />
                   Quick Eligibility Snapshot
                 </div>
               </AccordionTrigger>
@@ -264,20 +264,20 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
                       <div className="flex items-start gap-2">
                         <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="text-sm font-medium">Eligibility details will be officially announced soon</p>
-                          <p className="text-sm text-muted-foreground mt-1">
+                          <p className="text-base font-medium">Eligibility details will be officially announced soon</p>
+                          <p className="text-base text-muted-foreground mt-1">
                             Here's what we expect based on previous years 👇
                           </p>
                         </div>
                       </div>
                     </div>
                   ) : null}
-                  <div className="space-y-2 text-sm leading-relaxed whitespace-pre-line">
+                  <div className="space-y-2 text-base leading-relaxed whitespace-pre-line">
                     {application.eligibility.split('\n').map((line, idx) => {
                       if (line.trim().startsWith('•') || line.trim().startsWith('-')) {
                         return (
                           <div key={idx} className="flex items-start gap-2 p-2 rounded hover:bg-muted/50">
-                            <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                            <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
                             <span>{line.replace(/^[•-]\s*/, '')}</span>
                           </div>
                         );
@@ -301,9 +301,9 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           {/* Documents - Collapsed by default */}
           {documentsRequired && documentsRequired.length > 0 && (
             <AccordionItem value="documents">
-              <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+              <AccordionTrigger className="text-xl font-semibold hover:no-underline">
                 <div className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-primary" />
+                  <FileText className="w-6 h-6 text-primary" />
                   Keep These Ready 📂
                 </div>
               </AccordionTrigger>
@@ -316,9 +316,9 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
                         <Badge
                           key={index}
                           variant="outline"
-                          className="py-2 px-3 text-sm gap-2 hover:bg-muted"
+                          className="py-2 px-4 text-base gap-2 hover:bg-muted"
                         >
-                          <DocIcon className="w-4 h-4" />
+                          <DocIcon className="w-5 h-5" />
                           {doc}
                         </Badge>
                       );
@@ -332,9 +332,9 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           {/* Fee Structure - Collapsed by default */}
           {application.fee_structure && (
             <AccordionItem value="fees">
-              <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+              <AccordionTrigger className="text-xl font-semibold hover:no-underline">
                 <div className="flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-primary" />
+                  <DollarSign className="w-6 h-6 text-primary" />
                   Fees Summary 💰
                 </div>
               </AccordionTrigger>
@@ -343,12 +343,12 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
                   {application.fee_structure.toLowerCase().includes('not yet released') || 
                    application.fee_structure.toLowerCase().includes('not released') ? (
                     <div className="p-3 bg-muted/50 rounded-lg mb-3">
-                      <p className="text-sm">
+                      <p className="text-base">
                         Exact fees coming soon — but here's last year's pattern so you can plan ahead 💰
                       </p>
                     </div>
                   ) : null}
-                  <div className="text-sm leading-relaxed whitespace-pre-line">
+                  <div className="text-base leading-relaxed whitespace-pre-line">
                     {application.fee_structure}
                   </div>
                 </div>
@@ -359,9 +359,9 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           {/* Application Steps - Collapsed by default */}
           {application.application_steps && (
             <AccordionItem value="steps">
-              <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+              <AccordionTrigger className="text-xl font-semibold hover:no-underline">
                 <div className="flex items-center gap-2">
-                  <ClipboardList className="w-5 h-5 text-primary" />
+                  <ClipboardList className="w-6 h-6 text-primary" />
                   How to Apply
                 </div>
               </AccordionTrigger>
@@ -370,12 +370,12 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
                   {application.application_steps.toLowerCase().includes('not yet released') || 
                    application.application_steps.toLowerCase().includes('not released') ? (
                     <div className="p-3 bg-muted/50 rounded-lg mb-3">
-                      <p className="text-sm">
+                      <p className="text-base">
                         We'll update full steps when the official notice is released. For now, here's what last year's process looked like 👇
                       </p>
                     </div>
                   ) : null}
-                  <div className="text-sm leading-relaxed whitespace-pre-line">
+                  <div className="text-base leading-relaxed whitespace-pre-line">
                     {application.application_steps}
                   </div>
                 </div>
