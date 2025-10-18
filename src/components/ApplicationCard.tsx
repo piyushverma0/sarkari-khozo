@@ -29,6 +29,7 @@ import {
 import EligibilityQuiz from "./EligibilityQuiz";
 import DeadlineCountdown from "./DeadlineCountdown";
 import ReminderDialog from "./ReminderDialog";
+import HowToApplySection from "./HowToApplySection";
 
 interface ApplicationData {
   id?: string;
@@ -481,19 +482,10 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
                 </div>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="pt-2 space-y-2">
-                  {application.application_steps.toLowerCase().includes('not yet released') || 
-                   application.application_steps.toLowerCase().includes('not released') ? (
-                    <div className="p-3 bg-muted/50 rounded-lg mb-3">
-                      <p className="text-base">
-                        We'll update full steps when the official notice is released. For now, here's what last year's process looked like 👇
-                      </p>
-                    </div>
-                  ) : null}
-                  <div className="text-base leading-relaxed whitespace-pre-line">
-                    {application.application_steps}
-                  </div>
-                </div>
+                <HowToApplySection 
+                  applicationSteps={application.application_steps}
+                  applicationUrl={application.url}
+                />
               </AccordionContent>
             </AccordionItem>
           )}
