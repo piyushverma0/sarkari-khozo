@@ -1,8 +1,11 @@
-import { Search } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { User } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface HeroSectionProps {
   user: User | null;
@@ -10,15 +13,80 @@ interface HeroSectionProps {
 }
 
 const HeroSection = ({ user, onAuthRequired }: HeroSectionProps) => {
+  const [query, setQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  const handleClick = () => {
+  const handleTrackApplication = async () => {
     if (!user) {
       toast({
         title: "Authentication Required",
         description: "Please sign in to track applications.",
       });
       onAuthRequired();
+      return;
+    }
+
+    if (!query.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Query Required",
+        description: "Please enter an exam, job, or scheme name.",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('process-query', {
+        body: { query: query.trim() }
+      });
+
+      if (error) throw error;
+
+      if (!data) {
+        throw new Error("No data returned from the AI");
+      }
+
+      // Save to database
+      const { data: savedApp, error: saveError } = await supabase
+        .from('applications')
+        .insert({
+          user_id: user.id,
+          title: data.title,
+          description: data.description,
+          url: data.url,
+          category: data.category || null,
+          important_dates: data.important_dates || null,
+          eligibility: data.eligibility || null,
+          application_steps: data.application_steps || null,
+          documents_required: data.documents_required || null,
+          fee_structure: data.fee_structure || null,
+          deadline_reminders: data.deadline_reminders || null,
+        })
+        .select()
+        .single();
+
+      if (saveError) throw saveError;
+
+      toast({
+        title: "Application Tracked!",
+        description: "Your application has been saved successfully.",
+      });
+
+      // Navigate to application detail page
+      navigate(`/application/${savedApp.id}`);
+    } catch (error: any) {
+      console.error("Error tracking application:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to track application. Please try again.",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -39,18 +107,29 @@ const HeroSection = ({ user, onAuthRequired }: HeroSectionProps) => {
             <Input 
               placeholder='Enter exam, job, or scheme name... e.g., "SSC CGL 2024" or "PM Kisan Yojana"'
               className="pl-12 h-14 text-base bg-input/50 border-border/50 focus-visible:ring-primary"
-              disabled={!user}
-              onClick={!user ? handleClick : undefined}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleTrackApplication()}
+              disabled={!user || isLoading}
             />
           </div>
           
           <Button 
             size="lg" 
             className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 text-primary-foreground"
-            onClick={handleClick}
-            disabled={!user}
+            onClick={handleTrackApplication}
+            disabled={!user || isLoading}
           >
-            {user ? "Track My Application" : "Sign In to Track"}
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Analyzing Your Request...
+              </>
+            ) : user ? (
+              "Track My Application"
+            ) : (
+              "Sign In to Track"
+            )}
           </Button>
         </div>
       </div>
