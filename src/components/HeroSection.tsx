@@ -101,12 +101,12 @@ const HeroSection = ({ user, onAuthRequired }: HeroSectionProps) => {
           Just tell our AI what you're applying for. It will find the form, extract the details, and create a trackable card for you. Never miss a deadline again.
         </p>
 
-        <div className="glass-card rounded-2xl p-8 max-w-3xl mx-auto shadow-[var(--shadow-card)]">
+        <div className="glass-card rounded-2xl p-8 max-w-3xl mx-auto shadow-[var(--shadow-card)] border-2 border-primary/20 bg-card/40">
           <div className="relative mb-4">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input 
               placeholder='Enter exam, job, or scheme name... e.g., "SSC CGL 2024" or "PM Kisan Yojana"'
-              className="pl-12 h-14 text-base bg-input/50 border-border/50 focus-visible:ring-primary"
+              className="pl-12 h-14 text-base bg-background/80 border-2 border-primary/30 focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary/50 transition-all duration-200"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleTrackApplication()}
@@ -116,7 +116,7 @@ const HeroSection = ({ user, onAuthRequired }: HeroSectionProps) => {
           
           <Button 
             size="lg" 
-            className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 text-primary-foreground"
+            className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02]"
             onClick={handleTrackApplication}
             disabled={!user || isLoading}
           >
