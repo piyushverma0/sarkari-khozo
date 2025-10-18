@@ -104,7 +104,30 @@ Return ONLY valid JSON with this structure (no markdown, no backticks, just the 
     try {
       // Remove markdown code blocks if present
       const cleanedContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      programs = JSON.parse(cleanedContent);
+      const rawPrograms = JSON.parse(cleanedContent);
+      
+      // Transform field names to match frontend expectations
+      programs = rawPrograms.map((program: any) => ({
+        ...program,
+        // Convert eligible_stages array to stage string
+        stage: Array.isArray(program.eligible_stages) 
+          ? program.eligible_stages.join(', ') 
+          : program.eligible_stages,
+        // Convert eligible_sectors to sector
+        sector: Array.isArray(program.eligible_sectors)
+          ? program.eligible_sectors.join(', ')
+          : program.eligible_sectors,
+        // Add category field
+        category: 'Startups',
+        // Parse deadline into important_dates format if it exists
+        important_dates: program.deadline ? {
+          application_end: program.deadline === 'Rolling' ? null : program.deadline
+        } : null,
+        // Remove old field names to avoid confusion
+        eligible_stages: undefined,
+        eligible_sectors: undefined,
+        deadline: undefined,
+      }));
     } catch (parseError) {
       console.error('Failed to parse AI response:', content);
       throw new Error('Failed to parse AI response as JSON');
