@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import SavedApplicationCard from "./SavedApplicationCard";
-import { Loader2, FolderOpen } from "lucide-react";
+import { SavedApplicationSkeleton } from "./SkeletonLoader";
+import { FolderOpen } from "lucide-react";
 
 interface SavedApplicationsSectionProps {
   userId: string;
@@ -92,8 +93,10 @@ const SavedApplicationsSection = ({ userId }: SavedApplicationsSectionProps) => 
       <section className="py-16 px-4 bg-gradient-to-b from-transparent to-background/50">
         <div className="container mx-auto max-w-4xl">
           <h2 className="text-3xl font-bold mb-8">Your Saved Applications</h2>
-          <div className="flex items-center justify-center min-h-[200px]">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <div className="space-y-4">
+            <SavedApplicationSkeleton />
+            <SavedApplicationSkeleton />
+            <SavedApplicationSkeleton />
           </div>
         </div>
       </section>

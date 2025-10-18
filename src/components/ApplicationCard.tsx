@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, ClipboardCheck } from "lucide-react";
 import { Calendar, FileText, DollarSign, ClipboardList, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import EligibilityQuiz from "./EligibilityQuiz";
+import DeadlineCountdown from "./DeadlineCountdown";
 
 interface ApplicationData {
   id?: string;
@@ -40,6 +48,7 @@ interface ApplicationCardProps {
 
 const ApplicationCard = ({ application }: ApplicationCardProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -174,7 +183,11 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
             <Separator />
             <div className="space-y-3">
               <h3 className="text-lg font-semibold">Deadline Reminders</h3>
-              <div className="space-y-2">
+              <DeadlineCountdown 
+                importantDates={importantDates} 
+                reminders={deadlineReminders}
+              />
+              <div className="space-y-2 mt-4">
                 {deadlineReminders.map((reminder: any, index: number) => (
                   <div key={index} className="p-3 bg-muted rounded-lg">
                     <p className="text-sm font-medium">{reminder.days_before} days before</p>
@@ -191,9 +204,19 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           <>
             <Separator />
             <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <ClipboardList className="w-5 h-5 text-primary" />
-                <h3 className="text-lg font-semibold">Eligibility Criteria</h3>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5 text-primary" />
+                  <h3 className="text-lg font-semibold">Eligibility Criteria</h3>
+                </div>
+                <Button
+                  onClick={() => setShowQuiz(true)}
+                  variant="outline"
+                  size="sm"
+                >
+                  <ClipboardCheck className="w-4 h-4 mr-2" />
+                  Check Eligibility
+                </Button>
               </div>
               <p className="text-muted-foreground pl-7 whitespace-pre-line">
                 {application.eligibility}
@@ -249,9 +272,24 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
                 {application.application_steps}
               </p>
             </div>
-          </>
+        </>
         )}
       </CardContent>
+
+      {/* Eligibility Quiz Dialog */}
+      <Dialog open={showQuiz} onOpenChange={setShowQuiz}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Eligibility Check</DialogTitle>
+          </DialogHeader>
+          {application.eligibility && (
+            <EligibilityQuiz
+              eligibility={application.eligibility}
+              onClose={() => setShowQuiz(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

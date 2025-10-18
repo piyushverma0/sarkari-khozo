@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import ApplicationCard from "@/components/ApplicationCard";
+import { ApplicationCardSkeleton } from "@/components/SkeletonLoader";
 
 const Application = () => {
   const { id } = useParams();
@@ -53,8 +54,16 @@ const Application = () => {
       <div className="min-h-screen bg-background">
         <Header />
         <main className="pt-24 pb-16 px-4">
-          <div className="container mx-auto max-w-4xl flex items-center justify-center min-h-[400px]">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <div className="container mx-auto max-w-4xl">
+            <Button
+              variant="ghost"
+              className="mb-6"
+              onClick={() => navigate("/")}
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Home
+            </Button>
+            <ApplicationCardSkeleton />
           </div>
         </main>
       </div>

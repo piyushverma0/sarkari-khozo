@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import SchemesList from "@/components/SchemesList";
+import { SchemeCardSkeleton } from "@/components/SkeletonLoader";
 import type { User } from "@supabase/supabase-js";
 
 const categoryTitles: Record<string, string> = {
@@ -99,11 +100,15 @@ const Category = () => {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Home
             </Button>
-            <div className="flex items-center justify-center min-h-[400px]">
-              <div className="text-center space-y-4">
-                <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
-                <p className="text-muted-foreground">Finding relevant schemes...</p>
-              </div>
+            <div className="mb-8">
+              <div className="h-10 w-64 bg-muted animate-pulse rounded mb-3" />
+              <div className="h-6 w-96 bg-muted animate-pulse rounded" />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <SchemeCardSkeleton />
+              <SchemeCardSkeleton />
+              <SchemeCardSkeleton />
+              <SchemeCardSkeleton />
             </div>
           </div>
         </main>
