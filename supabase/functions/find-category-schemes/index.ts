@@ -27,11 +27,11 @@ serve(async (req) => {
 
     console.log('Finding schemes for category:', category);
 
-    const prompt = `You are an expert researcher on Indian government schemes, applications, exams, and job opportunities.
+    const prompt = `You are an expert on Indian government schemes, applications, exams, and job opportunities.
 
 Category: "${category}"
 
-Your task: Find 4-6 of the most important, popular, and currently active official Indian government schemes, exams, jobs, or applications for this category.
+Task: Return 4-6 of the most important, popular, and currently active official Indian government schemes, exams, jobs, or applications for this category.
 
 Focus on:
 - Official government schemes (.gov.in domains preferred)
@@ -39,7 +39,7 @@ Focus on:
 - High-impact schemes that many people use
 - Mix of different types (scholarships, welfare schemes, exams, jobs)
 
-Return a JSON array with this exact structure:
+IMPORTANT: Return ONLY a valid JSON array, nothing else. Use this exact structure:
 [
   {
     "title": "Official name of the scheme/exam/job",
@@ -48,7 +48,7 @@ Return a JSON array with this exact structure:
   }
 ]
 
-Return 4-6 quality results. Verify URLs are official and active.`;
+Return 4-6 quality results with official URLs.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -61,20 +61,6 @@ Return 4-6 quality results. Verify URLs are official and active.`;
         messages: [
           { role: 'user', content: prompt }
         ],
-        tools: [{
-          type: 'function',
-          function: {
-            name: 'web_search',
-            description: 'Search the web for government schemes',
-            parameters: {
-              type: 'object',
-              properties: {
-                query: { type: 'string', description: 'Search query' }
-              },
-              required: ['query']
-            }
-          }
-        }],
         temperature: 0.3,
       }),
     });
