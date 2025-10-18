@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CheckCircle2, XCircle, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -46,9 +46,9 @@ const StartupEligibilityQuiz = ({
   const { toast } = useToast();
 
   // Generate quiz questions on mount
-  useState(() => {
+  useEffect(() => {
     generateQuiz();
-  });
+  }, []);
 
   const generateQuiz = async () => {
     setIsLoading(true);
