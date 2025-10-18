@@ -153,7 +153,7 @@ const EligibilityQuiz = ({ eligibility, onClose }: EligibilityQuizProps) => {
             <span>Question {currentQuestionIndex + 1} of {questions.length}</span>
             <span>{Math.round(progress)}% Complete</span>
           </div>
-          <Progress value={progress} className="h-2" />
+          <Progress value={progress} className="h-2 [&>div]:bg-gradient-to-r [&>div]:from-green-500 [&>div]:to-emerald-600" />
         </div>
         <CardTitle className="text-xl mt-4">{currentQuestion.question}</CardTitle>
         {currentQuestion.requirement && (
