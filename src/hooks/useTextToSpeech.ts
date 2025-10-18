@@ -36,39 +36,79 @@ export const useTextToSpeech = () => {
     // Stop any ongoing speech
     window.speechSynthesis.cancel();
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    // For very long text (over 4000 characters), split into chunks
+    const MAX_LENGTH = 4000;
+    const chunks: string[] = [];
     
-    // Set voice based on language
-    const voice = getVoiceForLanguage(lang);
-    if (voice) {
-      utterance.voice = voice;
+    if (text.length > MAX_LENGTH) {
+      // Split by sentences to maintain natural flow
+      const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+      let currentChunk = '';
+      
+      sentences.forEach(sentence => {
+        if ((currentChunk + sentence).length > MAX_LENGTH) {
+          if (currentChunk) chunks.push(currentChunk.trim());
+          currentChunk = sentence;
+        } else {
+          currentChunk += sentence;
+        }
+      });
+      
+      if (currentChunk) chunks.push(currentChunk.trim());
+    } else {
+      chunks.push(text);
     }
-    
-    utterance.lang = lang === 'hi' ? 'hi-IN' : lang === 'kn' ? 'kn-IN' : 'en-IN';
-    utterance.rate = 0.9; // Slightly slower for clarity
-    utterance.pitch = 1;
-    utterance.volume = 1;
 
-    utterance.onstart = () => {
-      setIsSpeaking(true);
-      setIsPaused(false);
-      if (sectionId) setCurrentSection(sectionId);
+    let currentChunkIndex = 0;
+
+    const speakChunk = (chunkText: string, isFirst: boolean, isLast: boolean) => {
+      const utterance = new SpeechSynthesisUtterance(chunkText);
+      
+      // Set voice based on language
+      const voice = getVoiceForLanguage(lang);
+      if (voice) {
+        utterance.voice = voice;
+      }
+      
+      utterance.lang = lang === 'hi' ? 'hi-IN' : lang === 'kn' ? 'kn-IN' : 'en-IN';
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+
+      if (isFirst) {
+        utterance.onstart = () => {
+          setIsSpeaking(true);
+          setIsPaused(false);
+          if (sectionId) setCurrentSection(sectionId);
+        };
+      }
+
+      utterance.onend = () => {
+        if (isLast) {
+          setIsSpeaking(false);
+          setIsPaused(false);
+          setCurrentSection(null);
+        } else {
+          // Speak next chunk
+          currentChunkIndex++;
+          if (currentChunkIndex < chunks.length) {
+            speakChunk(chunks[currentChunkIndex], false, currentChunkIndex === chunks.length - 1);
+          }
+        }
+      };
+
+      utterance.onerror = (event) => {
+        console.error('Speech synthesis error:', event);
+        setIsSpeaking(false);
+        setIsPaused(false);
+        setCurrentSection(null);
+      };
+
+      window.speechSynthesis.speak(utterance);
     };
 
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      setIsPaused(false);
-      setCurrentSection(null);
-    };
-
-    utterance.onerror = (event) => {
-      console.error('Speech synthesis error:', event);
-      setIsSpeaking(false);
-      setIsPaused(false);
-      setCurrentSection(null);
-    };
-
-    window.speechSynthesis.speak(utterance);
+    // Start speaking the first chunk
+    speakChunk(chunks[0], true, chunks.length === 1);
   }, [isSupported, getVoiceForLanguage]);
 
   const pause = useCallback(() => {

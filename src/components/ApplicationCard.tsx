@@ -65,7 +65,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
 
   // Translation and Audio hooks
   const { currentLanguage, changeLanguage, translateText, isTranslating, getLanguageLabel } = useTranslation();
-  const { speak, pause, resume, stop, isSpeaking, isPaused, currentSection, isSupported: isAudioSupported } = useTextToSpeech();
+  const { speak, pause, resume, stop, isSpeaking, isPaused } = useTextToSpeech();
 
   // Translated content state
   const [translatedTitle, setTranslatedTitle] = useState(application.title);
@@ -73,6 +73,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
   const [translatedEligibility, setTranslatedEligibility] = useState(application.eligibility || '');
   const [translatedFeeStructure, setTranslatedFeeStructure] = useState(application.fee_structure || '');
   const [translatedApplicationSteps, setTranslatedApplicationSteps] = useState(application.application_steps || '');
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
   // Translate content when language changes
   useEffect(() => {
@@ -106,11 +107,43 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
     translateContent();
   }, [currentLanguage, application, translateText]);
 
-  const handleSpeakSection = (text: string, sectionId: string) => {
-    if (currentSection === sectionId && isSpeaking) {
-      stop();
-    } else {
-      speak(text, currentLanguage, sectionId);
+  const handlePlayFullSummary = async () => {
+    setIsGeneratingSummary(true);
+    stop(); // Stop any ongoing speech
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-audio-summary', {
+        body: {
+          application: {
+            title: translatedTitle,
+            description: translatedDescription,
+            category: application.category,
+            eligibility: translatedEligibility,
+            documents_required: documentsRequired,
+            fee_structure: translatedFeeStructure,
+            important_dates: importantDates,
+            application_steps: translatedApplicationSteps,
+          },
+          language: currentLanguage,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.summary) {
+        speak(data.summary, currentLanguage, 'full-summary');
+      } else {
+        throw new Error('No summary generated');
+      }
+    } catch (error: any) {
+      console.error('Error generating audio summary:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to generate audio summary. Please try again.',
+      });
+    } finally {
+      setIsGeneratingSummary(false);
     }
   };
 
@@ -237,10 +270,11 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           onLanguageChange={changeLanguage}
           isSpeaking={isSpeaking}
           isPaused={isPaused}
+          isGeneratingSummary={isGeneratingSummary}
+          onPlayFullSummary={handlePlayFullSummary}
           onPause={pause}
           onResume={resume}
           onStop={stop}
-          isAudioSupported={isAudioSupported}
           getLanguageLabel={getLanguageLabel}
         />
 
@@ -442,22 +476,9 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           {application.eligibility && (
             <AccordionItem value="eligibility">
               <AccordionTrigger className="text-xl font-semibold hover:no-underline">
-                <div className="flex items-center gap-2 flex-1">
+                <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-6 h-6 text-primary" />
                   Quick Eligibility Snapshot
-                  {isAudioSupported && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="ml-auto"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSpeakSection(translatedEligibility, 'eligibility');
-                      }}
-                    >
-                      <Volume2 className={`w-4 h-4 ${currentSection === 'eligibility' && isSpeaking ? 'text-primary animate-pulse' : ''}`} />
-                    </Button>
-                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent>
@@ -545,22 +566,9 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           {application.fee_structure && (
             <AccordionItem value="fees">
               <AccordionTrigger className="text-xl font-semibold hover:no-underline">
-                <div className="flex items-center gap-2 flex-1">
+                <div className="flex items-center gap-2">
                   <DollarSign className="w-6 h-6 text-primary" />
                   Fees Summary 💰
-                  {isAudioSupported && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="ml-auto"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSpeakSection(translatedFeeStructure, 'fees');
-                      }}
-                    >
-                      <Volume2 className={`w-4 h-4 ${currentSection === 'fees' && isSpeaking ? 'text-primary animate-pulse' : ''}`} />
-                    </Button>
-                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent>
@@ -594,22 +602,9 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           {application.application_steps && (
             <AccordionItem value="steps">
               <AccordionTrigger className="text-xl font-semibold hover:no-underline">
-                <div className="flex items-center gap-2 flex-1">
+                <div className="flex items-center gap-2">
                   <ClipboardList className="w-6 h-6 text-primary" />
                   How to Apply
-                  {isAudioSupported && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="ml-auto"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSpeakSection(translatedApplicationSteps, 'steps');
-                      }}
-                    >
-                      <Volume2 className={`w-4 h-4 ${currentSection === 'steps' && isSpeaking ? 'text-primary animate-pulse' : ''}`} />
-                    </Button>
-                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent>
