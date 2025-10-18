@@ -958,73 +958,74 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
         </Accordion>
 
         {/* Quick Checklist Section - Outside Accordion */}
-        <div className="mt-8 mx-6 mb-6">
-          <div className="border rounded-xl p-5 bg-slate-800/40 backdrop-blur-sm shadow-lg">
-            <h4 className="font-semibold text-lg mb-4 flex items-center gap-2">
-              <FileCheck className="w-6 h-6 text-primary" />
-              Quick Checklist — Keep These Ready
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-700/50 hover:border-primary/30 transition-colors">
-                <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
-                <span className="text-sm flex items-center gap-2">
-                  <IdCard className="w-4 h-4" />
-                  Aadhaar Card
-                </span>
-              </div>
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-700/50 hover:border-primary/30 transition-colors">
-                <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
-                <span className="text-sm flex items-center gap-2">
-                  <CreditCard className="w-4 h-4" />
-                  Bank Account
-                </span>
-              </div>
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-700/50 hover:border-primary/30 transition-colors">
-                <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
-                <span className="text-sm flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Required Documents
-                </span>
-              </div>
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-700/50 hover:border-primary/30 transition-colors">
-                <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
-                <span className="text-sm flex items-center gap-2">
-                  <Smartphone className="w-4 h-4" />
-                  Mobile (Aadhaar-linked)
-                </span>
+        {documentsRequired && documentsRequired.length > 0 && (
+          <div className="mt-8 mx-6 mb-6">
+            <div className="border rounded-xl p-5 bg-slate-800/40 backdrop-blur-sm shadow-lg">
+              <h4 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                <FileCheck className="w-6 h-6 text-primary" />
+                Quick Checklist — Keep These Ready
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {documentsRequired.map((doc: string, index: number) => {
+                  const DocIcon = getDocIcon(doc);
+                  return (
+                    <div 
+                      key={index}
+                      className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-700/50 hover:border-primary/30 transition-colors"
+                    >
+                      <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
+                      <span className="text-sm flex items-center gap-2">
+                        <DocIcon className="w-4 h-4" />
+                        {doc}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Need Help Section - Outside Accordion */}
-        <div className="mx-6 mb-8">
-          <div className="border rounded-xl p-5 bg-slate-800/40 backdrop-blur-sm shadow-lg">
-            <h4 className="font-semibold text-lg mb-2 flex items-center gap-2">
-              💬 Need Help?
-            </h4>
-            <p className="text-sm text-muted-foreground mb-4">
-              If you face any issues while applying, reach out to the helpline:
-            </p>
-            <div className="space-y-3">
-              {application.application_guidance?.helpline && (
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
-                  <Phone className="w-5 h-5 text-primary flex-shrink-0" />
-                  <span className="text-sm">Helpline: <strong>{application.application_guidance.helpline}</strong></span>
-                </div>
-              )}
-              {application.application_guidance?.email && (
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
-                  <Mail className="w-5 h-5 text-primary flex-shrink-0" />
-                  <span className="text-sm break-all">Email: <strong>{application.application_guidance.email}</strong></span>
-                </div>
-              )}
-              {!application.application_guidance?.helpline && !application.application_guidance?.email && (
-                <p className="text-sm text-muted-foreground">Check official website for contact details</p>
-              )}
+        {(application.application_guidance?.helpline || application.application_guidance?.email || application.url) && (
+          <div className="mx-6 mb-8">
+            <div className="border rounded-xl p-5 bg-slate-800/40 backdrop-blur-sm shadow-lg">
+              <h4 className="font-semibold text-lg mb-2 flex items-center gap-2">
+                💬 Need Help?
+              </h4>
+              <p className="text-sm text-muted-foreground mb-4">
+                If you face any issues while applying, reach out for assistance:
+              </p>
+              <div className="space-y-3">
+                {application.application_guidance?.helpline && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                    <Phone className="w-5 h-5 text-primary flex-shrink-0" />
+                    <span className="text-sm">Helpline: <strong>{application.application_guidance.helpline}</strong></span>
+                  </div>
+                )}
+                {application.application_guidance?.email && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                    <Mail className="w-5 h-5 text-primary flex-shrink-0" />
+                    <span className="text-sm break-all">Email: <strong>{application.application_guidance.email}</strong></span>
+                  </div>
+                )}
+                {!application.application_guidance?.helpline && !application.application_guidance?.email && application.url && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                    <ExternalLink className="w-5 h-5 text-primary flex-shrink-0" />
+                    <a 
+                      href={application.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-sm hover:text-primary transition-colors"
+                    >
+                      Visit <strong>official website</strong> for contact details
+                    </a>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Share Feedback - Bottom of card */}
         {isStartupProgram && (
