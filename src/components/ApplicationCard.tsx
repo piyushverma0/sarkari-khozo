@@ -32,7 +32,6 @@ import ReminderDialog from "./ReminderDialog";
 import HowToApplySection from "./HowToApplySection";
 import LanguageToolbar from "./LanguageToolbar";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface ApplicationData {
@@ -65,7 +64,11 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
 
   // Translation and Audio hooks
   const { currentLanguage, changeLanguage, translateText, isTranslating, getLanguageLabel } = useTranslation();
-  const { speak, pause, resume, stop, isSpeaking, isPaused } = useTextToSpeech();
+  
+  // Audio playback state
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   // Translated content state
   const [translatedTitle, setTranslatedTitle] = useState(application.title);
@@ -109,7 +112,6 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
 
   const handlePlayFullSummary = async () => {
     setIsGeneratingSummary(true);
-    stop(); // Stop any ongoing speech
     
     try {
       const { data, error } = await supabase.functions.invoke('generate-audio-summary', {
@@ -130,10 +132,53 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
 
       if (error) throw error;
 
-      if (data?.summary) {
-        await speak(data.summary, currentLanguage, 'full-summary');
+      if (data?.audioContent) {
+        // Stop any existing audio
+        if (audioElement) {
+          audioElement.pause();
+          audioElement.currentTime = 0;
+        }
+
+        // Convert base64 to audio blob
+        const binaryString = atob(data.audioContent);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const audioBlob = new Blob([bytes], { type: 'audio/mp3' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        
+        // Create HTML5 Audio element
+        const audio = new Audio(audioUrl);
+        
+        audio.onended = () => {
+          setIsPlaying(false);
+          setIsPaused(false);
+          URL.revokeObjectURL(audioUrl);
+        };
+        
+        audio.onerror = (e) => {
+          console.error('Audio playback error:', e);
+          toast({
+            variant: 'destructive',
+            title: 'Playback Error',
+            description: 'Failed to play audio. Please try again.',
+          });
+          setIsPlaying(false);
+          setIsPaused(false);
+        };
+        
+        setAudioElement(audio);
+        await audio.play();
+        setIsPlaying(true);
+        setIsPaused(false);
+        
+        toast({
+          title: 'Playing Summary',
+          description: `Now playing in ${currentLanguage === 'hi' ? 'Hindi' : currentLanguage === 'kn' ? 'Kannada' : 'English'}`,
+        });
       } else {
-        throw new Error('No summary generated');
+        throw new Error('No audio content received');
       }
     } catch (error: any) {
       console.error('Error generating audio summary:', error);
@@ -144,6 +189,31 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
       });
     } finally {
       setIsGeneratingSummary(false);
+    }
+  };
+
+  const handlePause = () => {
+    if (audioElement && isPlaying) {
+      audioElement.pause();
+      setIsPaused(true);
+      setIsPlaying(false);
+    }
+  };
+
+  const handleResume = () => {
+    if (audioElement && isPaused) {
+      audioElement.play();
+      setIsPlaying(true);
+      setIsPaused(false);
+    }
+  };
+
+  const handleStop = () => {
+    if (audioElement) {
+      audioElement.pause();
+      audioElement.currentTime = 0;
+      setIsPlaying(false);
+      setIsPaused(false);
     }
   };
 
@@ -268,13 +338,13 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
         <LanguageToolbar
           currentLanguage={currentLanguage}
           onLanguageChange={changeLanguage}
-          isSpeaking={isSpeaking}
+          isPlaying={isPlaying}
           isPaused={isPaused}
           isGeneratingSummary={isGeneratingSummary}
           onPlayFullSummary={handlePlayFullSummary}
-          onPause={pause}
-          onResume={resume}
-          onStop={stop}
+          onPause={handlePause}
+          onResume={handleResume}
+          onStop={handleStop}
           getLanguageLabel={getLanguageLabel}
         />
 

@@ -13,7 +13,7 @@ type Language = 'en' | 'hi' | 'kn';
 interface LanguageToolbarProps {
   currentLanguage: Language;
   onLanguageChange: (lang: Language) => void;
-  isSpeaking: boolean;
+  isPlaying: boolean;
   isPaused: boolean;
   isGeneratingSummary: boolean;
   onPlayFullSummary: () => void;
@@ -26,7 +26,7 @@ interface LanguageToolbarProps {
 const LanguageToolbar = ({
   currentLanguage,
   onLanguageChange,
-  isSpeaking,
+  isPlaying,
   isPaused,
   isGeneratingSummary,
   onPlayFullSummary,
@@ -75,7 +75,7 @@ const LanguageToolbar = ({
             <Loader2 className="w-4 h-4 animate-spin" />
             Preparing summary...
           </Button>
-        ) : !isSpeaking && !isPaused ? (
+        ) : !isPlaying && !isPaused ? (
           <Button variant="default" size="sm" onClick={onPlayFullSummary} className="gap-2 flex-1 sm:flex-initial">
             <Volume2 className="w-4 h-4" />
             Listen to Full Summary
@@ -97,7 +97,7 @@ const LanguageToolbar = ({
               <StopCircle className="w-4 h-4" />
               Stop
             </Button>
-            {isSpeaking && !isPaused && (
+            {isPlaying && !isPaused && (
               <Badge variant="secondary" className="gap-1 ml-2 hidden sm:flex">
                 <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
                 Playing
