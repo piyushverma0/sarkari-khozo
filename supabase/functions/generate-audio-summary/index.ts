@@ -138,9 +138,18 @@ ${application.application_steps || 'Not specified'}
       throw new Error('Failed to generate audio');
     }
 
-    // Convert audio to base64
+    // Convert audio to base64 in chunks to avoid stack overflow
     const audioBuffer = await ttsResponse.arrayBuffer();
-    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+    const uint8Array = new Uint8Array(audioBuffer);
+    let binaryString = '';
+    const chunkSize = 8192; // Process 8KB at a time
+
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
+      binaryString += String.fromCharCode(...chunk);
+    }
+
+    const base64Audio = btoa(binaryString);
     
     console.log('Audio generated successfully, size:', audioBuffer.byteLength);
 
