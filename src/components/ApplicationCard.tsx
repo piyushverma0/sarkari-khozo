@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Trash2, ClipboardCheck, Bell, Calendar, FileText, DollarSign, ClipboardList, ExternalLink, Clock, CheckCircle2, AlertCircle, GraduationCap, CreditCard, IdCard, User, FileCheck, Save, Edit, X, Volume2, Phone, Mail, Smartphone, TrendingUp, Award, Building, MapPin, Sparkles, GitCompare } from "lucide-react";
+import { Trash2, ClipboardCheck, Bell, Calendar, FileText, DollarSign, ClipboardList, ExternalLink, Clock, CheckCircle2, AlertCircle, GraduationCap, CreditCard, IdCard, User, FileCheck, Save, Edit, X, Volume2, Phone, Mail, Smartphone, TrendingUp, Award, Building, MapPin, Sparkles, GitCompare, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,12 +29,14 @@ import {
 import EligibilityQuiz from "./EligibilityQuiz";
 import StartupEligibilityQuiz from "./StartupEligibilityQuiz";
 import ProgramComparison from "./ProgramComparison";
+import ProgramChatDialog from "./ProgramChatDialog";
 import DeadlineCountdown from "./DeadlineCountdown";
 import ReminderDialog from "./ReminderDialog";
 import HowToApplySection from "./HowToApplySection";
 import LanguageToolbar from "./LanguageToolbar";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Skeleton } from "@/components/ui/skeleton";
+import ReactMarkdown from "react-markdown";
 
 interface ApplicationData {
   id?: string;
@@ -73,6 +75,9 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
   const [editedData, setEditedData] = useState<ApplicationData>(application);
   const [showStartupQuiz, setShowStartupQuiz] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
+  const [showDocumentChecklist, setShowDocumentChecklist] = useState(false);
+  const [documentChecklist, setDocumentChecklist] = useState<string>("");
+  const [isGeneratingChecklist, setIsGeneratingChecklist] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -349,6 +354,35 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
       });
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  const handleGenerateChecklist = async () => {
+    setIsGeneratingChecklist(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-document-checklist', {
+        body: { program: application }
+      });
+
+      if (error) throw error;
+
+      if (data?.checklist) {
+        setDocumentChecklist(data.checklist);
+        setShowDocumentChecklist(true);
+        toast({
+          title: "Checklist Generated",
+          description: "Your personalized document checklist is ready!",
+        });
+      }
+    } catch (error: any) {
+      console.error('Error generating checklist:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to generate document checklist.',
+      });
+    } finally {
+      setIsGeneratingChecklist(false);
     }
   };
 
@@ -687,7 +721,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
                 <Sparkles className="w-5 h-5 text-primary" />
                 AI Smart Actions
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                 <Button
                   variant="secondary"
                   size="sm"
@@ -709,12 +743,23 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => toast({ title: "Coming Soon", description: "Application checklist generation will be available soon!" })}
+                  onClick={handleGenerateChecklist}
+                  disabled={isGeneratingChecklist}
                   className="w-full"
                 >
-                  <FileCheck className="w-4 h-4 mr-2" />
-                  Get Checklist
+                  {isGeneratingChecklist ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <FileCheck className="w-4 h-4 mr-2" />
+                      Get Checklist
+                    </>
+                  )}
                 </Button>
+                <ProgramChatDialog program={application} />
               </div>
             </CardContent>
           </Card>
@@ -1058,6 +1103,20 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
               setShowComparison(false);
             }}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Document Checklist Dialog */}
+      <Dialog open={showDocumentChecklist} onOpenChange={setShowDocumentChecklist}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Document Checklist for {application.title}</DialogTitle>
+          </DialogHeader>
+          {documentChecklist && (
+            <div className="prose prose-sm max-w-none dark:prose-invert">
+              <ReactMarkdown>{documentChecklist}</ReactMarkdown>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
