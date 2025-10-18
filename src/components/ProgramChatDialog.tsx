@@ -167,10 +167,10 @@ Eligibility: ${program.eligibility || 'Not specified'}
         <div onClick={() => setOpen(true)}>{trigger}</div>
       ) : (
         <Button
-          variant="default"
-          size="sm"
+          variant="outline"
+          size="lg"
           onClick={() => setOpen(true)}
-          className="gap-2"
+          className="gap-2 flex-1 min-w-[200px]"
         >
           <MessageCircle className="w-4 h-4" />
           Chat with AI

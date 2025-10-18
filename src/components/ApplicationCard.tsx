@@ -714,75 +714,11 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           </Card>
         )}
 
-        {/* AI Smart Actions - For startup programs */}
-        {isStartupProgram && (
-          <Card className="mt-4 bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-            <CardContent className="pt-4">
-              <h4 className="font-semibold mb-3 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-primary" />
-                AI Smart Actions
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setShowStartupQuiz(true)}
-                  className="w-full"
-                >
-                  <ClipboardCheck className="w-4 h-4 mr-2" />
-                  Check Eligibility
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setShowComparison(true)}
-                  className="w-full"
-                >
-                  <GitCompare className="w-4 h-4 mr-2" />
-                  Compare Programs
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleGenerateChecklist}
-                  disabled={isGeneratingChecklist}
-                  className="w-full"
-                >
-                  {isGeneratingChecklist ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <FileCheck className="w-4 h-4 mr-2" />
-                      Get Checklist
-                    </>
-                  )}
-                </Button>
-                <ProgramChatDialog program={application} />
-              </div>
-              
-              {/* Feedback Section */}
-              <div className="pt-4 mt-4 border-t border-border/50">
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-muted-foreground">
-                    Help us improve your experience
-                  </p>
-                  <ProgramFeedback 
-                    programTitle={application.title}
-                    programUrl={application.url}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Quick Actions */}
-        <div className="flex gap-2 mt-4">
+        <div className="flex gap-2 mt-4 flex-wrap">
           {application.url && (
-            <Button asChild size="lg" className="flex-1">
+            <Button asChild size="lg" className="flex-1 min-w-[200px]">
               <a href={application.url} target="_blank" rel="noopener noreferrer">
                 Apply Now
               </a>
@@ -793,11 +729,34 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
               onClick={() => setShowQuiz(true)}
               variant="outline"
               size="lg"
-              className="flex-1"
+              className="flex-1 min-w-[200px]"
             >
               <ClipboardCheck className="w-4 h-4 mr-2" />
               See if You Qualify
             </Button>
+          )}
+          {isStartupProgram && (
+            <>
+              <Button
+                onClick={() => setShowStartupQuiz(true)}
+                variant="outline"
+                size="lg"
+                className="flex-1 min-w-[200px]"
+              >
+                <ClipboardCheck className="w-4 h-4 mr-2" />
+                Check Eligibility
+              </Button>
+              <Button
+                onClick={() => setShowComparison(true)}
+                variant="outline"
+                size="lg"
+                className="flex-1 min-w-[200px]"
+              >
+                <GitCompare className="w-4 h-4 mr-2" />
+                Compare Programs
+              </Button>
+              <ProgramChatDialog program={application} />
+            </>
           )}
           {importantDates && (
             <Button variant="outline" size="lg" onClick={() => setShowReminderDialog(true)}>
@@ -1066,6 +1025,19 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
             </div>
           </div>
         </div>
+
+        {/* Share Feedback - Bottom of card */}
+        {isStartupProgram && (
+          <div className="mt-6 pt-6 border-t border-border/50 flex justify-between items-center">
+            <p className="text-sm text-muted-foreground">
+              Help us improve your experience
+            </p>
+            <ProgramFeedback 
+              programTitle={application.title}
+              programUrl={application.url}
+            />
+          </div>
+        )}
       </CardContent>
 
       {/* Eligibility Quiz Dialog */}
