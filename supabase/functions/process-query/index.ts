@@ -68,20 +68,6 @@ Be thorough and extract ALL available information. For dates, always use YYYY-MM
         messages: [
           { role: 'user', content: extractionPrompt }
         ],
-        tools: [{
-          type: 'function',
-          function: {
-            name: 'web_search',
-            description: 'Search the web for information',
-            parameters: {
-              type: 'object',
-              properties: {
-                query: { type: 'string', description: 'Search query' }
-              },
-              required: ['query']
-            }
-          }
-        }],
         temperature: 0.3,
       }),
     });
