@@ -187,7 +187,7 @@ const HowToApplySection = ({
                 <div className="flex items-start gap-2">
                   <MapPin className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-sm text-blue-900 dark:text-blue-100">
+                    <p className="text-sm text-blue-500">
                       <strong>Find nearest CSC:</strong> Search "CSC near me" on Google Maps or ask your local Panchayat office.
                     </p>
                   </div>
