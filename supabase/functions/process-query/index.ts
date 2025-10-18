@@ -28,34 +28,75 @@ serve(async (req) => {
 
     console.log('Processing query:', query);
 
-    // Step 1: Extract application data using Claude with web search
-    const extractionPrompt = `You are an expert at finding and extracting information about Indian government applications, exams, jobs, and schemes.
+    // Single comprehensive extraction using AI
+    const comprehensivePrompt = `You are an expert at extracting information about Indian government applications, exams, jobs, and schemes.
 
 User Query: "${query}"
 
 Your task:
 1. If the query is a URL, extract information directly from that URL
 2. If the query is a search term (like "SSC CGL 2024" or "PM Kisan Yojana"), first search the web to find the official government URL
-3. Extract ALL key details from the official source
+3. Extract ALL details from the official source - be thorough and accurate
 
-Return a JSON object with this exact structure:
+Return a JSON object with this EXACT structure:
 {
-  "title": "Official full title",
-  "description": "Brief 2-3 sentence description",
-  "url": "Official URL found or provided",
+  "title": "Official full title of the scheme/exam/job",
+  "description": "Brief 2-3 sentence description explaining what this is",
+  "url": "Official URL (the actual government portal or official website)",
   "category": "One of: Students, Farmers, Senior Citizens, Health & Insurance, Women & Children, Jobs",
+  
   "important_dates": [
     {"label": "Application Start", "date": "YYYY-MM-DD"},
     {"label": "Application End", "date": "YYYY-MM-DD"},
     {"label": "Exam Date", "date": "YYYY-MM-DD"}
   ],
-  "eligibility": "Complete eligibility criteria as detailed text",
-  "documents_required": ["Document 1", "Document 2"],
-  "fee_structure": "Fee details as text",
-  "application_steps": "Step by step application process"
+  
+  "eligibility": "Complete eligibility criteria as detailed text (age, education, etc.)",
+  
+  "fee_structure": "Fee details as text (different categories, payment methods, etc.)",
+  
+  "documents_required": [
+    "Document 1 name (exactly as required by THIS specific scheme/exam)",
+    "Document 2 name",
+    "Document 3 name"
+  ],
+  
+  "application_steps": "Brief overview of application process (kept for backwards compatibility)",
+  
+  "application_guidance": {
+    "online_steps": [
+      "Step 1: Specific action for THIS scheme (e.g., 'Visit ssc.nic.in' for SSC exams)",
+      "Step 2: Include actual portal names, button names, URLs specific to THIS scheme",
+      "Step 3: Registration details specific to THIS scheme",
+      "Step 4: Payment/submission steps for THIS scheme"
+    ],
+    "csc_applicable": true or false (whether Common Service Centers can help with this application),
+    "csc_guidance": "Specific CSC guidance for THIS scheme/exam, or empty string '' if not applicable",
+    "state_officials_applicable": true or false (whether state government officials can assist),
+    "state_officials_guidance": "Specific state official guidance for THIS scheme, or empty string '' if not applicable",
+    "helpline": "ACTUAL helpline number(s) from THIS scheme's official source (not generic numbers)",
+    "email": "ACTUAL contact email from THIS scheme's official source (not generic emails)",
+    "estimated_time": "Realistic time estimate like '10-15 minutes' or '20-30 minutes'"
+  },
+  
+  "deadline_reminders": [
+    {"days_before": 7, "message": "7-day reminder message mentioning the scheme name"},
+    {"days_before": 3, "message": "3-day reminder message"},
+    {"days_before": 1, "message": "Urgent 1-day reminder message"}
+  ]
 }
 
-Be thorough and extract ALL available information. For dates, always use YYYY-MM-DD format.`;
+CRITICAL RULES - READ CAREFULLY:
+- Extract information ONLY from the ACTUAL scheme/exam/job being queried
+- For SSC CGL: Use SSC-specific details (ssc.nic.in portal, SSC helpline numbers, SSC email)
+- For PM Kisan: Use PM Kisan-specific details (pmkisan.gov.in portal, PM Kisan helpline, PM Kisan email)
+- For UPSC exams: Use UPSC-specific details (upsc.gov.in portal, UPSC contact info)
+- DO NOT mix information from different schemes (e.g., don't use PM Kisan details for SSC exams!)
+- If information is not available for unreleased exams, use "Not yet announced" or "Check official website"
+- For documents_required: List the EXACT documents this specific scheme asks for (not generic documents)
+- For online_steps: Describe the EXACT registration process for this scheme's specific portal
+- For helpline/email: Provide the ACTUAL contact details from the official source
+- Be thorough, accurate, and scheme-specific in ALL fields!`;
 
     const extractionResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -66,9 +107,9 @@ Be thorough and extract ALL available information. For dates, always use YYYY-MM
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'user', content: extractionPrompt }
+          { role: 'user', content: comprehensivePrompt }
         ],
-        temperature: 0.3,
+        temperature: 0.1, // Lower temperature for more deterministic extraction
       }),
     });
 
@@ -79,15 +120,15 @@ Be thorough and extract ALL available information. For dates, always use YYYY-MM
     }
 
     const extractionData = await extractionResponse.json();
-    console.log('Extraction response:', JSON.stringify(extractionData));
+    console.log('Comprehensive extraction response:', JSON.stringify(extractionData));
 
-    let extractedInfo;
+    let result;
     try {
       const content = extractionData.choices[0].message.content;
       // Try to parse JSON from the response
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        extractedInfo = JSON.parse(jsonMatch[0]);
+        result = JSON.parse(jsonMatch[0]);
       } else {
         throw new Error('No JSON found in response');
       }
@@ -95,147 +136,6 @@ Be thorough and extract ALL available information. For dates, always use YYYY-MM
       console.error('Failed to parse extraction response:', parseError);
       throw new Error('Failed to parse AI response');
     }
-
-    // Step 2: Generate document checklist
-    const documents = extractedInfo.documents_required || [];
-    const eligibility = extractedInfo.eligibility || '';
-    
-    const checklistPrompt = `Based on this application information:
-Eligibility: ${eligibility}
-Documents mentioned: ${documents.join(', ')}
-
-Create a clean, comprehensive checklist of ALL required documents. Return as JSON array of strings:
-["Document 1", "Document 2", "Document 3"]
-
-Make it complete and well-organized.`;
-
-    const checklistResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [{ role: 'user', content: checklistPrompt }],
-        temperature: 0.2,
-      }),
-    });
-
-    let documentChecklist = documents;
-    if (checklistResponse.ok) {
-      const checklistData = await checklistResponse.json();
-      try {
-        const content = checklistData.choices[0].message.content;
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          documentChecklist = JSON.parse(jsonMatch[0]);
-        }
-      } catch (e) {
-        console.error('Failed to parse checklist:', e);
-      }
-    }
-
-    // Step 3: Generate deadline reminders if deadline exists
-    let deadlineReminders = [];
-    const deadlineDates = extractedInfo.important_dates?.filter((d: any) => 
-      d.label.toLowerCase().includes('end') || 
-      d.label.toLowerCase().includes('deadline') ||
-      d.label.toLowerCase().includes('last date')
-    );
-
-    if (deadlineDates && deadlineDates.length > 0) {
-      const deadline = deadlineDates[0].date;
-      const reminderPrompt = `Create deadline reminder messages for: ${deadline}
-      
-Return JSON array with reminders for 7 days, 3 days, and 1 day before:
-[
-  {"days_before": 7, "message": "Reminder message"},
-  {"days_before": 3, "message": "Reminder message"},
-  {"days_before": 1, "message": "Urgent reminder message"}
-]`;
-
-      const reminderResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [{ role: 'user', content: reminderPrompt }],
-          temperature: 0.3,
-        }),
-      });
-
-      if (reminderResponse.ok) {
-        const reminderData = await reminderResponse.json();
-        try {
-          const content = reminderData.choices[0].message.content;
-          const jsonMatch = content.match(/\[[\s\S]*\]/);
-          if (jsonMatch) {
-            deadlineReminders = JSON.parse(jsonMatch[0]);
-          }
-        } catch (e) {
-          console.error('Failed to parse reminders:', e);
-        }
-      }
-    }
-
-    // Step 4: Generate structured application guidance
-    const guidancePrompt = `Based on this application:
-Title: ${extractedInfo.title}
-URL: ${extractedInfo.url}
-Steps: ${extractedInfo.application_steps}
-
-Generate a JSON object with REAL, SPECIFIC information for this exact application:
-{
-  "online_steps": ["Step 1 specific to this app", "Step 2...", ...],
-  "csc_applicable": true/false,
-  "csc_guidance": "Specific CSC guidance if applicable, or empty string",
-  "state_officials_applicable": true/false,
-  "state_officials_guidance": "Specific state official guidance if applicable, or empty string",
-  "helpline": "actual helpline number(s) from the scheme",
-  "email": "actual contact email from the scheme",
-  "estimated_time": "estimated time in minutes"
-}
-
-CRITICAL: Use ONLY information from the actual scheme/exam. Don't use generic PM Kisan details!`;
-
-    const guidanceResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [{ role: 'user', content: guidancePrompt }],
-        temperature: 0.2,
-      }),
-    });
-
-    let applicationGuidance = null;
-    if (guidanceResponse.ok) {
-      const guidanceData = await guidanceResponse.json();
-      try {
-        const content = guidanceData.choices[0].message.content;
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          applicationGuidance = JSON.parse(jsonMatch[0]);
-        }
-      } catch (e) {
-        console.error('Failed to parse guidance:', e);
-      }
-    }
-
-    // Combine all data
-    const result = {
-      ...extractedInfo,
-      documents_required: documentChecklist,
-      deadline_reminders: deadlineReminders,
-      application_guidance: applicationGuidance,
-    };
 
     console.log('Final result:', JSON.stringify(result));
 

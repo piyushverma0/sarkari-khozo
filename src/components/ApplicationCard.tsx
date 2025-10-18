@@ -56,6 +56,7 @@ interface ApplicationCardProps {
 const ApplicationCard = ({ application }: ApplicationCardProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [showReminderDialog, setShowReminderDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -288,6 +289,45 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
       });
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (!application.id) return;
+    
+    setIsRefreshing(true);
+    try {
+      const { data: refreshData, error: refreshError } = await supabase.functions.invoke('process-query', {
+        body: { query: application.url || application.title }
+      });
+
+      if (refreshError) throw refreshError;
+
+      const { error: updateError } = await supabase
+        .from('applications')
+        .update({
+          ...refreshData,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', application.id);
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: "Application refreshed",
+        description: "Details updated with the latest information.",
+      });
+
+      window.location.reload();
+    } catch (error: any) {
+      console.error('Error refreshing application:', error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh application. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -690,6 +730,8 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
                     applicationSteps={translatedApplicationSteps}
                     applicationUrl={application.url}
                     applicationGuidance={application.application_guidance}
+                    onRefresh={handleRefresh}
+                    isRefreshing={isRefreshing}
                   />
                 )}
               </AccordionContent>

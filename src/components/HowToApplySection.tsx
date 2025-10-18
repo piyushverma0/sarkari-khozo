@@ -1,21 +1,26 @@
 import { useState } from "react";
-import { Globe, Building2, FileText, Phone, Mail, CheckCircle2, ExternalLink, MapPin, CreditCard, IdCard, FileCheck, Smartphone, Clock } from "lucide-react";
+import { Globe, Building2, FileText, Phone, Mail, CheckCircle2, ExternalLink, MapPin, CreditCard, IdCard, FileCheck, Smartphone, Clock, RefreshCw, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import CSCLocatorDialog from "./CSCLocatorDialog";
 
 interface HowToApplySectionProps {
   applicationSteps: string;
   applicationUrl?: string;
   applicationGuidance?: any;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 const HowToApplySection = ({
   applicationSteps,
   applicationUrl,
-  applicationGuidance
+  applicationGuidance,
+  onRefresh,
+  isRefreshing = false
 }: HowToApplySectionProps) => {
   const [openOption, setOpenOption] = useState<string | null>("online");
   const [locatorOpen, setLocatorOpen] = useState(false);
@@ -71,6 +76,35 @@ const HowToApplySection = ({
 
   return (
     <div className="pt-4 space-y-6">
+      {/* Show refresh banner if no structured guidance */}
+      {!hasGuidance && onRefresh && (
+        <Alert className="border-amber-500/50 bg-amber-500/10">
+          <AlertCircle className="h-4 w-4 text-amber-500" />
+          <AlertDescription className="flex items-center justify-between">
+            <span className="text-sm">Showing generic guidance. Refresh to get scheme-specific details.</span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className="ml-2"
+            >
+              {isRefreshing ? (
+                <>
+                  <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                  Refreshing...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  Refresh
+                </>
+              )}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      
       {/* Header */}
       <div className="space-y-2">
         <p className="text-base text-muted-foreground">
