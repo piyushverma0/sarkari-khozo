@@ -33,11 +33,11 @@ const EligibilityQuiz = ({ eligibility, onClose }: EligibilityQuizProps) => {
 
         if (error) throw error;
 
-        if (!data || !data.questions || data.questions.length === 0) {
+        if (!data || !data.quiz || data.quiz.length === 0) {
           throw new Error("No questions generated");
         }
 
-        setQuestions(data.questions);
+        setQuestions(data.quiz);
       } catch (error: any) {
         console.error("Error generating quiz:", error);
         toast({
@@ -136,6 +136,10 @@ const EligibilityQuiz = ({ eligibility, onClose }: EligibilityQuizProps) => {
         </CardContent>
       </Card>
     );
+  }
+
+  if (questions.length === 0) {
+    return null;
   }
 
   const currentQuestion = questions[currentQuestionIndex];
