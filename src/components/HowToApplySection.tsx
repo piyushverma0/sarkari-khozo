@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
+import CSCLocatorDialog from "./CSCLocatorDialog";
 interface HowToApplySectionProps {
   applicationSteps: string;
   applicationUrl?: string;
@@ -13,6 +14,7 @@ const HowToApplySection = ({
   applicationUrl
 }: HowToApplySectionProps) => {
   const [openOption, setOpenOption] = useState<string | null>("online");
+  const [locatorOpen, setLocatorOpen] = useState(false);
 
   // Check if the content is "not yet released"
   const isNotReleased = applicationSteps.toLowerCase().includes('not yet released') || applicationSteps.toLowerCase().includes('not released');
@@ -194,12 +196,14 @@ const HowToApplySection = ({
                 </div>
               </div>
 
-              <Button variant="outline" className="w-full gap-2" size="lg" asChild>
-                <a href="https://www.google.com/maps/search/csc+near+me" target="_blank" rel="noopener noreferrer">
-                  <MapPin className="w-4 h-4" />
-                  Locate Nearest CSC
-                  <ExternalLink className="w-4 h-4" />
-                </a>
+              <Button 
+                variant="outline" 
+                className="w-full gap-2" 
+                size="lg"
+                onClick={() => setLocatorOpen(true)}
+              >
+                <MapPin className="w-4 h-4" />
+                Locate Nearest CSC
               </Button>
             </div>
           </CollapsibleContent>
@@ -303,6 +307,8 @@ const HowToApplySection = ({
           </div>
         </div>
       </div>
+
+      <CSCLocatorDialog open={locatorOpen} onOpenChange={setLocatorOpen} />
     </div>;
 };
 export default HowToApplySection;
