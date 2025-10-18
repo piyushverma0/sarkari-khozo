@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import EligibilityQuiz from "./EligibilityQuiz";
 import DeadlineCountdown from "./DeadlineCountdown";
+import ReminderDialog from "./ReminderDialog";
 
 interface ApplicationData {
   id?: string;
@@ -51,6 +52,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
+  const [showReminderDialog, setShowReminderDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedData, setEditedData] = useState<ApplicationData>(application);
   const { toast } = useToast();
@@ -318,7 +320,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
             </Button>
           )}
           {importantDates && (
-            <Button variant="outline" size="lg">
+            <Button variant="outline" size="lg" onClick={() => setShowReminderDialog(true)}>
               <Bell className="w-4 h-4 mr-2" />
               Set Reminder
             </Button>
@@ -512,6 +514,16 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Reminder Dialog */}
+      {importantDates && (
+        <ReminderDialog
+          open={showReminderDialog}
+          onOpenChange={setShowReminderDialog}
+          importantDates={importantDates}
+          applicationTitle={application.title}
+        />
+      )}
     </Card>
   );
 };
