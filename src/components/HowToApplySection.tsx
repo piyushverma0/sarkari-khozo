@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { Globe, Building2, FileText, Phone, Mail, CheckCircle2, ExternalLink, MapPin, CreditCard, IdCard, FileCheck, Smartphone, Clock, RefreshCw, AlertCircle } from "lucide-react";
+import { Globe, Building2, FileText, CheckCircle2, ExternalLink, MapPin, Clock, RefreshCw, AlertCircle, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import CSCLocatorDialog from "./CSCLocatorDialog";
 
@@ -13,6 +12,11 @@ interface HowToApplySectionProps {
   applicationGuidance?: any;
   onRefresh?: () => void;
   isRefreshing?: boolean;
+}
+
+export interface ApplicationGuidanceData {
+  helpline?: string;
+  email?: string;
 }
 
 const HowToApplySection = ({
@@ -300,62 +304,6 @@ const HowToApplySection = ({
           </div>
         </Collapsible>
       )}
-
-      {/* Document Checklist */}
-      <div className="border rounded-lg p-4 bg-muted/30">
-        <h4 className="font-semibold text-base mb-3 flex items-center gap-2">
-          <FileCheck className="w-5 h-5 text-primary" />
-          Quick Checklist — Keep These Ready
-        </h4>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <div className="flex items-center gap-2 p-2 rounded bg-background">
-            <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
-            <span className="text-sm flex items-center gap-1.5">
-              <IdCard className="w-4 h-4" />
-              Aadhaar Card
-            </span>
-          </div>
-          <div className="flex items-center gap-2 p-2 rounded bg-background">
-            <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
-            <span className="text-sm flex items-center gap-1.5">
-              <CreditCard className="w-4 h-4" />
-              Bank Account
-            </span>
-          </div>
-          <div className="flex items-center gap-2 p-2 rounded bg-background">
-            <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
-            <span className="text-sm flex items-center gap-1.5">
-              <FileText className="w-4 h-4" />
-              Required Documents
-            </span>
-          </div>
-          <div className="flex items-center gap-2 p-2 rounded bg-background">
-            <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
-            <span className="text-sm flex items-center gap-1.5">
-              <Smartphone className="w-4 h-4" />
-              Mobile (Aadhaar-linked)
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Help Section */}
-      <div className="border rounded-lg p-4 bg-primary/5">
-        <h4 className="font-semibold text-base mb-3">💬 Need Help?</h4>
-        <p className="text-sm text-muted-foreground mb-3">
-          If you face any issues while applying, reach out to the helpline:
-        </p>
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 p-2 rounded bg-background">
-            <Phone className="w-4 h-4 text-primary flex-shrink-0" />
-            <span className="text-sm">Helpline: <strong>{helpline}</strong></span>
-          </div>
-          <div className="flex items-center gap-2 p-2 rounded bg-background">
-            <Mail className="w-4 h-4 text-primary flex-shrink-0" />
-            <span className="text-sm break-all">Email: <strong>{email}</strong></span>
-          </div>
-        </div>
-      </div>
 
       <CSCLocatorDialog open={locatorOpen} onOpenChange={setLocatorOpen} />
     </div>
