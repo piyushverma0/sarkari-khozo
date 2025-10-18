@@ -64,7 +64,7 @@ Be thorough and extract ALL available information. For dates, always use YYYY-MM
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
+        model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'user', content: extractionPrompt }
         ],
@@ -130,7 +130,7 @@ Make it complete and well-organized.`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
+        model: 'google/gemini-2.5-flash',
         messages: [{ role: 'user', content: checklistPrompt }],
         temperature: 0.2,
       }),
@@ -176,7 +176,7 @@ Return JSON array with reminders for 7 days, 3 days, and 1 day before:
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5',
+          model: 'google/gemini-2.5-flash',
           messages: [{ role: 'user', content: reminderPrompt }],
           temperature: 0.3,
         }),
