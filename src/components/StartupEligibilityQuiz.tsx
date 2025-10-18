@@ -53,6 +53,15 @@ const StartupEligibilityQuiz = ({
   const generateQuiz = async () => {
     setIsLoading(true);
     try {
+      console.log('Calling generate-eligibility-quiz with:', {
+        programTitle,
+        eligibility: eligibility?.substring(0, 100),
+        sector,
+        stage,
+        fundingAmount,
+        dpiitRequired
+      });
+
       const { data, error } = await supabase.functions.invoke('generate-eligibility-quiz', {
         body: {
           programTitle,
@@ -64,17 +73,32 @@ const StartupEligibilityQuiz = ({
         },
       });
 
-      if (error) throw error;
+      console.log('Edge function response:', { data, error });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
 
       if (data?.questions) {
+        console.log('Received', data.questions.length, 'questions');
         setQuestions(data.questions);
+      } else {
+        console.error('No questions in response:', data);
+        throw new Error('No questions received from server');
       }
     } catch (error: any) {
       console.error('Error generating quiz:', error);
+      const errorMessage = error.message?.includes('Rate limit') 
+        ? 'Too many requests. Please try again in a moment.'
+        : error.message?.includes('credits')
+        ? 'AI service temporarily unavailable. Please try again.'
+        : 'Failed to generate eligibility quiz. Please try again.';
+      
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to generate eligibility quiz.',
+        description: errorMessage,
       });
     } finally {
       setIsLoading(false);
@@ -137,6 +161,30 @@ const StartupEligibilityQuiz = ({
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="ml-3 text-muted-foreground">Generating eligibility questions...</p>
+      </div>
+    );
+  }
+
+  // Handle case where questions failed to load
+  if (!isLoading && questions.length === 0) {
+    return (
+      <div className="space-y-4 py-6">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 mx-auto text-amber-500 mb-3" />
+          <h3 className="text-lg font-semibold mb-2">Unable to Load Quiz</h3>
+          <p className="text-muted-foreground mb-4">
+            We couldn't generate the eligibility quiz at this time.
+          </p>
+        </div>
+        <div className="flex justify-center gap-3">
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+          <Button onClick={generateQuiz}>
+            Try Again
+          </Button>
+        </div>
       </div>
     );
   }
@@ -240,7 +288,29 @@ const StartupEligibilityQuiz = ({
   }
 
   const currentQuestion = questions[currentQuestionIndex];
-  const currentAnswer = answers[currentQuestion?.id];
+  if (!currentQuestion) {
+    return (
+      <div className="space-y-4 py-6">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 mx-auto text-amber-500 mb-3" />
+          <h3 className="text-lg font-semibold mb-2">Quiz Not Available</h3>
+          <p className="text-muted-foreground mb-4">
+            There was a problem loading the quiz questions.
+          </p>
+        </div>
+        <div className="flex justify-center gap-3">
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+          <Button onClick={generateQuiz}>
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+  
+  const currentAnswer = answers[currentQuestion.id];
 
   return (
     <div className="space-y-6">

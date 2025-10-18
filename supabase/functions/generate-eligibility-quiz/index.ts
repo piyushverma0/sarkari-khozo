@@ -113,6 +113,8 @@ Be specific and actionable in your suggestions. If not eligible, explain what th
     } else if (isStartupQuiz) {
       // Generate quiz questions for startup programs
       console.log('Generating startup eligibility quiz for:', programTitle);
+      console.log('Eligibility:', eligibility);
+      console.log('Sector:', sector, 'Stage:', stage, 'Funding:', fundingAmount, 'DPIIT:', dpiitRequired);
       
       const quizPrompt = `You are a startup program eligibility expert. Generate 5-7 quick questions to assess eligibility for this program.
 
@@ -149,6 +151,7 @@ Return ONLY valid JSON (no markdown, no backticks) with this structure:
 
 Make questions specific to the program's eligibility criteria. Keep options clear and mutually exclusive.`;
 
+      console.log('Calling Lovable AI...');
       const quizResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -163,14 +166,18 @@ Make questions specific to the program's eligibility criteria. Keep options clea
         }),
       });
 
+      console.log('AI Response status:', quizResponse.status);
+
       if (!quizResponse.ok) {
         if (quizResponse.status === 429) {
+          console.error('Rate limit exceeded');
           return new Response(
             JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
             { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
         if (quizResponse.status === 402) {
+          console.error('AI credits exhausted');
           return new Response(
             JSON.stringify({ error: 'AI credits exhausted. Please add funds.' }),
             { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -183,13 +190,17 @@ Make questions specific to the program's eligibility criteria. Keep options clea
 
       const quizData = await quizResponse.json();
       const content = quizData.choices[0].message.content;
+      console.log('AI Response content (first 200 chars):', content.substring(0, 200));
 
       let questions;
       try {
         const cleanedContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        console.log('Cleaned content (first 200 chars):', cleanedContent.substring(0, 200));
         questions = JSON.parse(cleanedContent);
+        console.log('Successfully parsed questions:', questions.questions?.length, 'questions');
       } catch (parseError) {
-        console.error('Failed to parse quiz response:', content);
+        console.error('Failed to parse quiz response:', parseError);
+        console.error('Raw content:', content);
         throw new Error('Failed to parse AI response');
       }
 
