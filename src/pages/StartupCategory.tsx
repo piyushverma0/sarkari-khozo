@@ -5,12 +5,46 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Header from "@/components/Header";
 import StartupIntentDialog from "@/components/StartupIntentDialog";
+import StartupProgramsList from "@/components/StartupProgramsList";
 
 type IntentType = "funding" | "incubation" | "policy" | "explore" | null;
+
+interface Program {
+  id?: string;
+  title: string;
+  description: string;
+  url?: string;
+  program_type?: string;
+  funding_amount?: string;
+  sector?: string;
+  stage?: string;
+  state_specific?: string;
+  success_rate?: string;
+  dpiit_required?: boolean;
+  important_dates?: any;
+  eligibility?: string;
+  documents_required?: any;
+}
 
 const StartupCategory = () => {
   const navigate = useNavigate();
   const [selectedIntent, setSelectedIntent] = useState<IntentType>(null);
+  const [showResults, setShowResults] = useState(false);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleIntentComplete = (foundPrograms: Program[], query: string) => {
+    setPrograms(foundPrograms);
+    setSearchQuery(query);
+    setShowResults(true);
+    setSelectedIntent(null);
+  };
+
+  const handleModifySearch = () => {
+    setShowResults(false);
+    // Reopen the last selected intent dialog or show all intents
+  };
 
   const intentButtons = [
     {
@@ -57,50 +91,62 @@ const StartupCategory = () => {
             Back to Home
           </Button>
 
-          {/* Hero Section */}
-          <div className="text-center mb-12 space-y-4">
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-teal-400 to-purple-500 bg-clip-text text-transparent">
-              Find Startup Funding, Incubation & Government Support
-            </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Just tell us what your startup needs — our AI will match you with the best programs.
-            </p>
-          </div>
+          {!showResults ? (
+            <>
+              {/* Hero Section */}
+              <div className="text-center mb-12 space-y-4">
+                <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-teal-400 to-purple-500 bg-clip-text text-transparent">
+                  Find Startup Funding, Incubation & Government Support
+                </h1>
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                  Just tell us what your startup needs — our AI will match you with the best programs.
+                </p>
+              </div>
 
-          {/* Intent Buttons Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {intentButtons.map((intent) => {
-              const Icon = intent.icon;
-              return (
-                <Card
-                  key={intent.type}
-                  className={`p-6 cursor-pointer transition-all hover:scale-105 hover:shadow-lg bg-gradient-to-br ${intent.gradient} border-2 hover:border-primary/50`}
-                  onClick={() => setSelectedIntent(intent.type)}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-lg bg-background/50 backdrop-blur-sm">
-                      <Icon className="w-6 h-6" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-xl font-semibold mb-2">{intent.title}</h3>
-                      <p className="text-sm text-muted-foreground">{intent.description}</p>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
+              {/* Intent Buttons Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {intentButtons.map((intent) => {
+                  const Icon = intent.icon;
+                  return (
+                    <Card
+                      key={intent.type}
+                      className={`p-6 cursor-pointer transition-all hover:scale-105 hover:shadow-lg bg-gradient-to-br ${intent.gradient} border-2 hover:border-primary/50`}
+                      onClick={() => setSelectedIntent(intent.type)}
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="p-3 rounded-lg bg-background/50 backdrop-blur-sm">
+                          <Icon className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-xl font-semibold mb-2">{intent.title}</h3>
+                          <p className="text-sm text-muted-foreground">{intent.description}</p>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
 
-          {/* Additional Info */}
-          <div className="mt-12 p-6 rounded-xl bg-muted/50 backdrop-blur-sm">
-            <h3 className="text-lg font-semibold mb-3">Why Choose FormVerse for Startups?</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>✓ <strong>AI-Powered Matching:</strong> Get personalized program recommendations</li>
-              <li>✓ <strong>Comprehensive Database:</strong> Access programs from Startup India, DPIIT, State Missions & more</li>
-              <li>✓ <strong>Track Applications:</strong> Never miss a deadline with smart reminders</li>
-              <li>✓ <strong>Step-by-Step Guidance:</strong> Know exactly what documents and steps you need</li>
-            </ul>
-          </div>
+              {/* Additional Info */}
+              <div className="mt-12 p-6 rounded-xl bg-muted/50 backdrop-blur-sm">
+                <h3 className="text-lg font-semibold mb-3">Why Choose FormVerse for Startups?</h3>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li>✓ <strong>AI-Powered Matching:</strong> Get personalized program recommendations</li>
+                  <li>✓ <strong>Comprehensive Database:</strong> Access programs from Startup India, DPIIT, State Missions & more</li>
+                  <li>✓ <strong>Track Applications:</strong> Never miss a deadline with smart reminders</li>
+                  <li>✓ <strong>Step-by-Step Guidance:</strong> Know exactly what documents and steps you need</li>
+                </ul>
+              </div>
+            </>
+          ) : (
+            /* Results View */
+            <StartupProgramsList
+              programs={programs}
+              isLoading={isLoading}
+              searchQuery={searchQuery}
+              onModifySearch={handleModifySearch}
+            />
+          )}
         </div>
       </main>
 
@@ -109,6 +155,7 @@ const StartupCategory = () => {
         open={selectedIntent !== null}
         onOpenChange={(open) => !open && setSelectedIntent(null)}
         intentType={selectedIntent}
+        onComplete={handleIntentComplete}
       />
     </div>
   );

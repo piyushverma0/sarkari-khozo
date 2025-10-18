@@ -23,10 +23,28 @@ import { supabase } from "@/integrations/supabase/client";
 
 type IntentType = "funding" | "incubation" | "policy" | "explore" | null;
 
+interface Program {
+  id?: string;
+  title: string;
+  description: string;
+  url?: string;
+  program_type?: string;
+  funding_amount?: string;
+  sector?: string;
+  stage?: string;
+  state_specific?: string;
+  success_rate?: string;
+  dpiit_required?: boolean;
+  important_dates?: any;
+  eligibility?: string;
+  documents_required?: any;
+}
+
 interface StartupIntentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   intentType: IntentType;
+  onComplete?: (programs: Program[], query: string) => void;
 }
 
 const INDIAN_STATES = [
@@ -61,7 +79,7 @@ const INDIAN_STATES = [
   "West Bengal",
 ];
 
-const StartupIntentDialog = ({ open, onOpenChange, intentType }: StartupIntentDialogProps) => {
+const StartupIntentDialog = ({ open, onOpenChange, intentType, onComplete }: StartupIntentDialogProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
@@ -106,45 +124,71 @@ const StartupIntentDialog = ({ open, onOpenChange, intentType }: StartupIntentDi
         return;
       }
 
-      if (intentType === "explore") {
-        // Navigate to generic category page for explore all
-        navigate("/category/startups");
-        onOpenChange(false);
-        return;
-      }
-
       // Generate natural language query based on intent and form data
       let query = "";
-      const programType = intentType === "funding" ? "funding" : 
+      let programType = "";
+      
+      if (intentType === "explore") {
+        query = "All startup programs and opportunities";
+        programType = "";
+      } else {
+        const typeLabel = intentType === "funding" ? "funding" : 
                          intentType === "incubation" ? "incubation and accelerator" : 
                          "policy benefits and tax incentives";
+        
+        programType = intentType === "funding" ? "seed_funding" :
+                     intentType === "incubation" ? "incubation" :
+                     "policy_benefit";
 
-      query = `Find ${programType} programs for startups`;
-      
-      if (formData.stage) query += ` at ${formData.stage} stage`;
-      if (formData.sector && formData.sector !== "Other") query += ` in ${formData.sector} sector`;
-      if (formData.state && formData.state !== "All India") query += ` in ${formData.state}`;
-      if (formData.dpiitRecognition === "Yes") query += ` (DPIIT recognized)`;
-      
-      // Store query parameters for the results page
-      const searchParams = new URLSearchParams({
-        query,
-        intentType: intentType || "",
-        stage: formData.stage,
-        sector: formData.sector,
-        state: formData.state,
-        dpiit: formData.dpiitRecognition,
+        query = `Find ${typeLabel} programs for startups`;
+        
+        if (formData.stage) query += ` at ${formData.stage} stage`;
+        if (formData.sector && formData.sector !== "Other") query += ` in ${formData.sector} sector`;
+        if (formData.state && formData.state !== "All India") query += ` in ${formData.state}`;
+        if (formData.dpiitRecognition === "Yes") query += ` (DPIIT recognized)`;
+      }
+
+      // Call the find-startup-programs edge function
+      const { data: programs, error } = await supabase.functions.invoke('find-startup-programs', {
+        body: {
+          stage: formData.stage || undefined,
+          sector: formData.sector || undefined,
+          state: formData.state || undefined,
+          dpiit_required: formData.dpiitRecognition === "Yes" ? true : undefined,
+          program_type: programType || undefined,
+        },
       });
 
-      // Navigate to results (we'll use the generic category page for now, can enhance later)
-      navigate(`/category/startups?${searchParams.toString()}`);
+      if (error) throw error;
+
+      // Call onComplete if provided, otherwise navigate to results page
+      if (onComplete && programs) {
+        onComplete(programs, query);
+      } else {
+        // Fallback: navigate with query params
+        const searchParams = new URLSearchParams({
+          query,
+          intentType: intentType || "",
+          stage: formData.stage,
+          sector: formData.sector,
+          state: formData.state,
+          dpiit: formData.dpiitRecognition,
+        });
+        navigate(`/category/startups?${searchParams.toString()}`);
+      }
+      
       onOpenChange(false);
+      
+      toast({
+        title: "Programs Found",
+        description: `Found ${programs?.length || 0} matching program(s).`,
+      });
     } catch (error: any) {
       console.error("Error processing intent:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to process your request. Please try again.",
+        description: error.message || "Failed to process your request. Please try again.",
       });
     } finally {
       setIsLoading(false);
