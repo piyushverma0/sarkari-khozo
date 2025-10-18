@@ -118,5 +118,15 @@ All colors MUST be HSL.
   html {
     scroll-behavior: smooth;
   }
+
+  /* Shimmer animation for shining effect */
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
 }
 
