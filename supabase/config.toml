@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.find-category-schemes]
 verify_jwt = false
 
+[functions.find-startup-programs]
+verify_jwt = false
+
 [functions.generate-eligibility-quiz]
 verify_jwt = false
 

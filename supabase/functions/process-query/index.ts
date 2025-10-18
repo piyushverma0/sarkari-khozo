@@ -28,14 +28,17 @@ serve(async (req) => {
 
     console.log('Processing query:', query);
 
+    // Check if query is startup-related
+    const isStartupQuery = /startup|funding|incubation|accelerator|dpiit|entrepreneur|venture|seed.*fund|grant.*program/i.test(query);
+
     // Single comprehensive extraction using AI
-    const comprehensivePrompt = `You are an expert at extracting information about Indian government applications, exams, jobs, and schemes.
+    const comprehensivePrompt = `You are an expert at extracting information about Indian government applications, exams, jobs, and schemes${isStartupQuery ? ', with special expertise in startup programs and funding opportunities' : ''}.
 
 User Query: "${query}"
 
 Your task:
 1. If the query is a URL, extract information directly from that URL
-2. If the query is a search term (like "SSC CGL 2024" or "PM Kisan Yojana"), first search the web to find the official government URL
+2. If the query is a search term (like "SSC CGL 2024" or "PM Kisan Yojana"${isStartupQuery ? ' or "Startup India Seed Fund" or "NIDHI EIR"' : ''}), first search the web to find the official government URL
 3. Extract ALL details from the official source - be thorough and accurate
 
 Return a JSON object with this EXACT structure:
@@ -43,7 +46,7 @@ Return a JSON object with this EXACT structure:
   "title": "Official full title of the scheme/exam/job",
   "description": "Brief 2-3 sentence description explaining what this is",
   "url": "Official URL (the actual government portal or official website)",
-  "category": "One of: Students, Farmers, Senior Citizens, Health & Insurance, Women & Children, Jobs",
+  "category": "One of: Students, Farmers, Senior Citizens, Health & Insurance, Women & Children, Jobs${isStartupQuery ? ', Startups' : ''}",
   
   "important_dates": {
     "application_start": "YYYY-MM-DD or 'Not yet announced'",
@@ -84,7 +87,15 @@ Return a JSON object with this EXACT structure:
     {"days_before": 7, "message": "7-day reminder message mentioning the scheme name"},
     {"days_before": 3, "message": "3-day reminder message"},
     {"days_before": 1, "message": "Urgent 1-day reminder message"}
-  ]
+  ]${isStartupQuery ? `,
+  
+  "program_type": "One of: grant, seed_funding, incubation, accelerator, policy_benefit, tax_benefit (only for startup programs)",
+  "funding_amount": "Funding amount like '₹20-50 lakh' or '₹10 lakh' (only for funding programs)",
+  "sector": "One of: Tech, AgriTech, HealthTech, FinTech, EdTech, E-commerce, CleanTech, All Sectors (only for startup programs)",
+  "stage": "One of: Idea, Prototype, Revenue, Growth, All Stages (only for startup programs)",
+  "state_specific": "State name if state-specific, otherwise 'All India' (only for startup programs)",
+  "success_rate": "One of: High, Medium, Low - based on program popularity and approval rates (only for startup programs)",
+  "dpiit_required": true or false - whether DPIIT recognition is required (only for startup programs)` : ''}
 }
 
 CRITICAL RULES - IMPORTANT DATES FORMAT:
@@ -98,13 +109,18 @@ CRITICAL RULES - READ CAREFULLY:
 - Extract information ONLY from the ACTUAL scheme/exam/job being queried
 - For SSC CGL: Use SSC-specific details (ssc.nic.in portal, SSC helpline numbers, SSC email)
 - For PM Kisan: Use PM Kisan-specific details (pmkisan.gov.in portal, PM Kisan helpline, PM Kisan email)
-- For UPSC exams: Use UPSC-specific details (upsc.gov.in portal, UPSC contact info)
+- For UPSC exams: Use UPSC-specific details (upsc.gov.in portal, UPSC contact info)${isStartupQuery ? `
+- For Startup India Seed Fund: Use Startup India-specific details (startupindia.gov.in portal)
+- For NIDHI programs: Use DST NIDHI-specific details (nidhi.dst.gov.in portal)
+- For State Startup Missions: Use state-specific startup mission details` : ''}
 - DO NOT mix information from different schemes (e.g., don't use PM Kisan details for SSC exams!)
 - If information is not available for unreleased exams, use "Not yet announced" or "Check official website"
 - For documents_required: List the EXACT documents this specific scheme asks for (not generic documents)
 - For online_steps: Describe the EXACT registration process for this scheme's specific portal
 - For helpline/email: Provide the ACTUAL contact details from the official source
-- Be thorough, accurate, and scheme-specific in ALL fields!`;
+- Be thorough, accurate, and scheme-specific in ALL fields!${isStartupQuery ? `
+- For startup programs: Include all startup-specific fields (program_type, funding_amount, sector, stage, state_specific, success_rate, dpiit_required)
+- Focus on government-backed startup programs, state startup missions, and official funding schemes` : ''}`;
 
     const extractionResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
