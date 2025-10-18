@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft } from "lucide-react";
@@ -11,13 +11,31 @@ import { ApplicationCardSkeleton } from "@/components/SkeletonLoader";
 const Application = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [application, setApplication] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchApplication = async () => {
-      if (!id) return;
+      // Check if application data was passed via state (from AI search results)
+      if (location.state?.application) {
+        setApplication(location.state.application);
+        setIsLoading(false);
+        return;
+      }
+
+      // Otherwise, fetch from database using ID (for saved applications)
+      if (!id) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "No application data found.",
+        });
+        navigate("/");
+        setIsLoading(false);
+        return;
+      }
 
       try {
         const { data, error } = await supabase
@@ -47,7 +65,7 @@ const Application = () => {
     };
 
     fetchApplication();
-  }, [id, navigate, toast]);
+  }, [id, navigate, toast, location.state]);
 
   if (isLoading) {
     return (
