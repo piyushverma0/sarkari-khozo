@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { Trash2, ClipboardCheck, Bell, Calendar, FileText, DollarSign, ClipboardList, ExternalLink, Clock, CheckCircle2, AlertCircle, GraduationCap, CreditCard, IdCard, User, FileCheck } from "lucide-react";
+import { Trash2, ClipboardCheck, Bell, Calendar, FileText, DollarSign, ClipboardList, ExternalLink, Clock, CheckCircle2, AlertCircle, GraduationCap, CreditCard, IdCard, User, FileCheck, Save, Edit, X } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -47,9 +49,55 @@ interface ApplicationCardProps {
 
 const ApplicationCard = ({ application }: ApplicationCardProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedData, setEditedData] = useState<ApplicationData>(application);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const handleSave = async () => {
+    if (!application.id) return;
+    
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('applications')
+        .update({
+          title: editedData.title,
+          description: editedData.description,
+          url: editedData.url,
+          category: editedData.category,
+          important_dates: editedData.important_dates,
+          eligibility: editedData.eligibility,
+          application_steps: editedData.application_steps,
+          documents_required: editedData.documents_required,
+          fee_structure: editedData.fee_structure,
+          deadline_reminders: editedData.deadline_reminders,
+        })
+        .eq('id', application.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Changes Saved",
+        description: "Your application has been updated successfully.",
+      });
+
+      setIsEditing(false);
+      // Refresh the page to show updated data
+      window.location.reload();
+    } catch (error: any) {
+      console.error("Error saving application:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to save changes.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!application.id) return;
@@ -128,60 +176,125 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
         <div className="flex items-start justify-between gap-4 mb-3">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-3">
-              <CardTitle className="text-4xl">{application.title}</CardTitle>
+              {isEditing ? (
+                <Input
+                  value={editedData.title}
+                  onChange={(e) => setEditedData({ ...editedData, title: e.target.value })}
+                  className="text-4xl font-bold h-auto py-2"
+                />
+              ) : (
+                <CardTitle className="text-4xl">{application.title}</CardTitle>
+              )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              {application.category && (
-                <Badge variant="secondary" className="text-base px-3 py-1">{application.category}</Badge>
+              {isEditing ? (
+                <Input
+                  value={editedData.category || ''}
+                  onChange={(e) => setEditedData({ ...editedData, category: e.target.value })}
+                  placeholder="Category"
+                  className="w-32"
+                />
+              ) : (
+                <>
+                  {application.category && (
+                    <Badge variant="secondary" className="text-base px-3 py-1">{application.category}</Badge>
+                  )}
+                  {getStatusBadge()}
+                </>
               )}
-              {getStatusBadge()}
             </div>
           </div>
           <div className="flex gap-2">
-            {application.url && (
-              <Button variant="outline" size="sm" asChild>
-                <a href={application.url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  Official Page
-                </a>
-              </Button>
-            )}
-            {application.id && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm">
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete
+            {isEditing ? (
+              <>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={isSaving}
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  {isSaving ? "Saving..." : "Save"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditedData(application);
+                  }}
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Cancel
+                </Button>
+              </>
+            ) : (
+              <>
+                {application.id && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditing(true)}
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Application?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently remove this application from your saved list. 
-                      This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleDelete}
-                      disabled={isDeleting}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      {isDeleting ? "Deleting..." : "Delete"}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                )}
+                {application.url && (
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={application.url} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Official Page
+                    </a>
+                  </Button>
+                )}
+                {application.id && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="sm">
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Application?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently remove this application from your saved list. 
+                          This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleDelete}
+                          disabled={isDeleting}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          {isDeleting ? "Deleting..." : "Delete"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </>
             )}
           </div>
         </div>
 
-        {application.description && (
-          <CardDescription className="text-lg leading-relaxed">
-            {application.description}
-          </CardDescription>
+        {(application.description || isEditing) && (
+          isEditing ? (
+            <Textarea
+              value={editedData.description || ''}
+              onChange={(e) => setEditedData({ ...editedData, description: e.target.value })}
+              placeholder="Description"
+              className="text-lg leading-relaxed min-h-24"
+            />
+          ) : (
+            <CardDescription className="text-lg leading-relaxed">
+              {application.description}
+            </CardDescription>
+          )
         )}
 
         {/* Quick Actions */}
