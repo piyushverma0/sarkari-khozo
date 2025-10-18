@@ -110,7 +110,7 @@ ${application.application_steps || 'Not specified'}
     console.log('Summary generated successfully, length:', summary.length);
 
     // Generate audio using ElevenLabs
-    const voiceId = 'pNInz6obpgDQGcFmaJgB'; // Adam - multilingual voice
+    const voiceId = 'kcQkGnn0HAT2JRDQ4Ljp'; // Norah - user's preferred voice
     
     console.log('Generating audio with ElevenLabs for language:', language);
 
