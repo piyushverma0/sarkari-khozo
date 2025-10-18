@@ -1,10 +1,27 @@
+import { useState } from "react";
+import { Trash2 } from "lucide-react";
 import { Calendar, FileText, DollarSign, ClipboardList, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface ApplicationData {
+  id?: string;
   title: string;
   description: string;
   url?: string;
@@ -22,6 +39,39 @@ interface ApplicationCardProps {
 }
 
 const ApplicationCard = ({ application }: ApplicationCardProps) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
+  const handleDelete = async () => {
+    if (!application.id) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('applications')
+        .delete()
+        .eq('id', application.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Application Deleted",
+        description: "The application has been removed from your saved list.",
+      });
+
+      navigate("/");
+    } catch (error: any) {
+      console.error("Error deleting application:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to delete application.",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
   const importantDates = application.important_dates 
     ? (typeof application.important_dates === 'string' 
         ? JSON.parse(application.important_dates) 
@@ -50,14 +100,45 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
               <Badge variant="secondary">{application.category}</Badge>
             )}
           </div>
-          {application.url && (
-            <Button variant="outline" size="sm" asChild>
-              <a href={application.url} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="w-4 h-4 mr-2" />
-                View Official Page
-              </a>
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {application.url && (
+              <Button variant="outline" size="sm" asChild>
+                <a href={application.url} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  View Official Page
+                </a>
+              </Button>
+            )}
+            {application.id && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm">
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Application?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently remove this application from your saved list. 
+                      This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {isDeleting ? "Deleting..." : "Delete"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         </div>
         {application.description && (
           <CardDescription className="text-base mt-4">

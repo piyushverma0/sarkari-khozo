@@ -1,17 +1,20 @@
+import { useNavigate } from "react-router-dom";
 import { Calendar, ArrowRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface SavedApplicationCardProps {
+  id: string;
   title: string;
   description: string;
   savedAt: Date;
-  onClick?: () => void;
 }
 
-const SavedApplicationCard = ({ title, description, savedAt, onClick }: SavedApplicationCardProps) => {
+const SavedApplicationCard = ({ id, title, description, savedAt }: SavedApplicationCardProps) => {
+  const navigate = useNavigate();
+
   return (
     <button
-      onClick={onClick}
+      onClick={() => navigate(`/application/${id}`)}
       className="glass-card rounded-xl p-6 text-left hover:border-primary/50 hover:shadow-[var(--shadow-glow)] transition-all duration-300 group w-full"
     >
       <div className="flex items-start justify-between gap-4">
