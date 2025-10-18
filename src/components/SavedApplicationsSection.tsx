@@ -1,5 +1,9 @@
 import SavedApplicationCard from "./SavedApplicationCard";
 
+interface SavedApplicationsSectionProps {
+  userId: string;
+}
+
 // Mock data for demonstration
 const mockApplications = [
   {
@@ -28,7 +32,7 @@ const mockApplications = [
   },
 ];
 
-const SavedApplicationsSection = () => {
+const SavedApplicationsSection = ({ userId }: SavedApplicationsSectionProps) => {
   return (
     <section className="py-16 px-4 bg-gradient-to-b from-transparent to-background/50">
       <div className="container mx-auto max-w-4xl">

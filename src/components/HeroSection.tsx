@@ -1,8 +1,27 @@
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import type { User } from "@supabase/supabase-js";
+import { useToast } from "@/hooks/use-toast";
 
-const HeroSection = () => {
+interface HeroSectionProps {
+  user: User | null;
+  onAuthRequired: () => void;
+}
+
+const HeroSection = ({ user, onAuthRequired }: HeroSectionProps) => {
+  const { toast } = useToast();
+
+  const handleClick = () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to track applications.",
+      });
+      onAuthRequired();
+    }
+  };
+
   return (
     <section className="pt-32 pb-16 px-4">
       <div className="container mx-auto max-w-4xl text-center">
@@ -20,14 +39,18 @@ const HeroSection = () => {
             <Input 
               placeholder='Enter exam, job, or scheme name... e.g., "SSC CGL 2024" or "PM Kisan Yojana"'
               className="pl-12 h-14 text-base bg-input/50 border-border/50 focus-visible:ring-primary"
+              disabled={!user}
+              onClick={!user ? handleClick : undefined}
             />
           </div>
           
           <Button 
             size="lg" 
             className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 text-primary-foreground"
+            onClick={handleClick}
+            disabled={!user}
           >
-            Track My Application
+            {user ? "Track My Application" : "Sign In to Track"}
           </Button>
         </div>
       </div>
