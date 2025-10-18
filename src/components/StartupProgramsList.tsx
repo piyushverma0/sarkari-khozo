@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { DollarSign, Calendar, Award, MapPin, TrendingUp, Filter, SortAsc, X, CheckCircle2, Eye, Bookmark, Rocket, Search, XCircle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -204,17 +204,30 @@ const StartupProgramsList = ({
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        {[1, 2, 3].map((i) => (
-          <Card key={i} className="animate-pulse">
-            <CardHeader>
-              <Skeleton className="h-6 w-3/4" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-20 w-full" />
-            </CardContent>
-          </Card>
-        ))}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="h-8 w-48 bg-muted animate-pulse rounded" />
+          <div className="h-10 w-32 bg-muted animate-pulse rounded" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Card key={i} className="animate-fade-in">
+              <CardHeader>
+                <div className="h-6 w-3/4 bg-muted animate-pulse rounded mb-2" />
+                <div className="h-4 w-full bg-muted animate-pulse rounded" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <div className="h-6 w-20 bg-muted animate-pulse rounded-full" />
+                    <div className="h-6 w-20 bg-muted animate-pulse rounded-full" />
+                  </div>
+                  <div className="h-10 w-full bg-muted animate-pulse rounded" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
@@ -251,87 +264,89 @@ const StartupProgramsList = ({
       </div>
 
       {/* Filters and Sort */}
-      <Card className="bg-slate-800/40">
+      <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-wrap gap-4 items-center">
-            <div className="flex items-center gap-2 flex-1">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-4 items-start sm:items-center">
+            <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium">Filters:</span>
             </div>
 
-            <Select value={selectedStage} onValueChange={setSelectedStage}>
-              <SelectTrigger className="w-[150px] bg-background">
-                <SelectValue placeholder="Stage" />
-              </SelectTrigger>
-              <SelectContent className="bg-background z-50">
-                <SelectItem value="all">All Stages</SelectItem>
-                <SelectItem value="Idea">Idea</SelectItem>
-                <SelectItem value="Prototype">Prototype</SelectItem>
-                <SelectItem value="Revenue">Revenue</SelectItem>
-                <SelectItem value="Growth">Growth</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap gap-2 flex-1">
+              <Select value={selectedStage} onValueChange={setSelectedStage}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Stage" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Stages</SelectItem>
+                  <SelectItem value="Idea">Idea</SelectItem>
+                  <SelectItem value="Prototype">Prototype</SelectItem>
+                  <SelectItem value="Revenue">Revenue</SelectItem>
+                  <SelectItem value="Growth">Growth</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={selectedSector} onValueChange={setSelectedSector}>
-              <SelectTrigger className="w-[150px] bg-background">
-                <SelectValue placeholder="Sector" />
-              </SelectTrigger>
-              <SelectContent className="bg-background z-50">
-                <SelectItem value="all">All Sectors</SelectItem>
-                <SelectItem value="Tech">Tech</SelectItem>
-                <SelectItem value="AgriTech">AgriTech</SelectItem>
-                <SelectItem value="HealthTech">HealthTech</SelectItem>
-                <SelectItem value="FinTech">FinTech</SelectItem>
-                <SelectItem value="EdTech">EdTech</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select value={selectedSector} onValueChange={setSelectedSector}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Sector" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sectors</SelectItem>
+                  <SelectItem value="Tech">Tech</SelectItem>
+                  <SelectItem value="AgriTech">AgriTech</SelectItem>
+                  <SelectItem value="HealthTech">HealthTech</SelectItem>
+                  <SelectItem value="FinTech">FinTech</SelectItem>
+                  <SelectItem value="EdTech">EdTech</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={selectedState} onValueChange={setSelectedState}>
-              <SelectTrigger className="w-[150px] bg-background">
-                <SelectValue placeholder="State" />
-              </SelectTrigger>
-              <SelectContent className="bg-background z-50">
-                <SelectItem value="all">All States</SelectItem>
-                <SelectItem value="All India">All India</SelectItem>
-                <SelectItem value="Karnataka">Karnataka</SelectItem>
-                <SelectItem value="Maharashtra">Maharashtra</SelectItem>
-                <SelectItem value="Delhi">Delhi</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select value={selectedState} onValueChange={setSelectedState}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="State" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All States</SelectItem>
+                  <SelectItem value="All India">All India</SelectItem>
+                  <SelectItem value="Karnataka">Karnataka</SelectItem>
+                  <SelectItem value="Maharashtra">Maharashtra</SelectItem>
+                  <SelectItem value="Delhi">Delhi</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={selectedProgramType} onValueChange={setSelectedProgramType}>
-              <SelectTrigger className="w-[180px] bg-background">
-                <SelectValue placeholder="Program Type" />
-              </SelectTrigger>
-              <SelectContent className="bg-background z-50">
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="grant">Grant</SelectItem>
-                <SelectItem value="seed_funding">Seed Funding</SelectItem>
-                <SelectItem value="incubation">Incubation</SelectItem>
-                <SelectItem value="accelerator">Accelerator</SelectItem>
-                <SelectItem value="policy_benefit">Policy Benefit</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select value={selectedProgramType} onValueChange={setSelectedProgramType}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Program Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="grant">Grant</SelectItem>
+                  <SelectItem value="seed_funding">Seed Funding</SelectItem>
+                  <SelectItem value="incubation">Incubation</SelectItem>
+                  <SelectItem value="accelerator">Accelerator</SelectItem>
+                  <SelectItem value="policy_benefit">Policy Benefit</SelectItem>
+                </SelectContent>
+              </Select>
 
-            {activeFiltersCount > 0 && (
-              <Button variant="ghost" size="sm" onClick={clearAllFilters}>
-                <X className="w-4 h-4 mr-1" />
-                Clear All
-              </Button>
-            )}
+              {activeFiltersCount > 0 && (
+                <Button variant="ghost" size="sm" onClick={clearAllFilters}>
+                  <X className="w-4 h-4 mr-1" />
+                  Clear All
+                </Button>
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center gap-4 mt-4 pt-4 border-t">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-4 pt-4 border-t">
             <div className="flex items-center gap-2">
               <SortAsc className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium">Sort by:</span>
             </div>
 
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[180px] bg-background">
+              <SelectTrigger className="w-[180px]">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-background z-50">
+              <SelectContent>
                 <SelectItem value="deadline">Deadline (Earliest)</SelectItem>
                 <SelectItem value="funding">Funding (Highest)</SelectItem>
                 <SelectItem value="success_rate">Success Rate</SelectItem>
@@ -381,114 +396,121 @@ const StartupProgramsList = ({
 
       {/* Programs Grid */}
       {filteredPrograms.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="flex justify-center mb-6">
-            <div 
-              className="p-6 rounded-full"
-              style={{ background: "var(--gradient-startup)" }}
-            >
-              <Rocket className="h-16 w-16" style={{ color: "hsl(var(--startup-teal))" }} />
+        <Card className="text-center p-12">
+          <div className="flex flex-col items-center gap-6">
+            <div className="p-6 rounded-full bg-muted">
+              <Rocket className="w-16 h-16 text-muted-foreground" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-semibold">No programs found</h3>
+              <p className="text-muted-foreground max-w-md">
+                Try adjusting your filters or modify your search to find programs.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button onClick={clearAllFilters} variant="outline">
+                <XCircle className="w-4 h-4 mr-2" />
+                Clear Filters
+              </Button>
+              {onModifySearch && (
+                <Button onClick={onModifySearch}>
+                  <Search className="w-4 h-4 mr-2" />
+                  Modify Search
+                </Button>
+              )}
             </div>
           </div>
-          <h3 className="text-2xl font-semibold mb-3 startup-gradient-text">
-            No programs match your criteria yet
-          </h3>
-          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-            Try adjusting your filters or explore all opportunities to find the perfect fit for your startup.
-          </p>
-          <div className="flex gap-3 justify-center">
-            <Button onClick={clearAllFilters} variant="outline" className="gap-2">
-              <XCircle className="h-4 w-4" />
-              Clear Filters
-            </Button>
-            {onModifySearch && (
-              <Button onClick={onModifySearch} className="gap-2">
-                <Search className="h-4 w-4" />
-                Modify Search
-              </Button>
-            )}
-          </div>
-        </div>
+        </Card>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredPrograms.map((program) => {
             const isSelected = selectedPrograms.has(program.title);
             
             return (
               <Card
                 key={program.title}
-                className={`relative startup-card-hover transition-all ${
+                className={`hover-scale transition-all ${
                   isSelected ? 'ring-2 ring-primary' : ''
                 }`}
               >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-2 mb-2">
                     <CardTitle className="text-lg line-clamp-2 flex-1">
                       {program.title}
                     </CardTitle>
                     {program.dpiit_required && (
-                      <Badge variant="outline" className="flex-shrink-0">
-                        <Award className="w-3 h-3 mr-1" />
+                      <Badge variant="outline" className="flex-shrink-0 text-xs">
                         DPIIT
                       </Badge>
                     )}
                   </div>
-                  <div className="flex gap-2 mt-2">
+                  <CardDescription className="line-clamp-2 text-sm">
+                    {program.description}
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent className="space-y-3">
+                  {/* Badges */}
+                  <div className="flex flex-wrap gap-2">
                     {program.program_type && (
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="default" className="text-xs">
                         {formatProgramType(program.program_type)}
                       </Badge>
                     )}
                     {program.funding_amount && (
-                      <Badge variant="secondary" className="text-xs bg-green-50 text-green-700 border-green-200">
+                      <Badge variant="secondary" className="text-xs">
                         {program.funding_amount}
                       </Badge>
                     )}
                   </div>
-                </CardHeader>
 
-                <CardContent className="space-y-3">
-                  {/* Deadline */}
-                  {program.important_dates?.application_end && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Deadline:</span>
-                      <span className="font-medium">
-                        {new Date(program.important_dates.application_end).toLocaleDateString()}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Location & Success Rate */}
-                  <div className="flex items-center justify-between text-sm">
+                  {/* Details */}
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    {program.important_dates?.application_end && (
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4" />
+                        <span>
+                          Deadline: {new Date(program.important_dates.application_end).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
                     {program.state_specific && (
-                      <div className="flex items-center gap-1">
-                        <MapPin className="w-4 h-4 text-muted-foreground" />
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4" />
                         <span>{program.state_specific}</span>
                       </div>
                     )}
                     {program.success_rate && (
-                      <Badge variant="outline" className={`text-xs ${getSuccessRateColor(program.success_rate)}`}>
-                        <TrendingUp className="w-3 h-3 mr-1" />
+                      <Badge variant="outline" className="text-xs">
                         {program.success_rate}
                       </Badge>
                     )}
                   </div>
 
                   {/* Actions */}
-                  <div className="grid grid-cols-3 gap-2 pt-2">
+                  <div className="flex gap-2 pt-2">
                     <Button
-                      variant="outline"
+                      variant={isSelected ? "default" : "outline"}
                       size="sm"
+                      className="flex-1"
                       onClick={() => toggleProgramSelection(program.title)}
-                      className={isSelected ? 'bg-primary text-primary-foreground' : ''}
                     >
-                      {isSelected ? <CheckCircle2 className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+                      {isSelected ? (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 mr-1" />
+                          Selected
+                        </>
+                      ) : (
+                        <>
+                          <Bookmark className="w-4 h-4 mr-1" />
+                          Select
+                        </>
+                      )}
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="col-span-2"
+                      className="flex-1"
                       onClick={() => handleViewDetails(program)}
                     >
                       <Eye className="w-4 h-4 mr-1" />

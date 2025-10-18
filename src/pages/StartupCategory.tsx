@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, DollarSign, Building2, FileText, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import Header from "@/components/Header";
 import StartupIntentDialog from "@/components/StartupIntentDialog";
 import StartupProgramsList from "@/components/StartupProgramsList";
@@ -94,52 +94,35 @@ const StartupCategory = () => {
           {!showResults ? (
             <>
               {/* Hero Section */}
-              <div className="text-center mb-12 space-y-4">
-                <h1 className="text-4xl md:text-5xl font-bold startup-gradient-text">
-                  Find Startup Funding, Incubation & Government Support
-                </h1>
-                <p className="text-lg text-muted-foreground max-w-2xl mx-auto font-medium">
-                  Just tell us what your startup needs — our AI will match you with the best programs.
+              <div className="mb-8">
+                <h1 className="text-4xl font-bold mb-3">For Startups</h1>
+                <p className="text-lg text-muted-foreground">
+                  Find funding, incubation programs, and government support for your startup
                 </p>
               </div>
 
               {/* Intent Buttons Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {intentButtons.map((intent) => {
                   const Icon = intent.icon;
                   return (
                     <Card
                       key={intent.type}
-                      className="glass-card cursor-pointer startup-card-hover border-2 border-transparent hover:border-[hsl(var(--startup-teal))]"
-                      style={{ background: "var(--gradient-startup)" }}
+                      className="hover-scale cursor-pointer"
                       onClick={() => setSelectedIntent(intent.type)}
                     >
-                      <div className="flex items-start gap-4 p-6">
-                        <div 
-                          className="p-3 rounded-lg"
-                          style={{ background: "var(--gradient-startup)" }}
-                        >
-                          <Icon className="w-6 h-6" style={{ color: "hsl(var(--startup-teal))" }} />
+                      <CardContent className="flex items-start gap-4 p-6">
+                        <div className="p-3 rounded-lg bg-primary/10">
+                          <Icon className="w-6 h-6 text-primary" />
                         </div>
                         <div className="flex-1">
                           <h3 className="text-xl font-semibold mb-2">{intent.title}</h3>
-                          <p className="text-sm font-medium text-muted-foreground">{intent.description}</p>
+                          <p className="text-sm text-muted-foreground">{intent.description}</p>
                         </div>
-                      </div>
+                      </CardContent>
                     </Card>
                   );
                 })}
-              </div>
-
-              {/* Additional Info */}
-              <div className="mt-12 p-6 rounded-xl bg-muted/50 backdrop-blur-sm">
-                <h3 className="text-lg font-semibold mb-3">Why Choose FormVerse for Startups?</h3>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li>✓ <strong>AI-Powered Matching:</strong> Get personalized program recommendations</li>
-                  <li>✓ <strong>Comprehensive Database:</strong> Access programs from Startup India, DPIIT, State Missions & more</li>
-                  <li>✓ <strong>Track Applications:</strong> Never miss a deadline with smart reminders</li>
-                  <li>✓ <strong>Step-by-Step Guidance:</strong> Know exactly what documents and steps you need</li>
-                </ul>
               </div>
             </>
           ) : (
