@@ -116,6 +116,39 @@ export type Database = {
         }
         Relationships: []
       }
+      program_feedback: {
+        Row: {
+          created_at: string
+          did_apply: string | null
+          feedback_text: string | null
+          id: string
+          is_relevant: boolean | null
+          program_title: string
+          program_url: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          did_apply?: string | null
+          feedback_text?: string | null
+          id?: string
+          is_relevant?: boolean | null
+          program_title: string
+          program_url?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          did_apply?: string | null
+          feedback_text?: string | null
+          id?: string
+          is_relevant?: boolean | null
+          program_title?: string
+          program_url?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

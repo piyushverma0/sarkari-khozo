@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DollarSign, Calendar, Award, MapPin, TrendingUp, Filter, SortAsc, X, CheckCircle2, Eye, Bookmark } from "lucide-react";
+import { DollarSign, Calendar, Award, MapPin, TrendingUp, Filter, SortAsc, X, CheckCircle2, Eye, Bookmark, Rocket, Search, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -206,7 +206,7 @@ const StartupProgramsList = ({
     return (
       <div className="space-y-4">
         {[1, 2, 3].map((i) => (
-          <Card key={i}>
+          <Card key={i} className="animate-pulse">
             <CardHeader>
               <Skeleton className="h-6 w-3/4" />
             </CardHeader>
@@ -381,9 +381,34 @@ const StartupProgramsList = ({
 
       {/* Programs Grid */}
       {filteredPrograms.length === 0 ? (
-        <Card className="p-12 text-center">
-          <p className="text-muted-foreground">No programs match your filters. Try adjusting your search criteria.</p>
-        </Card>
+        <div className="text-center py-16">
+          <div className="flex justify-center mb-6">
+            <div 
+              className="p-6 rounded-full"
+              style={{ background: "var(--gradient-startup)" }}
+            >
+              <Rocket className="h-16 w-16" style={{ color: "hsl(var(--startup-teal))" }} />
+            </div>
+          </div>
+          <h3 className="text-2xl font-semibold mb-3 startup-gradient-text">
+            No programs match your criteria yet
+          </h3>
+          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+            Try adjusting your filters or explore all opportunities to find the perfect fit for your startup.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={clearAllFilters} variant="outline" className="gap-2">
+              <XCircle className="h-4 w-4" />
+              Clear Filters
+            </Button>
+            {onModifySearch && (
+              <Button onClick={onModifySearch} className="gap-2">
+                <Search className="h-4 w-4" />
+                Modify Search
+              </Button>
+            )}
+          </div>
+        </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredPrograms.map((program) => {
@@ -392,7 +417,7 @@ const StartupProgramsList = ({
             return (
               <Card
                 key={program.title}
-                className={`relative transition-all hover:shadow-lg ${
+                className={`relative startup-card-hover transition-all ${
                   isSelected ? 'ring-2 ring-primary' : ''
                 }`}
               >

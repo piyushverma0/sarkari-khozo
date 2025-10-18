@@ -95,10 +95,10 @@ const StartupCategory = () => {
             <>
               {/* Hero Section */}
               <div className="text-center mb-12 space-y-4">
-                <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-teal-400 to-purple-500 bg-clip-text text-transparent">
+                <h1 className="text-4xl md:text-5xl font-bold startup-gradient-text">
                   Find Startup Funding, Incubation & Government Support
                 </h1>
-                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto font-medium">
                   Just tell us what your startup needs — our AI will match you with the best programs.
                 </p>
               </div>
@@ -110,16 +110,20 @@ const StartupCategory = () => {
                   return (
                     <Card
                       key={intent.type}
-                      className={`p-6 cursor-pointer transition-all hover:scale-105 hover:shadow-lg bg-gradient-to-br ${intent.gradient} border-2 hover:border-primary/50`}
+                      className="glass-card cursor-pointer startup-card-hover border-2 border-transparent hover:border-[hsl(var(--startup-teal))]"
+                      style={{ background: "var(--gradient-startup)" }}
                       onClick={() => setSelectedIntent(intent.type)}
                     >
-                      <div className="flex items-start gap-4">
-                        <div className="p-3 rounded-lg bg-background/50 backdrop-blur-sm">
-                          <Icon className="w-6 h-6" />
+                      <div className="flex items-start gap-4 p-6">
+                        <div 
+                          className="p-3 rounded-lg"
+                          style={{ background: "var(--gradient-startup)" }}
+                        >
+                          <Icon className="w-6 h-6" style={{ color: "hsl(var(--startup-teal))" }} />
                         </div>
                         <div className="flex-1">
                           <h3 className="text-xl font-semibold mb-2">{intent.title}</h3>
-                          <p className="text-sm text-muted-foreground">{intent.description}</p>
+                          <p className="text-sm font-medium text-muted-foreground">{intent.description}</p>
                         </div>
                       </div>
                     </Card>

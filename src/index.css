@@ -44,12 +44,20 @@ All colors MUST be HSL.
     /* Custom gradients and effects */
     --gradient-primary: linear-gradient(135deg, hsl(212, 70%, 68%), hsl(257, 70%, 68%));
     --gradient-subtle: linear-gradient(180deg, hsl(215, 28%, 20%), hsl(215, 28%, 17%));
+    --gradient-startup: linear-gradient(135deg, hsl(174 62% 47% / 0.2), hsl(271 91% 65% / 0.2));
+    --gradient-startup-solid: linear-gradient(135deg, hsl(174 62% 47%), hsl(271 91% 65%));
     --glass-bg: hsla(215, 28%, 22%, 0.7);
     --glass-border: hsla(210, 40%, 90%, 0.1);
+    
+    /* Startup Theme Colors */
+    --startup-teal: 174 62% 47%;
+    --startup-purple: 271 91% 65%;
+    --startup-glow: 174 62% 47% / 0.4;
     
     /* Shadows */
     --shadow-glow: 0 0 40px hsla(212, 70%, 68%, 0.2);
     --shadow-card: 0 10px 30px -10px hsla(0, 0%, 0%, 0.3);
+    --shadow-startup-glow: 0 0 40px hsl(var(--startup-glow));
   }
 }
 
@@ -118,6 +126,19 @@ All colors MUST be HSL.
     background-clip: text;
   }
 
+  .startup-gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-startup-solid);
+  }
+
+  .startup-card-hover {
+    @apply transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_40px_hsl(var(--startup-glow))];
+  }
+
+  .confetti-animation {
+    animation: confetti 0.6s ease-out;
+  }
+
   /* Smooth scroll behavior */
   html {
     scroll-behavior: smooth;
@@ -131,6 +152,12 @@ All colors MUST be HSL.
     100% {
       background-position: 200% 0;
     }
+  }
+
+  @keyframes confetti {
+    0% { transform: scale(0) rotate(0deg); opacity: 0; }
+    50% { transform: scale(1.2) rotate(180deg); opacity: 1; }
+    100% { transform: scale(1) rotate(360deg); opacity: 1; }
   }
 }
 

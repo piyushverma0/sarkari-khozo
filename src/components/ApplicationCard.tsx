@@ -30,6 +30,7 @@ import EligibilityQuiz from "./EligibilityQuiz";
 import StartupEligibilityQuiz from "./StartupEligibilityQuiz";
 import ProgramComparison from "./ProgramComparison";
 import ProgramChatDialog from "./ProgramChatDialog";
+import { ProgramFeedback } from "./ProgramFeedback";
 import DeadlineCountdown from "./DeadlineCountdown";
 import ReminderDialog from "./ReminderDialog";
 import HowToApplySection from "./HowToApplySection";
@@ -760,6 +761,19 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
                   )}
                 </Button>
                 <ProgramChatDialog program={application} />
+              </div>
+              
+              {/* Feedback Section */}
+              <div className="pt-4 mt-4 border-t border-border/50">
+                <div className="flex justify-between items-center">
+                  <p className="text-sm text-muted-foreground">
+                    Help us improve your experience
+                  </p>
+                  <ProgramFeedback 
+                    programTitle={application.title}
+                    programUrl={application.url}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
