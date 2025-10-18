@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Trash2, ClipboardCheck, Bell, Calendar, FileText, DollarSign, ClipboardList, ExternalLink, Clock, CheckCircle2, AlertCircle, GraduationCap, CreditCard, IdCard, User, FileCheck, Save, Edit, X, Volume2, Phone, Mail, Smartphone } from "lucide-react";
+import { Trash2, ClipboardCheck, Bell, Calendar, FileText, DollarSign, ClipboardList, ExternalLink, Clock, CheckCircle2, AlertCircle, GraduationCap, CreditCard, IdCard, User, FileCheck, Save, Edit, X, Volume2, Phone, Mail, Smartphone, TrendingUp, Award, Building, MapPin, Sparkles, GitCompare } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import EligibilityQuiz from "./EligibilityQuiz";
+import StartupEligibilityQuiz from "./StartupEligibilityQuiz";
+import ProgramComparison from "./ProgramComparison";
 import DeadlineCountdown from "./DeadlineCountdown";
 import ReminderDialog from "./ReminderDialog";
 import HowToApplySection from "./HowToApplySection";
@@ -47,6 +49,14 @@ interface ApplicationData {
   fee_structure?: string;
   deadline_reminders?: any;
   application_guidance?: any;
+  // Startup-specific fields
+  program_type?: string;
+  funding_amount?: string;
+  sector?: string;
+  stage?: string;
+  state_specific?: string;
+  success_rate?: string;
+  dpiit_required?: boolean;
 }
 
 interface ApplicationCardProps {
@@ -61,6 +71,8 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
   const [showReminderDialog, setShowReminderDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedData, setEditedData] = useState<ApplicationData>(application);
+  const [showStartupQuiz, setShowStartupQuiz] = useState(false);
+  const [showComparison, setShowComparison] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -398,6 +410,32 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
     );
   };
 
+  // Check if this is a startup program
+  const isStartupProgram = application.category?.toLowerCase() === 'startups' || 
+                          application.program_type !== undefined;
+
+  // Helper to get success rate color
+  const getSuccessRateColor = (rate?: string) => {
+    switch (rate?.toLowerCase()) {
+      case 'high':
+        return 'bg-green-50 text-green-700 border-green-200';
+      case 'medium':
+        return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'low':
+        return 'bg-red-50 text-red-700 border-red-200';
+      default:
+        return '';
+    }
+  };
+
+  // Helper to format program type
+  const formatProgramType = (type?: string) => {
+    if (!type) return '';
+    return type.replace(/_/g, ' ').split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+  };
+
   return (
     <Card className="w-full animate-fade-in">
       <CardHeader className="pb-4">
@@ -444,6 +482,36 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
                     <Badge variant="secondary" className="text-base px-3 py-1">{application.category}</Badge>
                   )}
                   {getStatusBadge()}
+                  
+                  {/* Startup-Specific Header Badges */}
+                  {isStartupProgram && (
+                    <>
+                      {application.program_type && (
+                        <Badge variant="default" className="text-base px-3 py-1 gap-1.5">
+                          <Building className="w-4 h-4" />
+                          {formatProgramType(application.program_type)}
+                        </Badge>
+                      )}
+                      {application.funding_amount && (
+                        <Badge variant="secondary" className="text-base px-3 py-1 gap-1.5 bg-green-50 text-green-700 border-green-200">
+                          <DollarSign className="w-4 h-4" />
+                          {application.funding_amount}
+                        </Badge>
+                      )}
+                      {application.dpiit_required && (
+                        <Badge variant="outline" className="text-base px-3 py-1 gap-1.5">
+                          <Award className="w-4 h-4" />
+                          DPIIT Required
+                        </Badge>
+                      )}
+                      {application.success_rate && (
+                        <Badge variant="outline" className={`text-base px-3 py-1 gap-1.5 ${getSuccessRateColor(application.success_rate)}`}>
+                          <TrendingUp className="w-4 h-4" />
+                          {application.success_rate} Success Rate
+                        </Badge>
+                      )}
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -546,6 +614,112 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           )
         )}
 
+        {/* Enhanced Startup Eligibility Section */}
+        {isStartupProgram && (application.stage || application.sector || application.state_specific) && (
+          <Card className="mt-4 bg-slate-800/40">
+            <CardContent className="pt-4">
+              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-primary" />
+                Program Eligibility Criteria
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {application.stage && (
+                  <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                    <div className="text-xs text-muted-foreground mb-1">Eligible Stages</div>
+                    <div className="flex flex-wrap gap-1">
+                      {application.stage.split(',').map((s, idx) => (
+                        <Badge key={idx} variant="secondary" className="text-xs">
+                          {s.trim()}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {application.sector && (
+                  <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                    <div className="text-xs text-muted-foreground mb-1">Sectors</div>
+                    <div className="text-sm font-medium">{application.sector}</div>
+                  </div>
+                )}
+                {application.state_specific && (
+                  <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                    <div className="text-xs text-muted-foreground mb-1">Location</div>
+                    <div className="text-sm font-medium flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      {application.state_specific}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Funding Details Section - For startup funding programs */}
+        {isStartupProgram && application.funding_amount && application.program_type?.includes('funding') && (
+          <Card className="mt-4 bg-slate-800/40">
+            <CardContent className="pt-4">
+              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-primary" />
+                Funding Details
+              </h4>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                  <span className="text-sm text-muted-foreground">Funding Amount</span>
+                  <span className="text-base font-bold text-green-500">{application.funding_amount}</span>
+                </div>
+                {application.program_type && (
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                    <span className="text-sm text-muted-foreground">Program Type</span>
+                    <span className="text-sm font-medium">{formatProgramType(application.program_type)}</span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* AI Smart Actions - For startup programs */}
+        {isStartupProgram && (
+          <Card className="mt-4 bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+            <CardContent className="pt-4">
+              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary" />
+                AI Smart Actions
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowStartupQuiz(true)}
+                  className="w-full"
+                >
+                  <ClipboardCheck className="w-4 h-4 mr-2" />
+                  Check Eligibility
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowComparison(true)}
+                  className="w-full"
+                >
+                  <GitCompare className="w-4 h-4 mr-2" />
+                  Compare Programs
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => toast({ title: "Coming Soon", description: "Application checklist generation will be available soon!" })}
+                  className="w-full"
+                >
+                  <FileCheck className="w-4 h-4 mr-2" />
+                  Get Checklist
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Quick Actions */}
         <div className="flex gap-2 mt-4">
           {application.url && (
@@ -555,7 +729,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
               </a>
             </Button>
           )}
-          {application.eligibility && (
+          {application.eligibility && !isStartupProgram && (
             <Button
               onClick={() => setShowQuiz(true)}
               variant="outline"
@@ -847,6 +1021,43 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
               onClose={() => setShowQuiz(false)}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Startup Eligibility Quiz Dialog */}
+      <Dialog open={showStartupQuiz} onOpenChange={setShowStartupQuiz}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Startup Eligibility Check</DialogTitle>
+          </DialogHeader>
+          {isStartupProgram && application.eligibility && (
+            <StartupEligibilityQuiz
+              programTitle={application.title}
+              eligibility={application.eligibility}
+              sector={application.sector}
+              stage={application.stage}
+              fundingAmount={application.funding_amount}
+              dpiitRequired={application.dpiit_required}
+              onClose={() => setShowStartupQuiz(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Program Comparison Dialog */}
+      <Dialog open={showComparison} onOpenChange={setShowComparison}>
+        <DialogContent className="max-w-7xl max-h-[85vh] overflow-y-auto">
+          <ProgramComparison
+            currentProgram={application}
+            onClose={() => setShowComparison(false)}
+            onTrack={(programs) => {
+              toast({
+                title: "Programs Tracked",
+                description: `Now tracking ${programs.length} program(s)`,
+              });
+              setShowComparison(false);
+            }}
+          />
         </DialogContent>
       </Dialog>
 
