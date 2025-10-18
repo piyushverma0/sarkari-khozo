@@ -4,43 +4,34 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
-
 interface HowToApplySectionProps {
   applicationSteps: string;
   applicationUrl?: string;
 }
-
-const HowToApplySection = ({ applicationSteps, applicationUrl }: HowToApplySectionProps) => {
+const HowToApplySection = ({
+  applicationSteps,
+  applicationUrl
+}: HowToApplySectionProps) => {
   const [openOption, setOpenOption] = useState<string | null>("online");
 
   // Check if the content is "not yet released"
-  const isNotReleased = applicationSteps.toLowerCase().includes('not yet released') || 
-                        applicationSteps.toLowerCase().includes('not released');
+  const isNotReleased = applicationSteps.toLowerCase().includes('not yet released') || applicationSteps.toLowerCase().includes('not released');
 
   // If it's plain text, show it as before
-  const isPlainText = !applicationSteps.toLowerCase().includes('portal') && 
-                      !applicationSteps.toLowerCase().includes('csc') &&
-                      !applicationSteps.toLowerCase().includes('online');
-
+  const isPlainText = !applicationSteps.toLowerCase().includes('portal') && !applicationSteps.toLowerCase().includes('csc') && !applicationSteps.toLowerCase().includes('online');
   if (isPlainText && !isNotReleased) {
-    return (
-      <div className="pt-2 space-y-2">
-        {isNotReleased && (
-          <div className="p-3 bg-muted/50 rounded-lg mb-3">
+    return <div className="pt-2 space-y-2">
+        {isNotReleased && <div className="p-3 bg-muted/50 rounded-lg mb-3">
             <p className="text-base">
               We'll update full steps when the official notice is released. For now, here's what last year's process looked like 👇
             </p>
-          </div>
-        )}
+          </div>}
         <div className="text-base leading-relaxed whitespace-pre-line">
           {applicationSteps}
         </div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="pt-4 space-y-6">
+  return <div className="pt-4 space-y-6">
       {/* Header */}
       <div className="space-y-2">
         <p className="text-base text-muted-foreground">
@@ -49,10 +40,7 @@ const HowToApplySection = ({ applicationSteps, applicationUrl }: HowToApplySecti
       </div>
 
       {/* Option 1: Apply Online */}
-      <Collapsible
-        open={openOption === "online"}
-        onOpenChange={() => setOpenOption(openOption === "online" ? null : "online")}
-      >
+      <Collapsible open={openOption === "online"} onOpenChange={() => setOpenOption(openOption === "online" ? null : "online")}>
         <div className="border rounded-lg overflow-hidden bg-card hover:shadow-md transition-shadow">
           <CollapsibleTrigger className="w-full">
             <div className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
@@ -135,31 +123,26 @@ const HowToApplySection = ({ applicationSteps, applicationUrl }: HowToApplySecti
               <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
                 <div className="flex items-start gap-2">
                   <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-green-900 dark:text-green-100">
+                  <p className="text-sm text-green-500">
                     <strong>Tip:</strong> You'll get a confirmation message once submitted successfully. Save your application number!
                   </p>
                 </div>
               </div>
 
-              {applicationUrl && (
-                <Button className="w-full gap-2" size="lg" asChild>
+              {applicationUrl && <Button className="w-full gap-2" size="lg" asChild>
                   <a href={applicationUrl} target="_blank" rel="noopener noreferrer">
                     <Globe className="w-4 h-4" />
                     Go to Portal
                     <ExternalLink className="w-4 h-4" />
                   </a>
-                </Button>
-              )}
+                </Button>}
             </div>
           </CollapsibleContent>
         </div>
       </Collapsible>
 
       {/* Option 2: Apply at CSC */}
-      <Collapsible
-        open={openOption === "csc"}
-        onOpenChange={() => setOpenOption(openOption === "csc" ? null : "csc")}
-      >
+      <Collapsible open={openOption === "csc"} onOpenChange={() => setOpenOption(openOption === "csc" ? null : "csc")}>
         <div className="border rounded-lg overflow-hidden bg-card hover:shadow-md transition-shadow">
           <CollapsibleTrigger className="w-full">
             <div className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
@@ -224,10 +207,7 @@ const HowToApplySection = ({ applicationSteps, applicationUrl }: HowToApplySecti
       </Collapsible>
 
       {/* Option 3: Apply via State Officials */}
-      <Collapsible
-        open={openOption === "official"}
-        onOpenChange={() => setOpenOption(openOption === "official" ? null : "official")}
-      >
+      <Collapsible open={openOption === "official"} onOpenChange={() => setOpenOption(openOption === "official" ? null : "official")}>
         <div className="border rounded-lg overflow-hidden bg-card hover:shadow-md transition-shadow">
           <CollapsibleTrigger className="w-full">
             <div className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
@@ -323,8 +303,6 @@ const HowToApplySection = ({ applicationSteps, applicationUrl }: HowToApplySecti
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default HowToApplySection;
