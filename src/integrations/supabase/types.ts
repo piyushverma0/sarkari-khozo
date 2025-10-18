@@ -22,11 +22,18 @@ export type Database = {
           deadline_reminders: Json | null
           description: string | null
           documents_required: Json | null
+          dpiit_required: boolean | null
           eligibility: string | null
           fee_structure: string | null
+          funding_amount: string | null
           id: string
           important_dates: Json | null
+          program_type: string | null
           saved_at: string | null
+          sector: string | null
+          stage: string | null
+          state_specific: string | null
+          success_rate: string | null
           title: string
           updated_at: string | null
           url: string | null
@@ -39,11 +46,18 @@ export type Database = {
           deadline_reminders?: Json | null
           description?: string | null
           documents_required?: Json | null
+          dpiit_required?: boolean | null
           eligibility?: string | null
           fee_structure?: string | null
+          funding_amount?: string | null
           id?: string
           important_dates?: Json | null
+          program_type?: string | null
           saved_at?: string | null
+          sector?: string | null
+          stage?: string | null
+          state_specific?: string | null
+          success_rate?: string | null
           title: string
           updated_at?: string | null
           url?: string | null
@@ -56,11 +70,18 @@ export type Database = {
           deadline_reminders?: Json | null
           description?: string | null
           documents_required?: Json | null
+          dpiit_required?: boolean | null
           eligibility?: string | null
           fee_structure?: string | null
+          funding_amount?: string | null
           id?: string
           important_dates?: Json | null
+          program_type?: string | null
           saved_at?: string | null
+          sector?: string | null
+          stage?: string | null
+          state_specific?: string | null
+          success_rate?: string | null
           title?: string
           updated_at?: string | null
           url?: string | null

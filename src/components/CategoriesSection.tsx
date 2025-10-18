@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { GraduationCap, Sprout, Users, Heart, Baby, Briefcase } from "lucide-react";
+import { GraduationCap, Sprout, Users, Heart, Baby, Briefcase, Rocket, Lightbulb, TrendingUp, Scale } from "lucide-react";
 import CategoryCard from "./CategoryCard";
 import type { User } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +11,10 @@ const categories = [
   { icon: Heart, title: "Health & Insurance", slug: "health-insurance" },
   { icon: Baby, title: "Women & Children", slug: "women-children" },
   { icon: Briefcase, title: "Jobs", slug: "jobs" },
+  { icon: Rocket, title: "Startups", slug: "startups" },
+  { icon: Lightbulb, title: "Entrepreneurs", slug: "entrepreneurs" },
+  { icon: TrendingUp, title: "Investors", slug: "investors" },
+  { icon: Scale, title: "Lawyers", slug: "lawyers" },
 ];
 
 interface CategoriesSectionProps {

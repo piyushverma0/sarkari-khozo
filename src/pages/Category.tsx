@@ -16,6 +16,10 @@ const categoryTitles: Record<string, string> = {
   "health-insurance": "Health & Insurance",
   "women-children": "For Women & Children",
   "jobs": "Jobs & Employment",
+  "startups": "For Startups",
+  "entrepreneurs": "For Entrepreneurs",
+  "investors": "For Investors",
+  "lawyers": "For Lawyers",
 };
 
 const Category = () => {
