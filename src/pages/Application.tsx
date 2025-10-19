@@ -9,7 +9,7 @@ import ApplicationCard from "@/components/ApplicationCard";
 import { ApplicationCardSkeleton } from "@/components/SkeletonLoader";
 
 const Application = () => {
-  const { id } = useParams();
+  const { id, category } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();

@@ -63,8 +63,9 @@ const SchemesList = ({ schemes, userId }: SchemesListProps) => {
         description: "The scheme has been saved successfully.",
       });
 
-      // Navigate to application detail page
-      navigate(`/application/${savedApp.id}`);
+      // Navigate to category-aware application detail page
+      const categoryPath = (savedApp.category || 'general').toLowerCase();
+      navigate(`/category/${categoryPath}/application/${savedApp.id}`);
     } catch (error: any) {
       console.error("Error tracking scheme:", error);
       toast({

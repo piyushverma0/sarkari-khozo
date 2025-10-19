@@ -77,8 +77,9 @@ const HeroSection = ({ user, onAuthRequired }: HeroSectionProps) => {
         description: "Your application has been saved successfully.",
       });
 
-      // Navigate to application detail page
-      navigate(`/application/${savedApp.id}`);
+      // Navigate to category-aware application detail page
+      const categoryPath = (savedApp.category || 'general').toLowerCase();
+      navigate(`/category/${categoryPath}/application/${savedApp.id}`);
     } catch (error: any) {
       console.error("Error tracking application:", error);
       toast({

@@ -207,8 +207,8 @@ const StartupProgramsList = ({
       // Tracked program - use category-aware database route (persists across refreshes)
       navigate(`/category/startups/application/${program.id}`);
     } else {
-      // Untracked program - use state (for preview only, won't survive refresh)
-      navigate('/application', { state: { application: { ...program, category: 'Startups' } } });
+      // Untracked program - use category-aware state route (for preview only, won't survive refresh)
+      navigate('/category/startups/application', { state: { application: { ...program, category: 'Startups' } } });
     }
   };
 
