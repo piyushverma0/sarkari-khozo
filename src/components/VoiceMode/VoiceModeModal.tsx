@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +33,8 @@ interface VoiceModeModalProps {
 export const VoiceModeModal = ({ open, onOpenChange }: VoiceModeModalProps) => {
   const [displayedPrograms, setDisplayedPrograms] = useState<any[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const hasPlayedWelcomeRef = useRef(false);
+  const hasProcessedMessageRef = useRef<Set<number>>(new Set());
 
   const {
     voiceState,
@@ -57,17 +59,10 @@ export const VoiceModeModal = ({ open, onOpenChange }: VoiceModeModalProps) => {
     });
   }, []);
 
-  // Auto-start listening when modal opens with welcome message
+  // Auto-start listening when modal opens with welcome message (only once)
   useEffect(() => {
-    if (open && isSupported) {
-      // Add welcome message
-      const welcomeMessage: Message = {
-        role: 'assistant',
-        content: "Hi! I'm Sakhi, your FormVerse assistant. What would you like to track or apply for today?",
-        timestamp: Date.now()
-      };
-      
-      conversationContext.conversationHistory = [welcomeMessage];
+    if (open && isSupported && !hasPlayedWelcomeRef.current) {
+      hasPlayedWelcomeRef.current = true;
 
       // Speak welcome message
       speak("Hi! I'm Sakhi, your FormVerse assistant. What would you like to track or apply for today?");
@@ -75,16 +70,17 @@ export const VoiceModeModal = ({ open, onOpenChange }: VoiceModeModalProps) => {
       // Start listening after welcome
       setTimeout(() => {
         startListening();
-      }, 3000); // Give time for welcome message to play
+      }, 2500);
     }
 
-    return () => {
-      if (open) {
-        stopListening();
-        stopSpeaking();
-      }
-    };
-  }, [open, isSupported, startListening, stopListening, stopSpeaking, speak]);
+    // Reset ref when modal closes
+    if (!open) {
+      hasPlayedWelcomeRef.current = false;
+      hasProcessedMessageRef.current.clear();
+      stopListening();
+      stopSpeaking();
+    }
+  }, [open, isSupported]);
 
   // Speak assistant responses
   useEffect(() => {
@@ -96,6 +92,28 @@ export const VoiceModeModal = ({ open, onOpenChange }: VoiceModeModalProps) => {
       speak(lastMessage.content);
     }
   }, [conversationContext.conversationHistory, speak, isSpeaking]);
+
+  // Watch for new user messages and process them automatically
+  useEffect(() => {
+    const lastMessage = conversationContext.conversationHistory[
+      conversationContext.conversationHistory.length - 1
+    ];
+
+    // If the last message is from user and hasn't been processed yet
+    if (
+      lastMessage &&
+      lastMessage.role === 'user' &&
+      !hasProcessedMessageRef.current.has(lastMessage.timestamp) &&
+      voiceState !== 'processing' &&
+      voiceState !== 'speaking'
+    ) {
+      // Mark this message as processed
+      hasProcessedMessageRef.current.add(lastMessage.timestamp);
+      
+      // Process the message
+      sendMessage(lastMessage.content, userId || undefined);
+    }
+  }, [conversationContext.conversationHistory, voiceState, sendMessage, userId]);
 
   // Update displayed programs when context changes
   useEffect(() => {
@@ -400,40 +418,56 @@ export const VoiceModeModal = ({ open, onOpenChange }: VoiceModeModalProps) => {
         {error && voiceState === "error" && (
           <div className="absolute bottom-4 left-4 right-4 animate-fade-in">
             <Alert variant="destructive">
-              <AlertDescription className="flex items-center justify-between">
-                <span>{error}</span>
-                <div className="flex gap-2 ml-4">
-                  {error.includes("microphone") && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        window.open("https://support.google.com/chrome/answer/2693767", "_blank");
-                      }}
-                    >
-                      Help
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      stopListening();
-                    }}
-                  >
-                    Dismiss
-                  </Button>
-                  {!error.includes("microphone") && (
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        startListening();
-                      }}
-                    >
-                      Retry
-                    </Button>
-                  )}
-                </div>
+              <AlertDescription>
+                {error.includes("denied") || error.includes("microphone") ? (
+                  <div>
+                    <p className="font-semibold mb-2">Microphone Access Required</p>
+                    <p className="text-sm mb-3">
+                      Sakhi needs microphone access to listen to you. Please:
+                    </p>
+                    <ol className="text-sm list-decimal list-inside space-y-1 mb-3">
+                      <li>Click the microphone icon in your browser's address bar</li>
+                      <li>Select "Allow" for microphone access</li>
+                      <li>Click the button below to try again</li>
+                    </ol>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => startListening()}
+                      >
+                        Grant Access & Retry
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleSwitchToTyping}
+                      >
+                        Type Instead
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <span>{error}</span>
+                    <div className="flex gap-2 ml-4">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          stopListening();
+                        }}
+                      >
+                        Dismiss
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => startListening()}
+                      >
+                        Retry
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </AlertDescription>
             </Alert>
           </div>

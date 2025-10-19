@@ -102,9 +102,14 @@ export const useVoiceMode = (): UseVoiceModeReturn => {
     };
 
     recognition.onend = () => {
+      // Only restart if we're actively listening (not processing or speaking)
       if (voiceState === 'listening') {
-        // Restart if we're still in listening mode
-        recognition.start();
+        try {
+          recognition.start();
+        } catch (err) {
+          // Ignore errors from trying to start already-running recognition
+          console.log('Recognition restart skipped:', err);
+        }
       }
     };
 
@@ -199,7 +204,19 @@ export const useVoiceMode = (): UseVoiceModeReturn => {
   }, [lastResponse, getHelpText]);
 
   const handleFinalTranscript = useCallback(async (text: string) => {
-    if (!text) return;
+    if (!text || voiceState === 'processing' || voiceState === 'speaking') return;
+
+    // Temporarily stop listening while we process
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (err) {
+        console.log('Recognition already stopped:', err);
+      }
+    }
+
+    setVoiceState('processing');
+    setTranscript(''); // Clear transcript
 
     // Add user message to history
     const userMessage: Message = {
@@ -214,8 +231,8 @@ export const useVoiceMode = (): UseVoiceModeReturn => {
     }));
     
     resetInactivityTimeout();
-    // Note: sendMessage should be called separately from the component with userId
-  }, [resetInactivityTimeout]);
+    // Note: sendMessage will be called automatically by the component watching conversationHistory
+  }, [resetInactivityTimeout, voiceState]);
 
   const startListening = useCallback(async () => {
     if (!isSupported) {
@@ -294,10 +311,16 @@ export const useVoiceMode = (): UseVoiceModeReturn => {
       
       // Return to listening after speaking
       setTimeout(() => {
-        if (voiceState !== 'idle') {
-          setVoiceState('listening');
+        setVoiceState('listening');
+        // Restart recognition if it stopped
+        if (recognitionRef.current) {
+          try {
+            recognitionRef.current.start();
+          } catch (err) {
+            console.log('Recognition already active:', err);
+          }
         }
-      }, 1000);
+      }, 1500); // Slightly longer delay to let TTS finish
 
       return data;
     } catch (err) {
