@@ -139,6 +139,7 @@ const SavedApplicationsSection = ({ userId }: SavedApplicationsSectionProps) => 
               title={app.title}
               description={app.description || ""}
               savedAt={new Date(app.saved_at)}
+              category={app.category}
             />
           ))}
         </div>
