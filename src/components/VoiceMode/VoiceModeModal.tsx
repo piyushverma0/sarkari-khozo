@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { VoiceVisualizer } from "./VoiceVisualizer";
 import { VoiceConversationView } from "./VoiceConversationView";
+import { VoiceProgramCard } from "./VoiceProgramCard";
 import { useVoiceMode } from "@/hooks/useVoiceMode";
 import { useTextToSpeechService } from "@/hooks/useTextToSpeechService";
+import { supabase } from "@/integrations/supabase/client";
 import { X, Keyboard, Globe } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
@@ -21,6 +23,9 @@ interface VoiceModeModalProps {
 }
 
 export const VoiceModeModal = ({ open, onOpenChange }: VoiceModeModalProps) => {
+  const [displayedPrograms, setDisplayedPrograms] = useState<any[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+
   const {
     voiceState,
     transcript,
@@ -30,9 +35,17 @@ export const VoiceModeModal = ({ open, onOpenChange }: VoiceModeModalProps) => {
     startListening,
     stopListening,
     resetSession,
+    sendMessage,
   } = useVoiceMode();
 
   const { speak, stop: stopSpeaking, isSpeaking } = useTextToSpeechService();
+
+  // Get current user
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUserId(user?.id || null);
+    });
+  }, []);
 
   // Auto-start listening when modal opens
   useEffect(() => {
@@ -59,6 +72,15 @@ export const VoiceModeModal = ({ open, onOpenChange }: VoiceModeModalProps) => {
     }
   }, [conversationContext.conversationHistory, speak, isSpeaking]);
 
+  // Update displayed programs when context changes
+  useEffect(() => {
+    if (conversationContext.searchResults) {
+      setDisplayedPrograms(conversationContext.searchResults);
+    } else if (conversationContext.savedPrograms) {
+      setDisplayedPrograms(conversationContext.savedPrograms);
+    }
+  }, [conversationContext.searchResults, conversationContext.savedPrograms]);
+
   const handleClose = () => {
     stopListening();
     stopSpeaking();
@@ -74,6 +96,58 @@ export const VoiceModeModal = ({ open, onOpenChange }: VoiceModeModalProps) => {
       description: "You can now type your messages in the regular interface.",
     });
     onOpenChange(false);
+  };
+
+  const handleSaveProgram = async (program: any, index: number) => {
+    if (!userId) {
+      toast({
+        title: "Please log in",
+        description: "You need to be logged in to save programs",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('applications').insert({
+        user_id: userId,
+        title: program.title,
+        description: program.description,
+        category: program.category,
+        url: program.url,
+        program_type: program.program_type,
+        funding_amount: program.funding_amount,
+        sector: program.sector,
+        stage: program.stage,
+        state_specific: program.state_specific,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Program saved!",
+        description: `"${program.title}" has been added to your tracked applications.`,
+      });
+
+      // Speak confirmation
+      speak(`I've saved ${program.title} to your tracked applications.`);
+    } catch (error) {
+      console.error('Error saving program:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save program. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleQuickAction = (action: string) => {
+    if (voiceState !== 'idle' && voiceState !== 'listening') return;
+    
+    // Send the action as a voice command
+    if (sendMessage && userId) {
+      sendMessage(action, userId);
+    }
   };
 
   if (!isSupported) {
@@ -103,11 +177,11 @@ export const VoiceModeModal = ({ open, onOpenChange }: VoiceModeModalProps) => {
   }[voiceState];
 
   // Generate suggested follow-ups based on context
-  const suggestedActions = [
-    "Tell me more",
-    "Show more options",
-    "Set a reminder",
-  ];
+  const suggestedActions = displayedPrograms.length > 0
+    ? ["Save first program", "Tell me about program 1", "Check eligibility"]
+    : conversationContext.category
+    ? ["Show more options", "Save this program", "Find similar"]
+    : ["Find startup programs", "Show legal opportunities", "Search schemes"];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -177,8 +251,33 @@ export const VoiceModeModal = ({ open, onOpenChange }: VoiceModeModalProps) => {
           )}
         </div>
 
-        {/* Bottom Section - Conversation */}
+        {/* Bottom Section - Programs & Conversation */}
         <div className="flex-1 overflow-hidden flex flex-col">
+          {/* Display programs if available */}
+          {displayedPrograms.length > 0 && (
+            <div className="border-b p-4 bg-muted/30 max-h-64 overflow-y-auto">
+              <p className="text-sm font-medium mb-3">
+                {conversationContext.searchResults ? "Search Results" : "Saved Programs"}
+              </p>
+              <div className="space-y-2">
+                {displayedPrograms.slice(0, 3).map((program, index) => (
+                  <VoiceProgramCard
+                    key={program.id || index}
+                    program={program}
+                    index={index}
+                    onSave={() => handleSaveProgram(program, index)}
+                    onRemind={() => {
+                      toast({
+                        title: "Reminder feature",
+                        description: "Voice reminders coming soon!",
+                      });
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           <VoiceConversationView
             messages={conversationContext.conversationHistory}
             currentTranscript={voiceState === "listening" ? transcript : undefined}
@@ -194,14 +293,8 @@ export const VoiceModeModal = ({ open, onOpenChange }: VoiceModeModalProps) => {
                     key={index}
                     variant="secondary"
                     size="sm"
-                    onClick={() => {
-                      // This would trigger the action
-                      toast({
-                        title: "Action triggered",
-                        description: `"${action}" - feature coming soon`,
-                      });
-                    }}
-                    disabled={voiceState !== "idle"}
+                    onClick={() => handleQuickAction(action)}
+                    disabled={voiceState === "processing" || voiceState === "speaking"}
                   >
                     {action}
                   </Button>

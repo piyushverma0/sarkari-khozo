@@ -15,6 +15,9 @@ export interface ConversationContext {
   state?: string;
   intent?: string;
   conversationHistory: Message[];
+  currentProgram?: any;
+  savedPrograms?: any[];
+  searchResults?: any[];
 }
 
 interface UseVoiceModeReturn {
@@ -26,7 +29,7 @@ interface UseVoiceModeReturn {
   startListening: () => Promise<void>;
   stopListening: () => void;
   resetSession: () => void;
-  sendMessage: (text: string) => Promise<void>;
+  sendMessage: (text: string, userId?: string) => Promise<void>;
 }
 
 export const useVoiceMode = (): UseVoiceModeReturn => {
@@ -172,14 +175,15 @@ export const useVoiceMode = (): UseVoiceModeReturn => {
     setTranscript('');
   }, []);
 
-  const sendMessage = useCallback(async (text: string) => {
+  const sendMessage = useCallback(async (text: string, userId?: string) => {
     setVoiceState('processing');
     
     try {
       const { data, error: funcError } = await supabase.functions.invoke('voice-assistant', {
         body: {
           message: text,
-          context: conversationContext
+          context: conversationContext,
+          userId
         }
       });
 
