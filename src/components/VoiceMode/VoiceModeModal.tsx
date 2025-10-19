@@ -12,10 +12,17 @@ import { VoiceConversationView } from "./VoiceConversationView";
 import { VoiceProgramCard } from "./VoiceProgramCard";
 import { useVoiceMode } from "@/hooks/useVoiceMode";
 import { useTextToSpeechService } from "@/hooks/useTextToSpeechService";
+import { useVoiceCommands } from "@/hooks/useVoiceCommands";
 import { supabase } from "@/integrations/supabase/client";
-import { X, Keyboard, Globe } from "lucide-react";
+import { X, Keyboard, Globe, HelpCircle, RotateCcw } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface VoiceModeModalProps {
   open: boolean;
@@ -36,9 +43,11 @@ export const VoiceModeModal = ({ open, onOpenChange }: VoiceModeModalProps) => {
     stopListening,
     resetSession,
     sendMessage,
+    handleVoiceCommand,
   } = useVoiceMode();
 
   const { speak, stop: stopSpeaking, isSpeaking } = useTextToSpeechService();
+  const { getHelpText } = useVoiceCommands();
 
   // Get current user
   useEffect(() => {
@@ -150,6 +159,25 @@ export const VoiceModeModal = ({ open, onOpenChange }: VoiceModeModalProps) => {
     }
   };
 
+  const handleShowHelp = () => {
+    const helpText = getHelpText();
+    speak(helpText);
+    toast({
+      title: "Voice Commands",
+      description: "I've spoken the available commands. You can also see them in the conversation.",
+    });
+  };
+
+  const handleStartOver = () => {
+    if (window.confirm("Are you sure you want to start a new conversation? This will clear your current chat history.")) {
+      resetSession();
+      toast({
+        title: "Conversation reset",
+        description: "Starting fresh! How can I help you?",
+      });
+    }
+  };
+
   if (!isSupported) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -203,6 +231,44 @@ export const VoiceModeModal = ({ open, onOpenChange }: VoiceModeModalProps) => {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Help button */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleShowHelp}
+                    >
+                      <HelpCircle className="h-5 w-5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Voice commands help</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              {/* Start over button */}
+              {conversationContext.conversationHistory.length > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleStartOver}
+                      >
+                        <RotateCcw className="h-5 w-5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Start new conversation</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+
               {/* Language toggle (placeholder for future) */}
               <Button
                 variant="ghost"
@@ -304,11 +370,45 @@ export const VoiceModeModal = ({ open, onOpenChange }: VoiceModeModalProps) => {
           )}
         </div>
 
-        {/* Error Alert */}
+        {/* Error Alert with Recovery Options */}
         {error && voiceState === "error" && (
           <div className="absolute bottom-4 left-4 right-4 animate-fade-in">
             <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription className="flex items-center justify-between">
+                <span>{error}</span>
+                <div className="flex gap-2 ml-4">
+                  {error.includes("microphone") && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        window.open("https://support.google.com/chrome/answer/2693767", "_blank");
+                      }}
+                    >
+                      Help
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      stopListening();
+                    }}
+                  >
+                    Dismiss
+                  </Button>
+                  {!error.includes("microphone") && (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        startListening();
+                      }}
+                    >
+                      Retry
+                    </Button>
+                  )}
+                </div>
+              </AlertDescription>
             </Alert>
           </div>
         )}

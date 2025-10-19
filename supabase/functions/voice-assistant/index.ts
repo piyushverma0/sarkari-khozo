@@ -164,6 +164,7 @@ Your role:
 - Use Indian context and terminology
 - Be encouraging and supportive
 - When actions are performed (save, remove), acknowledge them clearly
+- Remember context from previous turns in the conversation
 
 Available categories:
 - Startups (idea/prototype/revenue stage)
@@ -175,10 +176,20 @@ Available categories:
 User types: students, professionals, entrepreneurs, farmers, lawyers
 
 When user asks to search:
-1. Identify category and intent
-2. Ask for missing context (state, user type, stage)
-3. Call the appropriate function to get results
-4. Present results conversationally with program names
+1. First check if they mentioned category/state before - reuse that context
+2. Identify any NEW category or state mentioned
+3. Ask for ONLY missing critical information
+4. Present results conversationally
+
+When input is ambiguous:
+- "Show me schemes" → Ask: "What category? Startups, Legal, Farmers, Exams, or Government Schemes?"
+- "I'm a student" → Ask: "Are you a law student, engineering student, or in another field?"
+- Use their previous context to narrow down options
+
+When user refers to previous items:
+- "What about the deadline?" → Use the last mentioned program
+- "Also show me in Maharashtra" → Reuse the previous category/intent
+- "Tell me about the second one" → Refer to previously shown programs
 
 When user asks to take action (save, remove, remind):
 1. Confirm the action clearly
@@ -191,7 +202,8 @@ Current context: ${JSON.stringify({
   category: context.category,
   userType: context.userType,
   state: context.state,
-  hasCurrentProgram: !!context.currentProgram
+  hasCurrentProgram: !!context.currentProgram,
+  conversationLength: context.conversationHistory.length
 })}`;
 
     // Call Gemini API

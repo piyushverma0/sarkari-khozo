@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useVoiceCommands } from './useVoiceCommands';
 
 export type VoiceState = 'idle' | 'initializing' | 'listening' | 'processing' | 'speaking' | 'error';
 
@@ -30,6 +31,8 @@ interface UseVoiceModeReturn {
   stopListening: () => void;
   resetSession: () => void;
   sendMessage: (text: string, userId?: string) => Promise<void>;
+  handleVoiceCommand: (commandResult: any) => void;
+  lastResponse: any;
 }
 
 export const useVoiceMode = (): UseVoiceModeReturn => {
@@ -40,9 +43,11 @@ export const useVoiceMode = (): UseVoiceModeReturn => {
   });
   const [error, setError] = useState<string | null>(null);
   const [isSupported] = useState(() => 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window);
+  const [lastResponse, setLastResponse] = useState<any>(null);
 
   const recognitionRef = useRef<any>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { getHelpText } = useVoiceCommands();
 
   // Initialize speech recognition
   useEffect(() => {
@@ -79,10 +84,17 @@ export const useVoiceMode = (): UseVoiceModeReturn => {
 
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
+      
+      // Provide user-friendly error messages
       if (event.error === 'no-speech') {
-        setError('No speech detected. Please try again.');
+        setError("I didn't catch that clearly. Could you please repeat?");
       } else if (event.error === 'network') {
-        setError('Network error. Please check your connection.');
+        setError("I'm having trouble connecting. You can click to type instead.");
+      } else if (event.error === 'not-allowed') {
+        setError("Microphone access denied. Please check your browser settings.");
+      } else if (event.error === 'aborted') {
+        // User stopped intentionally, don't show error
+        return;
       } else {
         setError('Speech recognition error. Please try again.');
       }
@@ -114,13 +126,79 @@ export const useVoiceMode = (): UseVoiceModeReturn => {
       clearTimeout(timeoutRef.current);
     }
     timeoutRef.current = setTimeout(() => {
-      stopListening();
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
       setError('Session timed out due to inactivity.');
       setVoiceState('error');
     }, 2 * 60 * 1000); // 2 minutes
   }, []);
 
-  const handleFinalTranscript = async (text: string) => {
+  const handleVoiceCommand = useCallback((commandResult: any) => {
+    const { command, params } = commandResult;
+
+    switch (command) {
+      case 'go_back':
+        // Remove last user message and assistant response
+        setConversationContext(prev => ({
+          ...prev,
+          conversationHistory: prev.conversationHistory.slice(0, -2)
+        }));
+        break;
+
+      case 'repeat':
+        // Replay last assistant message
+        if (lastResponse) {
+          const assistantMessage: Message = {
+            role: 'assistant',
+            content: lastResponse.text,
+            timestamp: Date.now()
+          };
+          setConversationContext(prev => ({
+            ...prev,
+            conversationHistory: [...prev.conversationHistory, assistantMessage]
+          }));
+        }
+        break;
+
+      case 'pause':
+        // Stop the recognition
+        if (recognitionRef.current) {
+          recognitionRef.current.stop();
+        }
+        setVoiceState('idle');
+        break;
+
+      case 'start_over':
+        // Clear conversation
+        if (recognitionRef.current) {
+          recognitionRef.current.stop();
+        }
+        setConversationContext({ conversationHistory: [] });
+        setTranscript('');
+        setError(null);
+        setVoiceState('idle');
+        break;
+
+      case 'help':
+        const helpMessage: Message = {
+          role: 'assistant',
+          content: getHelpText(),
+          timestamp: Date.now()
+        };
+        setConversationContext(prev => ({
+          ...prev,
+          conversationHistory: [...prev.conversationHistory, helpMessage]
+        }));
+        break;
+
+      default:
+        // For show_details and compare, let the assistant handle it
+        break;
+    }
+  }, [lastResponse, getHelpText]);
+
+  const handleFinalTranscript = useCallback(async (text: string) => {
     if (!text) return;
 
     // Add user message to history
@@ -134,11 +212,10 @@ export const useVoiceMode = (): UseVoiceModeReturn => {
       ...prev,
       conversationHistory: [...prev.conversationHistory, userMessage]
     }));
-
-    // Process the message
-    await sendMessage(text);
+    
     resetInactivityTimeout();
-  };
+    // Note: sendMessage should be called separately from the component with userId
+  }, [resetInactivityTimeout]);
 
   const startListening = useCallback(async () => {
     if (!isSupported) {
@@ -187,7 +264,18 @@ export const useVoiceMode = (): UseVoiceModeReturn => {
         }
       });
 
-      if (funcError) throw funcError;
+      if (funcError) {
+        // Handle specific API errors
+        if (funcError.message?.includes('429')) {
+          throw new Error("I'm a bit busy right now. Please try again in a moment.");
+        } else if (funcError.message?.includes('402')) {
+          throw new Error("Service temporarily unavailable. Please try again later.");
+        }
+        throw funcError;
+      }
+
+      // Store last response for repeat command
+      setLastResponse(data);
 
       // Add assistant response to history
       const assistantMessage: Message = {
@@ -214,7 +302,8 @@ export const useVoiceMode = (): UseVoiceModeReturn => {
       return data;
     } catch (err) {
       console.error('Error processing message:', err);
-      setError('Failed to process your request. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to process your request. Please try again.';
+      setError(errorMessage);
       setVoiceState('error');
     }
   }, [conversationContext, voiceState]);
@@ -236,6 +325,8 @@ export const useVoiceMode = (): UseVoiceModeReturn => {
     startListening,
     stopListening,
     resetSession,
-    sendMessage
+    sendMessage,
+    handleVoiceCommand,
+    lastResponse,
   };
 };
