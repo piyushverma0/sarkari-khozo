@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import type { User } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { OpportunitySelectionDialog } from "@/components/OpportunitySelectionDialog";
+import { SearchAutocomplete } from "@/components/SearchAutocomplete";
+import { useRotatingPlaceholder } from "@/hooks/useRotatingPlaceholder";
 
 interface Opportunity {
   title: string;
@@ -36,6 +37,7 @@ const HeroSection = ({ user, onAuthRequired }: HeroSectionProps) => {
   const [disambiguationData, setDisambiguationData] = useState<DisambiguationData | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const placeholder = useRotatingPlaceholder();
 
   const handleTrackApplication = async () => {
     if (!user) {
@@ -200,13 +202,15 @@ const HeroSection = ({ user, onAuthRequired }: HeroSectionProps) => {
 
         <div className="glass-card rounded-2xl p-8 max-w-3xl mx-auto shadow-[var(--shadow-card)] border-2 border-primary/20 bg-card/40">
           <div className="relative mb-4">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input 
-              placeholder='Enter exam, job, or scheme name... e.g., "SSC CGL 2024" or "PM Kisan Yojana"'
-              className="pl-12 h-14 text-base bg-background/80 border-2 border-primary/30 focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary/50 transition-all duration-200"
+            <SearchAutocomplete
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleTrackApplication()}
+              onChange={setQuery}
+              onSelect={(value) => {
+                setQuery(value);
+                // Trigger tracking after brief delay to show selection
+                setTimeout(() => handleTrackApplication(), 100);
+              }}
+              placeholder={placeholder}
               disabled={!user || isLoading}
             />
           </div>
