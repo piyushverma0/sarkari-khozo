@@ -995,8 +995,8 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
 
       <CardContent className="pt-0">
         <Accordion type="multiple" defaultValue={["dates", "eligibility"]} className="w-full">
-          {/* Important Dates - Open by default */}
-          {importantDates && Object.keys(importantDates).length > 0 && (
+          {/* Important Dates - Open by default (hidden for startup programs as AI insights provide timeline) */}
+          {importantDates && Object.keys(importantDates).length > 0 && !isStartupProgram && (
             <AccordionItem value="dates">
               <AccordionTrigger className="text-xl font-semibold hover:no-underline">
                 <div className="flex items-center gap-2">
@@ -1212,8 +1212,8 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           </div>
         )}
 
-        {/* Need Help Section - Outside Accordion */}
-        {(application.application_guidance?.helpline || application.application_guidance?.email || application.url) && (
+        {/* Need Help Section - Outside Accordion (hidden for startup programs as AI insights provide help contacts) */}
+        {(application.application_guidance?.helpline || application.application_guidance?.email || application.url) && !isStartupProgram && (
           <div className="mx-6 mb-8">
             <div className="border rounded-xl p-5 bg-slate-800/40 backdrop-blur-sm shadow-lg">
               <h4 className="font-semibold text-lg mb-2 flex items-center gap-2">
