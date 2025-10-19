@@ -38,9 +38,3 @@ verify_jwt = false
 
 [functions.find-lawyer-programs]
 verify_jwt = false
-
-[functions.voice-assistant]
-verify_jwt = false
-
-[functions.generate-voice-response]
-verify_jwt = false
