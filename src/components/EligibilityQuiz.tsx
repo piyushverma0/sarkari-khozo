@@ -3,12 +3,18 @@ import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface Question {
+  id: string;
   question: string;
-  requirement: string;
+  requirement?: string;
+  type: 'yes-no' | 'multiple-choice' | 'text';
+  options?: string[];
 }
 
 interface EligibilityQuizProps {
@@ -19,7 +25,8 @@ interface EligibilityQuizProps {
 const EligibilityQuiz = ({ eligibility, onClose }: EligibilityQuizProps) => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<boolean[]>([]);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [currentAnswer, setCurrentAnswer] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [showResult, setShowResult] = useState(false);
   const { toast } = useToast();
@@ -54,9 +61,11 @@ const EligibilityQuiz = ({ eligibility, onClose }: EligibilityQuizProps) => {
     fetchQuiz();
   });
 
-  const handleAnswer = (answer: boolean) => {
-    const newAnswers = [...answers, answer];
+  const handleAnswer = (answer: string) => {
+    const currentQuestion = questions[currentQuestionIndex];
+    const newAnswers = { ...answers, [currentQuestion.id]: answer };
     setAnswers(newAnswers);
+    setCurrentAnswer("");
 
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
@@ -66,12 +75,25 @@ const EligibilityQuiz = ({ eligibility, onClose }: EligibilityQuizProps) => {
   };
 
   const calculateEligibility = () => {
-    const yesCount = answers.filter(a => a).length;
-    const percentage = (yesCount / questions.length) * 100;
+    // Count positive answers (Yes for yes-no questions)
+    let positiveCount = 0;
+    questions.forEach(q => {
+      const answer = answers[q.id];
+      if (q.type === 'yes-no' && answer === 'Yes') {
+        positiveCount++;
+      } else if (q.type === 'multiple-choice' || q.type === 'text') {
+        // For other types, count as positive if answered
+        if (answer && answer.trim().length > 0) {
+          positiveCount++;
+        }
+      }
+    });
+    
+    const percentage = (positiveCount / questions.length) * 100;
     return {
-      isEligible: percentage >= 80,
+      isEligible: percentage >= 70,
       percentage: Math.round(percentage),
-      yesCount,
+      yesCount: positiveCount,
       totalQuestions: questions.length
     };
   };
@@ -118,16 +140,24 @@ const EligibilityQuiz = ({ eligibility, onClose }: EligibilityQuizProps) => {
 
           <div className="space-y-3">
             <h4 className="font-semibold text-base">Your Responses:</h4>
-            {questions.map((q, index) => (
-              <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/20 border border-slate-700/50">
-                {answers[index] ? (
-                  <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                ) : (
-                  <XCircle className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0" />
-                )}
-                <span className="text-sm text-foreground/90">{q.question}</span>
-              </div>
-            ))}
+            {questions.map((q) => {
+              const answer = answers[q.id];
+              const isPositive = q.type === 'yes-no' ? answer === 'Yes' : (answer && answer.trim().length > 0);
+              
+              return (
+                <div key={q.id} className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/20 border border-slate-700/50">
+                  {isPositive ? (
+                    <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  ) : (
+                    <XCircle className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0" />
+                  )}
+                  <div className="flex-1">
+                    <p className="text-sm text-foreground/90 font-medium">{q.question}</p>
+                    <p className="text-sm text-muted-foreground mt-1">Your answer: <span className="font-semibold">{answer || 'Not answered'}</span></p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           <Button onClick={onClose} className="w-full h-12 text-base">
@@ -163,22 +193,67 @@ const EligibilityQuiz = ({ eligibility, onClose }: EligibilityQuizProps) => {
         )}
       </CardHeader>
       <CardContent className="space-y-4">
-        <Button
-          onClick={() => handleAnswer(true)}
-          className="w-full h-16 text-lg font-semibold bg-primary/20 hover:bg-primary/30 border border-primary/40 hover:border-primary/60 transition-all"
-          variant="outline"
-        >
-          <CheckCircle2 className="w-6 h-6 mr-3" />
-          Yes
-        </Button>
-        <Button
-          onClick={() => handleAnswer(false)}
-          className="w-full h-16 text-lg font-semibold bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 hover:border-slate-600 transition-all"
-          variant="outline"
-        >
-          <XCircle className="w-6 h-6 mr-3" />
-          No
-        </Button>
+        {currentQuestion.type === 'yes-no' && (
+          <>
+            <Button
+              onClick={() => handleAnswer('Yes')}
+              className="w-full h-16 text-lg font-semibold bg-primary/20 hover:bg-primary/30 border border-primary/40 hover:border-primary/60 transition-all"
+              variant="outline"
+            >
+              <CheckCircle2 className="w-6 h-6 mr-3" />
+              Yes
+            </Button>
+            <Button
+              onClick={() => handleAnswer('No')}
+              className="w-full h-16 text-lg font-semibold bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 hover:border-slate-600 transition-all"
+              variant="outline"
+            >
+              <XCircle className="w-6 h-6 mr-3" />
+              No
+            </Button>
+          </>
+        )}
+
+        {currentQuestion.type === 'multiple-choice' && currentQuestion.options && (
+          <>
+            <RadioGroup value={currentAnswer} onValueChange={setCurrentAnswer} className="space-y-3">
+              {currentQuestion.options.map((option, idx) => (
+                <div key={idx} className="flex items-center space-x-3 p-4 rounded-lg border border-slate-700/50 hover:border-primary/40 transition-colors cursor-pointer bg-slate-800/20">
+                  <RadioGroupItem value={option} id={`option-${idx}`} />
+                  <Label htmlFor={`option-${idx}`} className="flex-1 cursor-pointer text-base">
+                    {option}
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+            <Button
+              onClick={() => handleAnswer(currentAnswer)}
+              disabled={!currentAnswer}
+              className="w-full h-12 text-base"
+            >
+              Next Question
+            </Button>
+          </>
+        )}
+
+        {currentQuestion.type === 'text' && (
+          <>
+            <Textarea
+              value={currentAnswer}
+              onChange={(e) => setCurrentAnswer(e.target.value)}
+              placeholder="Type your answer here..."
+              className="min-h-[120px] text-base"
+            />
+            <Button
+              onClick={() => handleAnswer(currentAnswer)}
+              disabled={!currentAnswer.trim()}
+              className="w-full h-12 text-base"
+            >
+              Next Question
+            </Button>
+          </>
+        )}
+
         <Button
           onClick={onClose}
           className="w-full mt-2 text-muted-foreground hover:text-foreground"

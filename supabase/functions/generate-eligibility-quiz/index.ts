@@ -211,29 +211,52 @@ Make questions specific to the program's eligibility criteria. Keep options clea
       // Original yes/no quiz for non-startup programs
       console.log('Generating standard eligibility quiz');
 
-      const prompt = `You are an expert at creating simple yes/no eligibility questionnaires.
+      const prompt = `Based on the following eligibility criteria, generate a clear eligibility questionnaire to help users determine if they qualify.
 
 Eligibility Criteria:
 ${eligibility}
 
-Create a clear, step-by-step Yes/No questionnaire to help users determine if they're eligible. 
+Create 5-8 clear questions that check each major requirement. For each question, choose the most appropriate type:
+- Use "yes-no" for simple binary questions (Do you have X? Are you Y?)
+- Use "multiple-choice" for questions with 2-5 distinct options (e.g., location, education level, age range)
+- Use "text" for questions requiring specific details (e.g., exact age, income amount, registration number)
 
-Rules:
-- Ask 5-8 questions maximum
-- Each question must be answerable with Yes or No
-- Order from most general to most specific
-- Cover all major eligibility requirements
-- Be clear and conversational
+Each question should:
+1. Be clear and specific
+2. Check a particular eligibility criterion
+3. Use the most natural format for that question
 
-Return JSON array:
+Return your response as a JSON array where each item has:
+- "id": A unique identifier like "q1", "q2", etc.
+- "question": The question text
+- "requirement": Brief explanation of what this checks (optional)
+- "type": One of "yes-no", "multiple-choice", or "text"
+- "options": Array of option strings (only for "multiple-choice" type)
+
+Example format:
 [
   {
-    "question": "Clear yes/no question?",
-    "requirement": "What this checks"
+    "id": "q1",
+    "question": "Are you a citizen of India?",
+    "requirement": "Indian citizenship requirement",
+    "type": "yes-no"
+  },
+  {
+    "id": "q2",
+    "question": "Where is your institution located?",
+    "requirement": "Location eligibility",
+    "type": "multiple-choice",
+    "options": ["India", "Abroad", "Both"]
+  },
+  {
+    "id": "q3",
+    "question": "What is your annual family income (in INR)?",
+    "requirement": "Income criteria",
+    "type": "text"
   }
 ]
 
-Focus on the most important eligibility criteria.`;
+Return ONLY the JSON array, no other text.`;
 
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
