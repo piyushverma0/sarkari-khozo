@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 interface Suggestion {
@@ -37,12 +36,6 @@ const SUGGESTIONS: Suggestion[] = [
   { title: "Mudra Loan Yojana", category: "Scheme" },
 ];
 
-const categoryConfig = {
-  Exam: { emoji: "📝", color: "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20" },
-  Job: { emoji: "💼", color: "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/20" },
-  Scheme: { emoji: "🌱", color: "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20" },
-  Startup: { emoji: "🚀", color: "bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/20" },
-};
 
 export const SearchAutocomplete = ({
   value,
@@ -95,21 +88,15 @@ export const SearchAutocomplete = ({
             <CommandList>
               <CommandEmpty>No suggestions found.</CommandEmpty>
               <CommandGroup heading="Suggestions">
-                {filteredSuggestions.map((suggestion, index) => {
-                  const config = categoryConfig[suggestion.category];
-                  return (
-                    <CommandItem
-                      key={index}
-                      onSelect={() => handleSelect(suggestion.title)}
-                      className="flex items-center justify-between gap-2 cursor-pointer"
-                    >
-                      <span className="flex-1">{suggestion.title}</span>
-                      <Badge variant="outline" className={cn("text-xs", config.color)}>
-                        {config.emoji} {suggestion.category}
-                      </Badge>
-                    </CommandItem>
-                  );
-                })}
+                {filteredSuggestions.map((suggestion, index) => (
+                  <CommandItem
+                    key={index}
+                    onSelect={() => handleSelect(suggestion.title)}
+                    className="cursor-pointer text-left justify-start"
+                  >
+                    {suggestion.title}
+                  </CommandItem>
+                ))}
               </CommandGroup>
             </CommandList>
           </Command>
