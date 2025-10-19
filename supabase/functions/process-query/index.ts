@@ -28,6 +28,99 @@ serve(async (req) => {
 
     console.log('Processing query:', query);
 
+    // Check if query is ambiguous (organization name without specific exam/scheme)
+    const isAmbiguousQuery = /^(RRB|SSC|UPSC|IBPS|NEET|JEE|GATE|CSIR|UGC|DSSSB|ESIC|DRDO|ISRO|BARC|NIELIT|NTA|Railway|Banking|Civil\s*Service)$/i.test(query.trim());
+
+    if (isAmbiguousQuery) {
+      console.log('Detected ambiguous query, fetching multiple opportunities...');
+      
+      const disambiguationPrompt = `You are an expert at finding ALL active Indian government exams, jobs, and schemes for an organization.
+
+User Query: "${query}"
+
+Task: Find ALL current and recent exams/schemes/jobs from this organization. Search official government sources.
+
+Return a JSON object with this EXACT structure:
+{
+  "is_ambiguous": true,
+  "organization_name": "Full organization name (e.g., 'Railway Recruitment Board' for RRB, 'Staff Selection Commission' for SSC)",
+  "active_opportunities": [
+    {
+      "title": "Exact official exam/scheme/job name",
+      "description": "Brief 1-2 sentence description",
+      "application_status": "Open" or "Closing Soon" or "Announced",
+      "deadline": "YYYY-MM-DD format or 'Not yet announced'",
+      "category": "One of: Students, Jobs, Farmers, Senior Citizens, Health & Insurance, Women & Children, Startups",
+      "url": "Official URL if available"
+    }
+  ],
+  "expired_opportunities": [
+    {
+      "title": "Exact official exam/scheme/job name",
+      "description": "Brief 1-2 sentence description",
+      "application_status": "Expired" or "Closed",
+      "deadline": "YYYY-MM-DD format",
+      "category": "One of: Students, Jobs, Farmers, Senior Citizens, Health & Insurance, Women & Children, Startups",
+      "url": "Official URL if available"
+    }
+  ]
+}
+
+CRITICAL RULES:
+- Find at least 5-10 opportunities per array (active and expired)
+- Active = Application window is currently open OR will open soon
+- Expired = Application deadline has passed in the last 6 months
+- Use REAL data from official government sources (ssc.nic.in, rrbcdg.gov.in, upsc.gov.in, etc.)
+- Be accurate with deadlines and status
+- Include the official URL when available
+- Sort active opportunities by deadline (soonest first)
+- Sort expired opportunities by deadline (most recent first)`;
+
+      const disambiguationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            { role: 'user', content: disambiguationPrompt }
+          ],
+          temperature: 0.1,
+        }),
+      });
+
+      if (!disambiguationResponse.ok) {
+        const errorText = await disambiguationResponse.text();
+        console.error('Disambiguation AI error:', disambiguationResponse.status, errorText);
+        throw new Error(`Disambiguation failed: ${disambiguationResponse.status}`);
+      }
+
+      const disambiguationData = await disambiguationResponse.json();
+      console.log('Disambiguation response:', JSON.stringify(disambiguationData));
+
+      let disambiguationResult;
+      try {
+        const content = disambiguationData.choices[0].message.content;
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          disambiguationResult = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('No JSON found in disambiguation response');
+        }
+      } catch (parseError) {
+        console.error('Failed to parse disambiguation response:', parseError);
+        throw new Error('Failed to parse disambiguation response');
+      }
+
+      console.log('Returning disambiguation result:', JSON.stringify(disambiguationResult));
+      return new Response(
+        JSON.stringify(disambiguationResult),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Check if query is startup-related
     const isStartupQuery = /startup|funding|incubation|accelerator|dpiit|entrepreneur|venture|seed.*fund|grant.*program/i.test(query);
 
