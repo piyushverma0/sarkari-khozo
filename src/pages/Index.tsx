@@ -6,10 +6,13 @@ import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
 import CategoriesSection from "@/components/CategoriesSection";
 import SavedApplicationsSection from "@/components/SavedApplicationsSection";
+import { VoiceModeButton } from "@/components/VoiceMode/VoiceModeButton";
+import { VoiceModeModal } from "@/components/VoiceMode/VoiceModeModal";
 
 const Index = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [voiceModeOpen, setVoiceModeOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -47,6 +50,18 @@ const Index = () => {
         <CategoriesSection user={user} onAuthRequired={handleAuthRequired} />
         {user && <SavedApplicationsSection userId={user.id} />}
       </main>
+      
+      {/* Voice Mode Button */}
+      <VoiceModeButton 
+        onClick={() => setVoiceModeOpen(true)} 
+        isActive={voiceModeOpen}
+      />
+      
+      {/* Voice Mode Modal */}
+      <VoiceModeModal 
+        open={voiceModeOpen} 
+        onOpenChange={setVoiceModeOpen}
+      />
     </div>
   );
 };
