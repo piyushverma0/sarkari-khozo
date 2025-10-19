@@ -12,45 +12,55 @@ serve(async (req) => {
   }
 
   try {
-    const { program_id, force_refresh = false } = await req.json();
+    const { program_id, program_data, force_refresh = false } = await req.json();
     
-    if (!program_id) {
-      return new Response(
-        JSON.stringify({ error: 'program_id is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    let program: any;
+    let isUnsaved = false;
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    if (program_id) {
+      // Saved program - fetch from database
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch the program
-    const { data: program, error: fetchError } = await supabase
-      .from('applications')
-      .select('*')
-      .eq('id', program_id)
-      .single();
+      const { data: programData, error: fetchError } = await supabase
+        .from('applications')
+        .select('*')
+        .eq('id', program_id)
+        .single();
 
-    if (fetchError || !program) {
-      return new Response(
-        JSON.stringify({ error: 'Program not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Check if enrichment exists and is fresh (less than 30 days old)
-    if (!force_refresh && program.ai_enrichment?.enriched_at) {
-      const enrichedDate = new Date(program.ai_enrichment.enriched_at);
-      const daysSince = (Date.now() - enrichedDate.getTime()) / (1000 * 60 * 60 * 24);
-      
-      if (daysSince < 30) {
-        console.log('Returning cached enrichment');
+      if (fetchError || !programData) {
         return new Response(
-          JSON.stringify({ enrichment: program.ai_enrichment, cached: true }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'Program not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+
+      program = programData;
+
+      // Check if enrichment exists and is fresh (less than 30 days old)
+      if (!force_refresh && program.ai_enrichment?.enriched_at) {
+        const enrichedDate = new Date(program.ai_enrichment.enriched_at);
+        const daysSince = (Date.now() - enrichedDate.getTime()) / (1000 * 60 * 60 * 24);
+        
+        if (daysSince < 30) {
+          console.log('Returning cached enrichment');
+          return new Response(
+            JSON.stringify({ enrichment: program.ai_enrichment, cached: true }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+    } else if (program_data) {
+      // Unsaved program - use provided data directly
+      program = program_data;
+      isUnsaved = true;
+      console.log('Generating enrichment for unsaved program:', program.title);
+    } else {
+      return new Response(
+        JSON.stringify({ error: 'Either program_id or program_data is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Generate new enrichment using Lovable AI
@@ -227,21 +237,29 @@ Be realistic and practical. Avoid overly optimistic language.`;
       version: '1.0'
     };
 
-    // Save to database
-    const { error: updateError } = await supabase
-      .from('applications')
-      .update({ ai_enrichment: enrichment })
-      .eq('id', program_id);
+    // Save to database only for saved programs
+    if (!isUnsaved && program_id) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
 
-    if (updateError) {
-      console.error('Error saving enrichment:', updateError);
-      throw updateError;
+      const { error: updateError } = await supabase
+        .from('applications')
+        .update({ ai_enrichment: enrichment })
+        .eq('id', program_id);
+
+      if (updateError) {
+        console.error('Error saving enrichment:', updateError);
+        throw updateError;
+      }
+
+      console.log('Enrichment saved successfully');
+    } else {
+      console.log('Enrichment generated for unsaved program (not persisted)');
     }
 
-    console.log('Enrichment saved successfully');
-
     return new Response(
-      JSON.stringify({ enrichment, cached: false }),
+      JSON.stringify({ enrichment, cached: false, unsaved: isUnsaved }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

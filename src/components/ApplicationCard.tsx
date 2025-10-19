@@ -111,7 +111,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
   // Load AI enrichment for startup programs
   useEffect(() => {
     const loadEnrichment = async () => {
-      if (!isStartupProgram || !application.id) return;
+      if (!isStartupProgram) return;
       
       // Check if enrichment already exists in application data
       if ((application as any).ai_enrichment) {
@@ -122,8 +122,24 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
       // Otherwise fetch/generate enrichment
       setIsLoadingEnrichment(true);
       try {
+        // For saved programs, use ID. For unsaved programs, pass full data
+        const requestBody = application.id 
+          ? { program_id: application.id }
+          : { 
+              program_data: {
+                title: application.title,
+                description: application.description,
+                state_specific: application.state_specific,
+                stage: application.stage,
+                sector: application.sector,
+                funding_amount: application.funding_amount,
+                dpiit_required: application.dpiit_required,
+                program_type: application.program_type
+              }
+            };
+
         const { data, error } = await supabase.functions.invoke('enrich-startup-program', {
-          body: { program_id: application.id }
+          body: requestBody
         });
         
         if (error) throw error;
@@ -137,7 +153,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
     };
 
     loadEnrichment();
-  }, [application.id, isStartupProgram]);
+  }, [application.id, application.title, isStartupProgram]);
 
   // Translate content when language changes
   useEffect(() => {
