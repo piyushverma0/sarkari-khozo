@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
-import { Trash2, ClipboardCheck, Bell, Calendar, FileText, DollarSign, ClipboardList, ExternalLink, Clock, CheckCircle2, AlertCircle, GraduationCap, CreditCard, IdCard, User, FileCheck, Save, Edit, X, Volume2, Phone, Mail, Smartphone, TrendingUp, Award, Building, MapPin, Sparkles, GitCompare, Loader2 } from "lucide-react";
+import { Trash2, ClipboardCheck, Bell, Calendar, FileText, DollarSign, ClipboardList, ExternalLink, Clock, CheckCircle2, AlertCircle, GraduationCap, CreditCard, IdCard, User, FileCheck, Save, Edit, X, Volume2, Phone, Mail, Smartphone, TrendingUp, Award, Building, MapPin, Sparkles, GitCompare, Loader2, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -97,6 +99,45 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
   const [translatedFeeStructure, setTranslatedFeeStructure] = useState(application.fee_structure || '');
   const [translatedApplicationSteps, setTranslatedApplicationSteps] = useState(application.application_steps || '');
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  
+  // AI Enrichment state
+  const [enrichmentData, setEnrichmentData] = useState<any>(null);
+  const [isLoadingEnrichment, setIsLoadingEnrichment] = useState(false);
+
+  // Check if this is a startup program (needed for useEffect below)
+  const isStartupProgram = application.category?.toLowerCase() === 'startups' || 
+                          application.program_type !== undefined;
+
+  // Load AI enrichment for startup programs
+  useEffect(() => {
+    const loadEnrichment = async () => {
+      if (!isStartupProgram || !application.id) return;
+      
+      // Check if enrichment already exists in application data
+      if ((application as any).ai_enrichment) {
+        setEnrichmentData((application as any).ai_enrichment);
+        return;
+      }
+
+      // Otherwise fetch/generate enrichment
+      setIsLoadingEnrichment(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('enrich-startup-program', {
+          body: { program_id: application.id }
+        });
+        
+        if (error) throw error;
+        
+        setEnrichmentData(data.enrichment);
+      } catch (error) {
+        console.error('Enrichment failed:', error);
+      } finally {
+        setIsLoadingEnrichment(false);
+      }
+    };
+
+    loadEnrichment();
+  }, [application.id, isStartupProgram]);
 
   // Translate content when language changes
   useEffect(() => {
@@ -445,10 +486,6 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
     );
   };
 
-  // Check if this is a startup program
-  const isStartupProgram = application.category?.toLowerCase() === 'startups' || 
-                          application.program_type !== undefined;
-
   // Helper to get success rate color
   const getSuccessRateColor = (rate?: string) => {
     switch (rate?.toLowerCase()) {
@@ -714,6 +751,179 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           </Card>
         )}
 
+        {/* AI-Powered Enrichment Sections for Startup Programs */}
+        {isStartupProgram && isLoadingEnrichment && (
+          <Card className="mt-4">
+            <CardContent className="pt-4 flex items-center gap-3">
+              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              <span className="text-sm text-muted-foreground">Loading AI-powered insights...</span>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Founder Insights Section */}
+        {isStartupProgram && enrichmentData?.founder_insights && (
+          <Card className="mt-4 bg-gradient-to-br from-purple-900/20 to-blue-900/20 border-purple-500/30">
+            <CardContent className="pt-4">
+              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-purple-400" />
+                💡 Founder Insights
+              </h4>
+              <div className="space-y-2">
+                {enrichmentData.founder_insights.map((insight: string, idx: number) => (
+                  <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40">
+                    <CheckCircle2 className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm leading-relaxed">{insight}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Stage-Specific Preparation Checklist */}
+        {isStartupProgram && enrichmentData?.preparation_checklist && (
+          <Card className="mt-4 bg-slate-800/40">
+            <CardContent className="pt-4">
+              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                <ClipboardCheck className="w-5 h-5 text-primary" />
+                📋 Before You Apply
+              </h4>
+              
+              <Tabs defaultValue="idea_stage" className="w-full">
+                <TabsList className="grid w-full grid-cols-3 mb-3">
+                  <TabsTrigger value="idea_stage">Idea Stage</TabsTrigger>
+                  <TabsTrigger value="prototype_stage">Prototype</TabsTrigger>
+                  <TabsTrigger value="revenue_stage">Revenue</TabsTrigger>
+                </TabsList>
+                
+                {Object.entries(enrichmentData.preparation_checklist).map(([stage, items]) => (
+                  <TabsContent key={stage} value={stage} className="space-y-2 mt-3">
+                    {(items as string[]).map((item: string, idx: number) => (
+                      <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                        <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                        <span className="text-sm">{item}</span>
+                      </div>
+                    ))}
+                  </TabsContent>
+                ))}
+              </Tabs>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Success Probability Meter */}
+        {isStartupProgram && enrichmentData?.success_metrics && (
+          <Card className="mt-4 bg-slate-800/40">
+            <CardContent className="pt-4">
+              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-primary" />
+                📊 Success Insights
+              </h4>
+              <div className="space-y-3">
+                <div className="p-4 rounded-lg bg-gradient-to-r from-green-900/30 to-blue-900/30 border border-green-500/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">Estimated Approval Rate</span>
+                    <span className="text-2xl font-bold text-green-400">
+                      {enrichmentData.success_metrics.approval_rate}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                    <div className="text-xs text-muted-foreground mb-1">Avg Timeline</div>
+                    <div className="text-sm font-medium">{enrichmentData.success_metrics.avg_approval_time}</div>
+                  </div>
+                  {enrichmentData.success_metrics.total_funded && (
+                    <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                      <div className="text-xs text-muted-foreground mb-1">Startups Funded</div>
+                      <div className="text-sm font-bold text-primary">{enrichmentData.success_metrics.total_funded}</div>
+                    </div>
+                  )}
+                </div>
+                
+                <p className="text-xs text-muted-foreground">
+                  {enrichmentData.success_metrics.confidence_level === 'high' ? '✓' : '~'} Based on {enrichmentData.success_metrics.data_source}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Real-Life Example */}
+        {isStartupProgram && enrichmentData?.real_example && (
+          <Card className="mt-4 bg-gradient-to-br from-indigo-900/20 to-cyan-900/20 border-indigo-500/30">
+            <CardContent className="pt-4">
+              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                <Award className="w-5 h-5 text-yellow-400" />
+                🚀 Success Story
+              </h4>
+              <div className="p-4 rounded-lg bg-slate-900/40 space-y-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-semibold text-base">{enrichmentData.real_example.name}</p>
+                    <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                      <MapPin className="w-3 h-3" />
+                      {enrichmentData.real_example.location} • {enrichmentData.real_example.sector}
+                    </p>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    {enrichmentData.real_example.year}
+                  </Badge>
+                </div>
+                <div className="pt-2 border-t border-slate-700/50">
+                  <p className="text-sm">
+                    <span className="text-green-400 font-semibold">{enrichmentData.real_example.funding_received}</span> received
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {enrichmentData.real_example.outcome}
+                  </p>
+                </div>
+                {enrichmentData.real_example.is_simulated && (
+                  <p className="text-xs text-muted-foreground italic">
+                    * Representative example for illustration
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Help Contacts Section (Enhanced) */}
+        {isStartupProgram && enrichmentData?.help_contacts && (
+          <Card className="mt-4 bg-slate-800/40">
+            <CardContent className="pt-4">
+              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                <Building className="w-5 h-5 text-primary" />
+                🤝 Get Support
+              </h4>
+              <p className="text-sm text-muted-foreground mb-4">
+                Connect with incubators and mentors who can help with your application
+              </p>
+              
+              {enrichmentData.help_contacts.incubators && enrichmentData.help_contacts.incubators.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  <p className="text-sm font-medium">Recommended Incubators:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {enrichmentData.help_contacts.incubators.map((inc: string, idx: number) => (
+                      <Badge key={idx} variant="outline" className="text-sm">
+                        {inc}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {enrichmentData.help_contacts.state_nodal_officer && (
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                  <Mail className="w-5 h-5 text-primary flex-shrink-0" />
+                  <span className="text-sm">Contact: <strong>{enrichmentData.help_contacts.state_nodal_officer}</strong></span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Quick Actions */}
         <div className="flex gap-2 mt-4 flex-wrap">

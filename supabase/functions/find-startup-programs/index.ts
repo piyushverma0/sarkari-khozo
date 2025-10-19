@@ -123,6 +123,19 @@ Return ONLY valid JSON with this structure (no markdown, no backticks, just the 
         important_dates: program.deadline ? {
           application_end: program.deadline === 'Rolling' ? null : program.deadline
         } : null,
+        // Add basic enrichment inline for instant display
+        ai_enrichment: {
+          summary_bar: {
+            eligibility_short: Array.isArray(program.eligible_stages) 
+              ? program.eligible_stages.join(' / ') 
+              : 'All stages',
+            duration: 'Ongoing',
+            funding_range: program.funding_amount || 'Check website',
+            deadline_status: program.deadline === 'Rolling' ? 'Rolling' : 'Check website'
+          },
+          enriched_at: new Date().toISOString(),
+          version: '1.0-basic'
+        },
         // Remove old field names to avoid confusion
         eligible_stages: undefined,
         eligible_sectors: undefined,

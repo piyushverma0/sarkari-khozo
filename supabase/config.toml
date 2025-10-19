@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.auto-match-programs]
 verify_jwt = true
+
+[functions.enrich-startup-program]
+verify_jwt = false

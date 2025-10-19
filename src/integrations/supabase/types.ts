@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       applications: {
         Row: {
+          ai_enrichment: Json | null
           application_guidance: Json | null
           application_steps: string | null
           category: string | null
@@ -40,6 +41,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_enrichment?: Json | null
           application_guidance?: Json | null
           application_steps?: string | null
           category?: string | null
@@ -64,6 +66,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_enrichment?: Json | null
           application_guidance?: Json | null
           application_steps?: string | null
           category?: string | null
