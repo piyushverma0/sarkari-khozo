@@ -9,6 +9,7 @@ import Auth from "./pages/Auth";
 import Application from "./pages/Application";
 import Category from "./pages/Category";
 import StartupCategory from "./pages/StartupCategory";
+import LawyersCategory from "./pages/LawyersCategory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/category/:category/application" element={<Application />} />
             <Route path="/category/:category/application/:id" element={<Application />} />
             <Route path="/category/startups" element={<StartupCategory />} />
+            <Route path="/category/lawyers" element={<LawyersCategory />} />
             <Route path="/category/:slug" element={<Category />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
