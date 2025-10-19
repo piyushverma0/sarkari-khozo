@@ -7,14 +7,20 @@ interface SavedApplicationCardProps {
   title: string;
   description: string;
   savedAt: Date;
+  category?: string;
 }
 
-const SavedApplicationCard = ({ id, title, description, savedAt }: SavedApplicationCardProps) => {
+const SavedApplicationCard = ({ id, title, description, savedAt, category }: SavedApplicationCardProps) => {
   const navigate = useNavigate();
+
+  const handleClick = () => {
+    const categoryPath = category?.toLowerCase() || 'general';
+    navigate(`/category/${categoryPath}/application/${id}`);
+  };
 
   return (
     <button
-      onClick={() => navigate(`/application/${id}`)}
+      onClick={handleClick}
       className="glass-card rounded-xl p-6 text-left hover:border-primary/50 hover:shadow-[var(--shadow-glow)] transition-all duration-300 group w-full"
     >
       <div className="flex items-start justify-between gap-4">

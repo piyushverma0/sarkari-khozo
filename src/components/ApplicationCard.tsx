@@ -104,9 +104,8 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
   const [enrichmentData, setEnrichmentData] = useState<any>(null);
   const [isLoadingEnrichment, setIsLoadingEnrichment] = useState(false);
 
-  // Check if this is a startup program (needed for useEffect below)
-  const isStartupProgram = application.category?.toLowerCase() === 'startups' || 
-                          application.program_type !== undefined;
+  // Check if this is a startup program - category is the ONLY source of truth
+  const isStartupProgram = application.category?.toLowerCase() === 'startups';
 
   // Load AI enrichment for startup programs
   useEffect(() => {

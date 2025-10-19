@@ -32,6 +32,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/application" element={<Application />} />
             <Route path="/application/:id" element={<Application />} />
+            <Route path="/category/:category/application/:id" element={<Application />} />
             <Route path="/category/startups" element={<StartupCategory />} />
             <Route path="/category/:slug" element={<Category />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

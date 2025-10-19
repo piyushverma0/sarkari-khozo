@@ -38,6 +38,15 @@ serve(async (req) => {
 
       program = programData;
 
+      // CRITICAL: Only enrich startup programs
+      if (program.category?.toLowerCase() !== 'startups') {
+        console.log(`Rejecting enrichment for non-startup program: ${program.category}`);
+        return new Response(
+          JSON.stringify({ error: 'This function only enriches startup programs' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       // Check if enrichment exists and is fresh (less than 30 days old)
       if (!force_refresh && program.ai_enrichment?.enriched_at) {
         const enrichedDate = new Date(program.ai_enrichment.enriched_at);
@@ -55,6 +64,16 @@ serve(async (req) => {
       // Unsaved program - use provided data directly
       program = program_data;
       isUnsaved = true;
+
+      // CRITICAL: Only enrich startup programs
+      if (program.category?.toLowerCase() !== 'startups') {
+        console.log(`Rejecting enrichment for non-startup program: ${program.category}`);
+        return new Response(
+          JSON.stringify({ error: 'Only startup programs can be enriched' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       console.log('Generating enrichment for unsaved program:', program.title);
     } else {
       return new Response(
