@@ -128,6 +128,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
               program_data: {
                 title: application.title,
                 description: application.description,
+                category: application.category,
                 state_specific: application.state_specific,
                 stage: application.stage,
                 sector: application.sector,
