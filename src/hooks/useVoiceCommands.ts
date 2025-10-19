@@ -86,16 +86,18 @@ export const useVoiceCommands = () => {
   }, []);
 
   const getHelpText = useCallback(() => {
-    return `I can help you with:
-- Finding programs: "Find startup programs in Karnataka"
-- Saving programs: "Save this program"
-- Showing saved: "Show my saved programs"
-- Navigation: "Go back", "Repeat that"
-- Details: "Tell me more about program 1"
-- Comparison: "Compare first and third"
-- Control: "Pause", "Start over"
+    return `Hi! I'm Sakhi, and I'm here to help you discover opportunities across India. 
 
-What would you like to do?`;
+I can assist you with:
+- Finding programs: Just say "Find startup programs in Karnataka" or "Show me legal internships"
+- Saving programs: Say "Save this program" or "Track this"
+- Viewing saved: Say "Show my saved programs"
+- Getting details: Say "Tell me more about program 1"
+- Comparing options: Say "Compare first and third program"
+
+You can also use quick commands like "Go back", "Repeat that", "Pause", or "Start over".
+
+What would you like to explore today?`;
   }, []);
 
   return {

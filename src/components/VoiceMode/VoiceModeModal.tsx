@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { VoiceVisualizer } from "./VoiceVisualizer";
 import { VoiceConversationView } from "./VoiceConversationView";
 import { VoiceProgramCard } from "./VoiceProgramCard";
-import { useVoiceMode } from "@/hooks/useVoiceMode";
+import { SakhiAvatar } from "./SakhiAvatar";
+import { useVoiceMode, type Message } from "@/hooks/useVoiceMode";
 import { useTextToSpeechService } from "@/hooks/useTextToSpeechService";
 import { useVoiceCommands } from "@/hooks/useVoiceCommands";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,10 +57,25 @@ export const VoiceModeModal = ({ open, onOpenChange }: VoiceModeModalProps) => {
     });
   }, []);
 
-  // Auto-start listening when modal opens
+  // Auto-start listening when modal opens with welcome message
   useEffect(() => {
     if (open && isSupported) {
-      startListening();
+      // Add welcome message
+      const welcomeMessage: Message = {
+        role: 'assistant',
+        content: "Hi! I'm Sakhi, your FormVerse assistant. What would you like to track or apply for today?",
+        timestamp: Date.now()
+      };
+      
+      conversationContext.conversationHistory = [welcomeMessage];
+
+      // Speak welcome message
+      speak("Hi! I'm Sakhi, your FormVerse assistant. What would you like to track or apply for today?");
+
+      // Start listening after welcome
+      setTimeout(() => {
+        startListening();
+      }, 3000); // Give time for welcome message to play
     }
 
     return () => {
@@ -68,7 +84,7 @@ export const VoiceModeModal = ({ open, onOpenChange }: VoiceModeModalProps) => {
         stopSpeaking();
       }
     };
-  }, [open, isSupported]);
+  }, [open, isSupported, startListening, stopListening, stopSpeaking, speak]);
 
   // Speak assistant responses
   useEffect(() => {
@@ -221,13 +237,23 @@ export const VoiceModeModal = ({ open, onOpenChange }: VoiceModeModalProps) => {
         <DialogHeader className="border-b p-4 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <DialogTitle className="text-xl">Voice Mode</DialogTitle>
-              <Badge 
-                variant={voiceState === "listening" ? "default" : "secondary"}
-                className="animate-pulse"
-              >
-                {statusText}
-              </Badge>
+              {/* Sakhi Avatar */}
+              <SakhiAvatar isActive={voiceState === "listening" || voiceState === "speaking"} />
+              
+              <div>
+                <DialogTitle className="text-xl flex items-center gap-2">
+                  Sakhi
+                  <Badge 
+                    variant={voiceState === "listening" ? "default" : "secondary"}
+                    className="animate-pulse text-xs"
+                  >
+                    {statusText}
+                  </Badge>
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Your friendly FormVerse assistant
+                </p>
+              </div>
             </div>
 
             <div className="flex items-center gap-2">

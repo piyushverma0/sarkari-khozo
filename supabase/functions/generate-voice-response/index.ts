@@ -38,9 +38,17 @@ serve(async (req) => {
     }
 
     // Select voice based on language
-    // Aria (Indian English voice) for English, or use multilingual voice for Hindi
-    const voiceId = language === 'hi' ? '9BWtsMINqrJLrRacOk9x' : '9BWtsMINqrJLrRacOk9x'; // Aria for both
+    // Using Aria (Indian English voice) for warm, conversational tone
+    const voiceId = language === 'hi' ? '9BWtsMINqrJLrRacOk9x' : '9BWtsMINqrJLrRacOk9x'; // Aria
     const model = 'eleven_multilingual_v2';
+
+    // Voice settings optimized for Sakhi's personality
+    const voiceSettings = {
+      stability: 0.5,           // Slightly expressive, natural variations
+      similarity_boost: 0.85,   // Consistent identity
+      style: 0.3,               // Conversational, not monotone
+      use_speaker_boost: true   // Enhanced clarity
+    };
 
     // Split long text into chunks if needed (ElevenLabs has 5000 char limit)
     const maxChunkLength = 4500;
@@ -80,12 +88,7 @@ serve(async (req) => {
           body: JSON.stringify({
             text: chunk,
             model_id: model,
-            voice_settings: {
-              stability: 0.5,
-              similarity_boost: 0.85,
-              style: 0.3,
-              use_speaker_boost: true
-            }
+            voice_settings: voiceSettings
           }),
         }
       );
