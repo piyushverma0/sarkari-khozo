@@ -78,10 +78,10 @@ const EligibilityQuiz = ({ eligibility, onClose }: EligibilityQuizProps) => {
 
   if (isLoading) {
     return (
-      <Card className="w-full animate-fade-in">
-        <CardContent className="flex flex-col items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
-          <p className="text-muted-foreground">Generating eligibility questions...</p>
+      <Card className="w-full animate-fade-in glass-card border-primary/20">
+        <CardContent className="flex flex-col items-center justify-center py-16">
+          <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
+          <p className="text-muted-foreground text-lg">Generating eligibility questions...</p>
         </CardContent>
       </Card>
     );
@@ -90,25 +90,25 @@ const EligibilityQuiz = ({ eligibility, onClose }: EligibilityQuizProps) => {
   if (showResult) {
     const result = calculateEligibility();
     return (
-      <Card className="w-full animate-scale-in">
-        <CardHeader className="text-center pb-4">
-          <div className="mx-auto mb-4">
+      <Card className="w-full animate-scale-in glass-card border-primary/20">
+        <CardHeader className="text-center pb-6">
+          <div className="mx-auto mb-6">
             {result.isEligible ? (
-              <CheckCircle2 className="w-16 h-16 text-green-500" />
+              <CheckCircle2 className="w-20 h-20 text-green-500" />
             ) : (
-              <XCircle className="w-16 h-16 text-destructive" />
+              <XCircle className="w-20 h-20 text-destructive" />
             )}
           </div>
-          <CardTitle className="text-2xl">
+          <CardTitle className="text-3xl mb-3">
             {result.isEligible ? "You're Likely Eligible!" : "You May Not Be Eligible"}
           </CardTitle>
-          <CardDescription className="text-base mt-2">
+          <CardDescription className="text-base">
             You met {result.yesCount} out of {result.totalQuestions} criteria ({result.percentage}%)
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="p-4 bg-muted rounded-lg">
-            <p className="text-sm text-muted-foreground mb-2">
+        <CardContent className="space-y-6">
+          <div className="p-5 bg-slate-800/40 backdrop-blur-sm rounded-xl border border-primary/10">
+            <p className="text-sm text-foreground/80 leading-relaxed">
               {result.isEligible 
                 ? "Based on your responses, you appear to meet the eligibility requirements. We recommend proceeding with the application."
                 : "Based on your responses, you may not meet all the eligibility requirements. Please review the full criteria or contact the relevant authority for clarification."
@@ -116,21 +116,21 @@ const EligibilityQuiz = ({ eligibility, onClose }: EligibilityQuizProps) => {
             </p>
           </div>
 
-          <div className="space-y-2">
-            <h4 className="font-semibold text-sm">Your Responses:</h4>
+          <div className="space-y-3">
+            <h4 className="font-semibold text-base">Your Responses:</h4>
             {questions.map((q, index) => (
-              <div key={index} className="flex items-start gap-2 text-sm">
+              <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/20 border border-slate-700/50">
                 {answers[index] ? (
-                  <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                  <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
                 ) : (
-                  <XCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                  <XCircle className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0" />
                 )}
-                <span className="text-muted-foreground">{q.question}</span>
+                <span className="text-sm text-foreground/90">{q.question}</span>
               </div>
             ))}
           </div>
 
-          <Button onClick={onClose} className="w-full">
+          <Button onClick={onClose} className="w-full h-12 text-base">
             Close Quiz
           </Button>
         </CardContent>
@@ -146,44 +146,43 @@ const EligibilityQuiz = ({ eligibility, onClose }: EligibilityQuizProps) => {
   const progress = ((currentQuestionIndex) / questions.length) * 100;
 
   return (
-    <Card className="w-full animate-fade-in">
-      <CardHeader>
-        <div className="space-y-2">
+    <Card className="w-full animate-fade-in glass-card border-primary/20">
+      <CardHeader className="pb-6">
+        <div className="space-y-3">
           <div className="flex justify-between items-center text-sm text-muted-foreground">
             <span>Question {currentQuestionIndex + 1} of {questions.length}</span>
             <span>{Math.round(progress)}% Complete</span>
           </div>
-          <Progress value={progress} className="h-2 [&>div]:bg-gradient-to-r [&>div]:from-green-500 [&>div]:to-emerald-600" />
+          <Progress value={progress} className="h-2.5 bg-slate-800/50 [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-primary-glow" />
         </div>
-        <CardTitle className="text-xl mt-4">{currentQuestion.question}</CardTitle>
+        <CardTitle className="text-2xl mt-6 mb-2">{currentQuestion.question}</CardTitle>
         {currentQuestion.requirement && (
-          <CardDescription className="text-sm">
+          <CardDescription className="text-base text-muted-foreground">
             Requirement: {currentQuestion.requirement}
           </CardDescription>
         )}
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-4">
         <Button
           onClick={() => handleAnswer(true)}
-          className="w-full h-14 text-lg"
-          variant="default"
+          className="w-full h-16 text-lg font-semibold bg-primary/20 hover:bg-primary/30 border border-primary/40 hover:border-primary/60 transition-all"
+          variant="outline"
         >
-          <CheckCircle2 className="w-5 h-5 mr-2" />
+          <CheckCircle2 className="w-6 h-6 mr-3" />
           Yes
         </Button>
         <Button
           onClick={() => handleAnswer(false)}
-          className="w-full h-14 text-lg"
+          className="w-full h-16 text-lg font-semibold bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 hover:border-slate-600 transition-all"
           variant="outline"
         >
-          <XCircle className="w-5 h-5 mr-2" />
+          <XCircle className="w-6 h-6 mr-3" />
           No
         </Button>
         <Button
           onClick={onClose}
-          className="w-full"
+          className="w-full mt-2 text-muted-foreground hover:text-foreground"
           variant="ghost"
-          size="sm"
         >
           Cancel Quiz
         </Button>

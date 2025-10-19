@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -159,187 +160,204 @@ const StartupEligibilityQuiz = ({
 
   if (isLoading && questions.length === 0) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="ml-3 text-muted-foreground">Generating eligibility questions...</p>
-      </div>
+      <Card className="w-full animate-fade-in glass-card border-primary/20">
+        <CardContent className="flex flex-col items-center justify-center py-16">
+          <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
+          <p className="text-muted-foreground text-lg">Generating eligibility questions...</p>
+        </CardContent>
+      </Card>
     );
   }
 
   // Handle case where questions failed to load
   if (!isLoading && questions.length === 0) {
     return (
-      <div className="space-y-4 py-6">
-        <div className="text-center">
-          <AlertCircle className="w-12 h-12 mx-auto text-amber-500 mb-3" />
-          <h3 className="text-lg font-semibold mb-2">Unable to Load Quiz</h3>
-          <p className="text-muted-foreground mb-4">
-            We couldn't generate the eligibility quiz at this time.
-          </p>
-        </div>
-        <div className="flex justify-center gap-3">
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
-          <Button onClick={generateQuiz}>
-            Try Again
-          </Button>
-        </div>
-      </div>
+      <Card className="w-full glass-card border-primary/20">
+        <CardContent className="space-y-6 py-12">
+          <div className="text-center">
+            <AlertCircle className="w-16 h-16 mx-auto text-amber-500 mb-4" />
+            <h3 className="text-2xl font-semibold mb-3">Unable to Load Quiz</h3>
+            <p className="text-muted-foreground text-base">
+              We couldn't generate the eligibility quiz at this time.
+            </p>
+          </div>
+          <div className="flex justify-center gap-3">
+            <Button variant="outline" onClick={onClose} className="h-11 px-6">
+              Close
+            </Button>
+            <Button onClick={generateQuiz} className="h-11 px-6">
+              Try Again
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   if (result) {
     return (
-      <div className="space-y-6">
-        <div className="text-center">
-          {result.eligible ? (
-            <div className="space-y-2">
-              <CheckCircle2 className="w-16 h-16 mx-auto text-green-500" />
-              <h3 className="text-2xl font-bold text-green-600">You're Eligible!</h3>
-              <p className="text-muted-foreground">
-                Great news! You meet the eligibility criteria for {programTitle}.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <XCircle className="w-16 h-16 mx-auto text-destructive" />
-              <h3 className="text-2xl font-bold text-destructive">Not Eligible Yet</h3>
-              <p className="text-muted-foreground">
-                You don't currently meet all eligibility criteria for {programTitle}.
-              </p>
-            </div>
-          )}
-        </div>
+      <Card className="w-full animate-scale-in glass-card border-primary/20">
+        <CardHeader className="text-center pb-6">
+          <div className="mx-auto mb-6">
+            {result.eligible ? (
+              <CheckCircle2 className="w-20 h-20 text-green-500" />
+            ) : (
+              <XCircle className="w-20 h-20 text-destructive" />
+            )}
+          </div>
+          <CardTitle className="text-3xl mb-3">
+            {result.eligible ? "You're Eligible!" : "Not Eligible Yet"}
+          </CardTitle>
+          <CardDescription className="text-base">
+            {result.eligible 
+              ? `Great news! You meet the eligibility criteria for ${programTitle}.`
+              : `You don't currently meet all eligibility criteria for ${programTitle}.`
+            }
+          </CardDescription>
+        </CardHeader>
 
-        {result.matchedCriteria.length > 0 && (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 mb-3">
+        <CardContent className="space-y-6">
+          {result.matchedCriteria.length > 0 && (
+            <div className="p-5 bg-slate-800/40 backdrop-blur-sm rounded-xl border border-green-500/20">
+              <div className="flex items-center gap-2 mb-4">
                 <CheckCircle2 className="w-5 h-5 text-green-500" />
-                <h4 className="font-semibold">Criteria You Meet</h4>
+                <h4 className="font-semibold text-base">Criteria You Meet</h4>
               </div>
-              <ul className="space-y-2">
+              <ul className="space-y-2.5">
                 {result.matchedCriteria.map((criteria, index) => (
-                  <li key={index} className="flex items-start gap-2 text-sm">
-                    <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200">
+                  <li key={index} className="flex items-start gap-3 text-sm">
+                    <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30 mt-0.5">
                       ✓
                     </Badge>
-                    <span>{criteria}</span>
+                    <span className="text-foreground/90 flex-1">{criteria}</span>
                   </li>
                 ))}
               </ul>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          )}
 
-        {result.unmatchedCriteria.length > 0 && (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 mb-3">
+          {result.unmatchedCriteria.length > 0 && (
+            <div className="p-5 bg-slate-800/40 backdrop-blur-sm rounded-xl border border-amber-500/20">
+              <div className="flex items-center gap-2 mb-4">
                 <AlertCircle className="w-5 h-5 text-amber-500" />
-                <h4 className="font-semibold">Missing Requirements</h4>
+                <h4 className="font-semibold text-base">Missing Requirements</h4>
               </div>
-              <ul className="space-y-2">
+              <ul className="space-y-2.5">
                 {result.unmatchedCriteria.map((criteria, index) => (
-                  <li key={index} className="flex items-start gap-2 text-sm">
-                    <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-200">
+                  <li key={index} className="flex items-start gap-3 text-sm">
+                    <Badge variant="secondary" className="bg-amber-500/20 text-amber-400 border-amber-500/30 mt-0.5">
                       ✗
                     </Badge>
-                    <span>{criteria}</span>
+                    <span className="text-foreground/90 flex-1">{criteria}</span>
                   </li>
                 ))}
               </ul>
-            </CardContent>
-          </Card>
-        )}
-
-        {result.suggestions.length > 0 && (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 mb-3">
-                <AlertCircle className="w-5 h-5 text-blue-500" />
-                <h4 className="font-semibold">Next Steps & Suggestions</h4>
-              </div>
-              <ul className="space-y-2">
-                {result.suggestions.map((suggestion, index) => (
-                  <li key={index} className="flex items-start gap-2 text-sm">
-                    <span className="text-blue-500 font-bold">•</span>
-                    <span>{suggestion}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        )}
-
-        <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
-          {result.eligible && (
-            <Button onClick={onClose}>
-              Continue Application
-            </Button>
+            </div>
           )}
-        </div>
-      </div>
+
+          {result.suggestions.length > 0 && (
+            <div className="p-5 bg-slate-800/40 backdrop-blur-sm rounded-xl border border-blue-500/20">
+              <div className="flex items-center gap-2 mb-4">
+                <AlertCircle className="w-5 h-5 text-blue-500" />
+                <h4 className="font-semibold text-base">Next Steps & Suggestions</h4>
+              </div>
+              <ul className="space-y-2.5">
+                {result.suggestions.map((suggestion, index) => (
+                  <li key={index} className="flex items-start gap-3 text-sm">
+                    <span className="text-blue-400 font-bold">•</span>
+                    <span className="text-foreground/90 flex-1">{suggestion}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button variant="outline" onClick={onClose} className="h-11 px-6">
+              Close
+            </Button>
+            {result.eligible && (
+              <Button onClick={onClose} className="h-11 px-6">
+                Continue Application
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   const currentQuestion = questions[currentQuestionIndex];
   if (!currentQuestion) {
     return (
-      <div className="space-y-4 py-6">
-        <div className="text-center">
-          <AlertCircle className="w-12 h-12 mx-auto text-amber-500 mb-3" />
-          <h3 className="text-lg font-semibold mb-2">Quiz Not Available</h3>
-          <p className="text-muted-foreground mb-4">
-            There was a problem loading the quiz questions.
-          </p>
-        </div>
-        <div className="flex justify-center gap-3">
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
-          <Button onClick={generateQuiz}>
-            Try Again
-          </Button>
-        </div>
-      </div>
+      <Card className="w-full glass-card border-primary/20">
+        <CardContent className="space-y-6 py-12">
+          <div className="text-center">
+            <AlertCircle className="w-16 h-16 mx-auto text-amber-500 mb-4" />
+            <h3 className="text-2xl font-semibold mb-3">Quiz Not Available</h3>
+            <p className="text-muted-foreground text-base">
+              There was a problem loading the quiz questions.
+            </p>
+          </div>
+          <div className="flex justify-center gap-3">
+            <Button variant="outline" onClick={onClose} className="h-11 px-6">
+              Close
+            </Button>
+            <Button onClick={generateQuiz} className="h-11 px-6">
+              Try Again
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
   
   const currentAnswer = answers[currentQuestion.id];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
-          Question {currentQuestionIndex + 1} of {questions.length}
+    <Card className="w-full animate-fade-in glass-card border-primary/20">
+      <CardHeader className="pb-6">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              Question {currentQuestionIndex + 1} of {questions.length}
+            </div>
+            <div className="flex gap-1.5">
+              {questions.map((_, index) => (
+                <div
+                  key={index}
+                  className={`w-2 h-2 rounded-full transition-colors ${
+                    index <= currentQuestionIndex ? 'bg-primary' : 'bg-slate-700'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+          <Progress 
+            value={((currentQuestionIndex + 1) / questions.length) * 100} 
+            className="h-2.5 bg-slate-800/50 [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-primary-glow" 
+          />
         </div>
-        <div className="flex gap-1">
-          {questions.map((_, index) => (
-            <div
-              key={index}
-              className={`w-2 h-2 rounded-full ${
-                index <= currentQuestionIndex ? 'bg-primary' : 'bg-muted'
-              }`}
-            />
-          ))}
-        </div>
-      </div>
+        <CardTitle className="text-2xl mt-6">{currentQuestion.question}</CardTitle>
+      </CardHeader>
 
-      <div>
-        <h3 className="text-lg font-semibold mb-4">{currentQuestion.question}</h3>
+      <CardContent className="space-y-6">
         <RadioGroup value={currentAnswer} onValueChange={handleAnswerSelect}>
           <div className="space-y-3">
             {currentQuestion.options.map((option, index) => (
-              <div key={index} className="flex items-center space-x-3">
+              <div 
+                key={index} 
+                className={`flex items-center space-x-3 p-4 rounded-xl border transition-all cursor-pointer ${
+                  currentAnswer === option
+                    ? 'bg-primary/20 border-primary/40'
+                    : 'bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/60 hover:border-slate-600'
+                }`}
+                onClick={() => handleAnswerSelect(option)}
+              >
                 <RadioGroupItem value={option} id={`option-${index}`} />
                 <Label
                   htmlFor={`option-${index}`}
-                  className="flex-1 cursor-pointer py-3 px-4 rounded-lg border hover:bg-accent transition-colors"
+                  className="flex-1 cursor-pointer text-base"
                 >
                   {option}
                 </Label>
@@ -347,42 +365,44 @@ const StartupEligibilityQuiz = ({
             ))}
           </div>
         </RadioGroup>
-      </div>
 
-      <div className="flex justify-between gap-3">
-        <Button
-          variant="outline"
-          onClick={handlePrevious}
-          disabled={currentQuestionIndex === 0}
-        >
-          Previous
-        </Button>
-        <div className="flex gap-3">
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
+        <div className="flex justify-between gap-3 pt-2">
+          <Button
+            variant="outline"
+            onClick={handlePrevious}
+            disabled={currentQuestionIndex === 0}
+            className="h-11 px-6"
+          >
+            Previous
           </Button>
-          {currentQuestionIndex === questions.length - 1 ? (
-            <Button
-              onClick={handleSubmit}
-              disabled={!currentAnswer || isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Analyzing...
-                </>
-              ) : (
-                'Submit'
-              )}
+          <div className="flex gap-3">
+            <Button variant="ghost" onClick={onClose} className="h-11 px-6">
+              Cancel
             </Button>
-          ) : (
-            <Button onClick={handleNext} disabled={!currentAnswer}>
-              Next
-            </Button>
-          )}
+            {currentQuestionIndex === questions.length - 1 ? (
+              <Button
+                onClick={handleSubmit}
+                disabled={!currentAnswer || isLoading}
+                className="h-11 px-6"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  'Submit'
+                )}
+              </Button>
+            ) : (
+              <Button onClick={handleNext} disabled={!currentAnswer} className="h-11 px-6">
+                Next
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 
