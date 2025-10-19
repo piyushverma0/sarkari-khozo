@@ -106,11 +106,15 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
 
   // Check if this is a startup program - category is the ONLY source of truth
   const isStartupProgram = application.category?.toLowerCase() === 'startups';
+  const isLegalProgram = application.category?.toLowerCase() === 'legal';
+  
+  // Check if AI insights should be shown for this category
+  const shouldShowAIInsights = isStartupProgram || isLegalProgram;
 
-  // Load AI enrichment for startup programs
+  // Load AI enrichment for startup and legal programs
   useEffect(() => {
     const loadEnrichment = async () => {
-      if (!isStartupProgram) return;
+      if (!shouldShowAIInsights) return;
       
       // Check if enrichment already exists in application data
       if ((application as any).ai_enrichment) {
@@ -153,7 +157,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
     };
 
     loadEnrichment();
-  }, [application.id, application.title, isStartupProgram]);
+  }, [application.id, application.title, shouldShowAIInsights]);
 
   // Translate content when language changes
   useEffect(() => {
@@ -767,8 +771,8 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           </Card>
         )}
 
-        {/* AI-Powered Enrichment Sections for Startup Programs */}
-        {isStartupProgram && isLoadingEnrichment && (
+        {/* AI-Powered Enrichment Sections */}
+        {shouldShowAIInsights && isLoadingEnrichment && (
           <Card className="mt-4">
             <CardContent className="pt-4 flex items-center gap-3">
               <Loader2 className="w-5 h-5 animate-spin text-primary" />
@@ -777,13 +781,13 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           </Card>
         )}
 
-        {/* Founder Insights Section */}
-        {isStartupProgram && enrichmentData?.founder_insights && (
+        {/* Founder/Professional Insights Section */}
+        {shouldShowAIInsights && enrichmentData?.founder_insights && (
           <Card className="mt-4 bg-gradient-to-br from-purple-900/20 to-blue-900/20 border-purple-500/30">
             <CardContent className="pt-4">
               <h4 className="font-semibold mb-3 flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-purple-400" />
-                💡 Founder Insights
+                💡 {isLegalProgram ? 'Professional Insights' : 'Founder Insights'}
               </h4>
               <div className="space-y-2">
                 {enrichmentData.founder_insights.map((insight: string, idx: number) => (
@@ -798,7 +802,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
         )}
 
         {/* Stage-Specific Preparation Checklist */}
-        {isStartupProgram && enrichmentData?.preparation_checklist && (
+        {shouldShowAIInsights && enrichmentData?.preparation_checklist && (
           <Card className="mt-4 bg-slate-800/40">
             <CardContent className="pt-4">
               <h4 className="font-semibold mb-3 flex items-center gap-2">
@@ -829,7 +833,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
         )}
 
         {/* Success Probability Meter */}
-        {isStartupProgram && enrichmentData?.success_metrics && (
+        {shouldShowAIInsights && enrichmentData?.success_metrics && (
           <Card className="mt-4 bg-slate-800/40">
             <CardContent className="pt-4">
               <h4 className="font-semibold mb-3 flex items-center gap-2">
@@ -868,7 +872,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
         )}
 
         {/* Real-Life Example */}
-        {isStartupProgram && enrichmentData?.real_example && (
+        {shouldShowAIInsights && enrichmentData?.real_example && (
           <Card className="mt-4 bg-gradient-to-br from-indigo-900/20 to-cyan-900/20 border-indigo-500/30">
             <CardContent className="pt-4">
               <h4 className="font-semibold mb-3 flex items-center gap-2">
@@ -907,7 +911,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
         )}
 
         {/* Help Contacts Section (Enhanced) */}
-        {isStartupProgram && enrichmentData?.help_contacts && (
+        {shouldShowAIInsights && enrichmentData?.help_contacts && (
           <Card className="mt-4 bg-slate-800/40">
             <CardContent className="pt-4">
               <h4 className="font-semibold mb-3 flex items-center gap-2">
