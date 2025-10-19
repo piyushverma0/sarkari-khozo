@@ -106,6 +106,9 @@ CRITICAL RULES:
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           disambiguationResult = JSON.parse(jsonMatch[0]);
+          
+          // Force is_ambiguous to true since we already detected it's an ambiguous query
+          disambiguationResult.is_ambiguous = true;
         } else {
           throw new Error('No JSON found in disambiguation response');
         }
