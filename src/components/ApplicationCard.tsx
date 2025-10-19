@@ -142,7 +142,10 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
               }
             };
 
-        const { data, error } = await supabase.functions.invoke('enrich-startup-program', {
+        // Call the appropriate enrichment function based on category
+        const functionName = isStartupProgram ? 'enrich-startup-program' : 'enrich-legal-program';
+        
+        const { data, error } = await supabase.functions.invoke(functionName, {
           body: requestBody
         });
         

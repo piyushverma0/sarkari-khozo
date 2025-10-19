@@ -112,7 +112,7 @@ const LawyerProgramsList = ({ programs, isLoading, searchQuery, onModifySearch }
   };
 
   const handleViewDetails = (program: Program) => {
-    navigate(`/application/${encodeURIComponent(program.title)}`, { 
+    navigate(`/category/lawyers/application/${encodeURIComponent(program.title)}`, { 
       state: { 
         application: {
           title: program.title,

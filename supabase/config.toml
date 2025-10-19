@@ -33,5 +33,8 @@ verify_jwt = true
 [functions.enrich-startup-program]
 verify_jwt = false
 
+[functions.enrich-legal-program]
+verify_jwt = false
+
 [functions.find-lawyer-programs]
 verify_jwt = false
