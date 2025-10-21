@@ -37,6 +37,7 @@ import DeadlineCountdown from "./DeadlineCountdown";
 import ReminderDialog from "./ReminderDialog";
 import HowToApplySection from "./HowToApplySection";
 import LanguageToolbar from "./LanguageToolbar";
+import { LocalCheckPanel } from "./LocalCheckPanel";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Skeleton } from "@/components/ui/skeleton";
 import ReactMarkdown from "react-markdown";
@@ -81,8 +82,18 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
   const [showDocumentChecklist, setShowDocumentChecklist] = useState(false);
   const [documentChecklist, setDocumentChecklist] = useState<string>("");
   const [isGeneratingChecklist, setIsGeneratingChecklist] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Get current user
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+    };
+    getCurrentUser();
+  }, []);
 
   // Translation and Audio hooks
   const { currentLanguage, changeLanguage, translateText, isTranslating, getLanguageLabel } = useTranslation();
@@ -748,6 +759,11 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Local Check Panel - Show for all categories */}
+        {application.category && currentUser && (
+          <LocalCheckPanel application={application} userId={currentUser.id} />
         )}
 
         {/* Funding Details Section - For startup funding programs */}
