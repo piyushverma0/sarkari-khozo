@@ -9,6 +9,12 @@ const corsHeaders = {
 
 const API_BASE_URL = 'https://india-location-hub.in/api';
 
+interface ApiState {
+  id: number;
+  name: string;
+  code: string;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -30,7 +36,7 @@ serve(async (req) => {
     }
     
     const statesData = await statesResponse.json();
-    const states = statesData.data?.states || [];
+    const states: ApiState[] = statesData.data?.states || [];
     console.log(`Found ${states.length} states`);
 
     // Insert states
@@ -61,11 +67,46 @@ serve(async (req) => {
       }
     }
 
-    // Step 2: Fetch and insert districts for each state
+    // Step 2: Manually add missing states
+    const missingStates = [
+      { name: 'TELANGANA', code: 'TS' },
+      { name: 'LADAKH', code: 'LA' }
+    ];
+
+    for (const state of missingStates) {
+      const { data: existingState } = await supabaseClient
+        .from('indian_states')
+        .select('id')
+        .eq('name', state.name)
+        .maybeSingle();
+
+      if (!existingState) {
+        const { error } = await supabaseClient
+          .from('indian_states')
+          .insert({ name: state.name, code: state.code });
+
+        if (!error) {
+          console.log(`Inserted missing state: ${state.name}`);
+        }
+      }
+    }
+
+    // Step 3: Fetch and insert districts for each state
+    const allStates = await supabaseClient.from('indian_states').select('*');
+    const statesWithIds = allStates.data || [];
     let totalDistricts = 0;
-    for (const state of states) {
+    
+    for (const state of statesWithIds) {
       console.log(`Fetching districts for ${state.name}...`);
-      const districtsResponse = await fetch(`${API_BASE_URL}/locations/districts?state_id=${state.id}`);
+      
+      // Find original state ID from API
+      const apiState = states.find(s => s.name === state.name);
+      if (!apiState) {
+        console.log(`Skipping ${state.name} - not in API data`);
+        continue;
+      }
+
+      const districtsResponse = await fetch(`${API_BASE_URL}/locations/districts?state_id=${apiState.id}`);
       
       if (!districtsResponse.ok) {
         console.error(`Failed to fetch districts for ${state.name}`);
@@ -73,7 +114,8 @@ serve(async (req) => {
       }
 
       const districtsData = await districtsResponse.json();
-      const districts = districtsData.data?.districts || [];
+      console.log(`API response for ${state.name}:`, JSON.stringify(districtsData).substring(0, 200));
+      const districts = districtsData.data?.districts || districtsData.districts || [];
       console.log(`Found ${districts.length} districts for ${state.name}`);
 
       const districtMap = new Map();
