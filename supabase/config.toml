@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.find-lawyer-programs]
 verify_jwt = false
+
+[functions.check-local-availability]
+verify_jwt = false
