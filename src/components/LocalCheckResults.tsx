@@ -2,10 +2,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Calendar, MapPin, FileText, ExternalLink, Share2, Info, AlertCircle, Bell, Mail } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Calendar, MapPin, FileText, ExternalLink, Share2, Info, AlertCircle, Bell, Mail, Volume2, ChevronDown, Building2, Clock } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
+import { useTextToSpeech } from "@/hooks/useTextToSpeech";
+import { useState } from "react";
 
 export interface LocalInitiativeResult {
   title: string;
@@ -31,6 +34,7 @@ interface LocalCheckResultsProps {
 export const LocalCheckResults = ({ results, state, district }: LocalCheckResultsProps) => {
   const { currentLanguage } = useTranslation();
   const navigate = useNavigate();
+  const { speak, stop, isSpeaking } = useTextToSpeech();
 
   const handleFindHelpCenter = (result: LocalInitiativeResult) => {
     navigate('/category/csc-locator');
@@ -108,119 +112,231 @@ export const LocalCheckResults = ({ results, state, district }: LocalCheckResult
     );
   }
 
+  const getConfidenceBadge = (confidence: string) => {
+    switch (confidence) {
+      case 'verified':
+        return { variant: 'success' as const, icon: '🟢', label: 'Active / Confirmed' };
+      case 'likely':
+        return { variant: 'warning' as const, icon: '🟡', label: 'Likely Active' };
+      default:
+        return { variant: 'outline' as const, icon: '⚪', label: 'Unverified' };
+    }
+  };
+
+  const getShortSummary = (description?: string) => {
+    if (!description) return "Support center active in your district.";
+    const firstSentence = description.split('.')[0];
+    return firstSentence.length > 150 ? firstSentence.substring(0, 150) + '...' : firstSentence + '.';
+  };
+
+  const extractStepsFromDescription = (description?: string, howToApply?: string): string[] => {
+    const text = howToApply || description || '';
+    
+    // Try to find numbered steps
+    const numberedSteps = text.match(/\d+\.\s*\*\*[^*]+\*\*[^]+?(?=\d+\.\s*\*\*|\*\*(?:In summary|Source)|$)/g);
+    if (numberedSteps && numberedSteps.length > 0) {
+      return numberedSteps.map(step => step.trim());
+    }
+    
+    // Fallback to simple steps
+    return [
+      "Visit your nearest CSC or District Office.",
+      `Ask for "${text.includes('(MSK)') ? 'Mahila Shakti Kendra' : 'program information'}".`,
+      "Bring Aadhaar & any ID proof.",
+      "They will help you register or get guidance."
+    ];
+  };
+
   return (
     <div className="space-y-4 mt-4">
-      {results.map((result, index) => (
-        <Card key={index} className="border-l-4 border-l-primary">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex-1">
-                <CardTitle className="text-xl flex items-center gap-2 flex-wrap">
-                  <span>{result.title}</span>
-                  <Badge variant={result.confidence === 'verified' ? 'default' : 'secondary'}>
-                    {result.scope} • {result.confidence.toUpperCase()}
-                  </Badge>
-                </CardTitle>
-                {result.description && (
-                  <CardDescription className="text-base mt-2">
-                    {result.description}
-                  </CardDescription>
+      {results.map((result, index) => {
+        const [isExpanded, setIsExpanded] = useState(false);
+        const confidenceBadge = getConfidenceBadge(result.confidence);
+        const shortSummary = getShortSummary(result.description);
+        const steps = extractStepsFromDescription(result.description, result.howToApply);
+        
+        return (
+          <Card key={index} className="overflow-hidden">
+            {/* 🟦 HEADER BLOCK */}
+            <CardHeader className="pb-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <CardTitle className="text-2xl mb-2 leading-tight">
+                    {result.title}
+                  </CardTitle>
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="w-4 h-4" />
+                    <span className="font-medium">
+                      {district ? `${district}, ${state}` : state}
+                    </span>
+                    <span className="text-muted-foreground/60">|</span>
+                    <Badge variant={confidenceBadge.variant} className="text-xs">
+                      {confidenceBadge.icon} {confidenceBadge.label}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Quick tagline */}
+              <p className="text-sm text-muted-foreground italic border-l-2 border-primary pl-3">
+                "{getShortSummary(result.description)}"
+              </p>
+            </CardHeader>
+
+            <CardContent className="space-y-6">
+              {/* 🧭 QUICK SUMMARY */}
+              <div className="bg-muted/30 rounded-lg p-4 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm leading-relaxed flex-1">
+                    {shortSummary}
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="flex-shrink-0 h-8 w-8"
+                    onClick={() => isSpeaking ? stop() : speak(shortSummary)}
+                    aria-label="Listen to summary"
+                  >
+                    <Volume2 className={`w-4 h-4 ${isSpeaking ? 'text-primary' : ''}`} />
+                  </Button>
+                </div>
+              </div>
+
+              {/* 📅 KEY INFO BLOCK */}
+              <div className="grid grid-cols-2 gap-3 p-4 bg-card border rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">Status</p>
+                    <p className="text-sm font-medium truncate">{confidenceBadge.label}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">Location</p>
+                    <p className="text-sm font-medium truncate">{district || state}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">Deadline</p>
+                    <p className="text-sm font-medium">{result.deadline || 'No deadline'}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">Mode</p>
+                    <p className="text-sm font-medium capitalize">{result.mode === 'csc' ? 'Offline + CSC' : result.mode}</p>
+                  </div>
+                </div>
+                
+                {result.contactInfo && (result.contactInfo.phone || result.contactInfo.email) && (
+                  <div className="col-span-2 flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs text-muted-foreground">Local Office</p>
+                      <p className="text-sm font-medium truncate">
+                        {result.contactInfo.phone || result.contactInfo.email || 'District Hub'}
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
-            </div>
-          </CardHeader>
-          
-          <CardContent className="space-y-4">
-            {/* Info Row */}
-            <div className="flex flex-wrap gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-muted-foreground" />
-                <span>{result.deadline ? `Deadline: ${result.deadline}` : 'No deadline'}</span>
+
+              {/* 🧾 HOW TO APPLY BLOCK */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  How to Apply
+                </h4>
+                
+                <ol className="space-y-2 list-none">
+                  {steps.slice(0, 4).map((step, idx) => (
+                    <li key={idx} className="flex gap-3 text-sm">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">
+                        {idx + 1}
+                      </span>
+                      <span className="pt-0.5 flex-1">{step.replace(/^\d+\.\s*\*\*|\*\*/g, '').trim()}</span>
+                    </li>
+                  ))}
+                </ol>
+
+                {result.description && result.description.length > 300 && (
+                  <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" size="sm" className="w-full justify-center gap-2 h-9">
+                        <FileText className="w-4 h-4" />
+                        {isExpanded ? 'Hide' : 'View'} detailed steps
+                        <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="mt-3 p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground leading-relaxed">
+                        {result.description}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
               </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-muted-foreground" />
-                <span>{result.scope === 'district' ? district : state}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-muted-foreground" />
-                <span>Mode: {result.mode}</span>
-              </div>
-            </div>
-            
-            {/* How to Apply */}
-            {result.howToApply && (
-              <div className="p-4 bg-muted/50 rounded-lg">
-                <p className="text-sm font-medium mb-1">How to apply:</p>
-                <p className="text-sm text-muted-foreground">{result.howToApply}</p>
-              </div>
-            )}
-            
-            {/* Confidence Badge with Tooltip */}
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
-                {result.confidence === 'verified' ? '✓ VERIFIED' : 
-                 result.confidence === 'likely' ? '~ LIKELY' : '👤 COMMUNITY'}
-              </Badge>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="w-4 h-4 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="text-xs max-w-xs">
-                      {result.confidence === 'verified' ? 'Found on official government source' :
-                       result.confidence === 'likely' ? 'Based on government announcements and state rollout patterns' :
-                       'User-submitted information — verify before applying'}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            
-            {/* Action Buttons */}
-            <div className="flex flex-wrap gap-2">
-              {result.applyUrl && (
-                <Button asChild className="flex-1 min-h-[48px] h-12 min-w-[140px]">
-                  <a href={result.applyUrl} target="_blank" rel="noopener noreferrer" aria-label={`Apply to ${result.title} (opens in new tab)`}>
-                    <ExternalLink className="w-4 h-4 mr-2" aria-hidden="true" />
-                    Apply Now
-                  </a>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-2 pt-2">
+                {result.applyUrl && (
+                  <Button asChild className="flex-1 min-h-[48px] h-12 min-w-[140px]">
+                    <a href={result.applyUrl} target="_blank" rel="noopener noreferrer" aria-label={`Apply to ${result.title}`}>
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Apply Now
+                    </a>
+                  </Button>
+                )}
+                <Button 
+                  variant="outline" 
+                  onClick={() => handleFindHelpCenter(result)} 
+                  className="flex-1 min-h-[48px] h-12 min-w-[140px]"
+                >
+                  <MapPin className="w-4 h-4 mr-2" />
+                  Find Help Center
                 </Button>
-              )}
-              <Button 
-                variant="outline" 
-                onClick={() => handleFindHelpCenter(result)} 
-                className="flex-1 min-h-[48px] h-12 min-w-[140px]"
-                aria-label={`Find nearest help center for ${result.title}`}
-              >
-                <MapPin className="w-4 h-4 mr-2" aria-hidden="true" />
-                Find Help Center
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => handleShare(result)} 
-                size="icon" 
-                className="min-h-[48px] h-12 w-12"
-                aria-label={`Share ${result.title}`}
-              >
-                <Share2 className="w-4 h-4" aria-hidden="true" />
-              </Button>
-            </div>
-            
-            {/* Source Footer */}
-            {result.source && (
-              <div className="text-xs text-muted-foreground border-t pt-3">
-                Source: {result.sourceUrl ? (
-                  <a href={result.sourceUrl} className="underline hover:text-foreground" target="_blank" rel="noopener noreferrer">
-                    {result.source}
-                  </a>
-                ) : result.source}
-                {result.lastVerified && ` • Last checked: ${new Date(result.lastVerified).toLocaleDateString()}`}
+                <Button 
+                  variant="outline" 
+                  onClick={() => handleShare(result)} 
+                  size="icon" 
+                  className="min-h-[48px] h-12 w-12"
+                >
+                  <Share2 className="w-4 h-4" />
+                </Button>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      ))}
+
+              {/* 📚 FOOTNOTE */}
+              <div className="pt-4 border-t space-y-2">
+                <div className="flex items-start gap-2 text-xs">
+                  <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-muted-foreground">
+                      <span className="font-medium">Source:</span> {result.sourceUrl ? (
+                        <a href={result.sourceUrl} className="underline hover:text-foreground" target="_blank" rel="noopener noreferrer">
+                          {result.source}
+                        </a>
+                      ) : result.source || 'Government reports, district websites & AI analysis'}
+                      {result.lastVerified && <span className="text-muted-foreground/60"> • Last checked: {new Date(result.lastVerified).toLocaleDateString()}</span>}
+                    </p>
+                    <p className="text-muted-foreground/80 flex items-start gap-1">
+                      <AlertCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                      <span>Confirm at your nearest CSC or official office before visiting.</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 };
