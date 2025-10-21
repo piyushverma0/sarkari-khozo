@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import ApplicationCard from "@/components/ApplicationCard";
 import { ApplicationCardSkeleton } from "@/components/SkeletonLoader";
+import { LocalCheckPanel } from "@/components/LocalCheckPanel";
 
 const Application = () => {
   const { id, category } = useParams();
@@ -15,6 +16,16 @@ const Application = () => {
   const { toast } = useToast();
   const [application, setApplication] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // Get current user
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+    };
+    getCurrentUser();
+  }, []);
 
   useEffect(() => {
     const fetchApplication = async () => {
@@ -103,6 +114,13 @@ const Application = () => {
           </Button>
 
           {application && <ApplicationCard application={application} />}
+          
+          {/* Local Check Panel - Show below application card */}
+          {application && application.category && currentUser && (
+            <div className="mt-6">
+              <LocalCheckPanel application={application} userId={currentUser.id} />
+            </div>
+          )}
         </div>
       </main>
     </div>

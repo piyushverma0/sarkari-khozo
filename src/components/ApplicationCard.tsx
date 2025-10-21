@@ -37,7 +37,6 @@ import DeadlineCountdown from "./DeadlineCountdown";
 import ReminderDialog from "./ReminderDialog";
 import HowToApplySection from "./HowToApplySection";
 import LanguageToolbar from "./LanguageToolbar";
-import { LocalCheckPanel } from "./LocalCheckPanel";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Skeleton } from "@/components/ui/skeleton";
 import ReactMarkdown from "react-markdown";
@@ -759,11 +758,6 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
               </div>
             </CardContent>
           </Card>
-        )}
-
-        {/* Local Check Panel - Show for all categories */}
-        {application.category && currentUser && (
-          <LocalCheckPanel application={application} userId={currentUser.id} />
         )}
 
         {/* Funding Details Section - For startup funding programs */}
