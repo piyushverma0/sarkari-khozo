@@ -1,8 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
 
-// India Location Hub API Base URL
-const API_BASE_URL = 'https://india-location-hub.in/api';
-
 // Cache configuration
 const CACHE_EXPIRY_HOURS = 24;
 const CACHE_KEYS = {
@@ -70,12 +67,14 @@ export const getAllStates = async (): Promise<State[]> => {
     const cached = getCachedData<State[]>(CACHE_KEYS.STATES);
     if (cached) return cached;
 
-    const response = await fetch(`${API_BASE_URL}/locations/states`);
-    if (!response.ok) throw new Error('Failed to fetch states');
+    const { data, error } = await supabase
+      .from('indian_states')
+      .select('id, name, code')
+      .order('name');
+
+    if (error) throw error;
     
-    const result: LocationApiResponse<{ states: State[] }> = await response.json();
-    const states = result.data?.states || [];
-    
+    const states = data || [];
     setCachedData(CACHE_KEYS.STATES, states);
     return states;
   } catch (error) {
@@ -100,12 +99,15 @@ export const getDistrictsByState = async (stateName: string): Promise<string[]> 
       return [];
     }
 
-    const response = await fetch(`${API_BASE_URL}/locations/districts?state_id=${state.id}`);
-    if (!response.ok) throw new Error('Failed to fetch districts');
+    const { data, error } = await supabase
+      .from('indian_districts')
+      .select('name')
+      .eq('state_id', state.id)
+      .order('name');
+
+    if (error) throw error;
     
-    const result: LocationApiResponse<{ districts: District[] }> = await response.json();
-    const districts = (result.data?.districts || []).map((d: District) => d.name);
-    
+    const districts = (data || []).map(d => d.name);
     setCachedData(cacheKey, districts);
     return districts;
   } catch (error) {
@@ -126,21 +128,26 @@ export const getBlocksByDistrict = async (stateName: string, districtName: strin
     const state = states.find(s => s.name === stateName);
     if (!state) return [];
 
-    // Get district ID
-    const response = await fetch(`${API_BASE_URL}/locations/districts?state_id=${state.id}`);
-    if (!response.ok) return [];
-    
-    const districtResult: LocationApiResponse<{ districts: District[] }> = await response.json();
-    const district = (districtResult.data?.districts || []).find((d: District) => d.name === districtName);
-    if (!district) return [];
+    // Get district ID from our database
+    const { data: districtData, error: districtError } = await supabase
+      .from('indian_districts')
+      .select('id')
+      .eq('state_id', state.id)
+      .eq('name', districtName)
+      .maybeSingle();
+
+    if (districtError || !districtData) return [];
 
     // Get blocks
-    const blocksResponse = await fetch(`${API_BASE_URL}/locations/blocks?district_id=${district.id}`);
-    if (!blocksResponse.ok) return [];
+    const { data: blocksData, error: blocksError } = await supabase
+      .from('indian_blocks')
+      .select('name')
+      .eq('district_id', districtData.id)
+      .order('name');
+
+    if (blocksError) return [];
     
-    const blocksResult: LocationApiResponse<{ blocks: Block[] }> = await blocksResponse.json();
-    const blocks = (blocksResult.data?.blocks || []).map((b: Block) => b.name);
-    
+    const blocks = (blocksData || []).map(b => b.name);
     setCachedData(cacheKey, blocks);
     return blocks;
   } catch (error) {

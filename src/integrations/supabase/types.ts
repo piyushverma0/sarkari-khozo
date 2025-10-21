@@ -92,6 +92,85 @@ export type Database = {
         }
         Relationships: []
       }
+      indian_blocks: {
+        Row: {
+          created_at: string | null
+          district_id: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          district_id: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          district_id?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "indian_blocks_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "indian_districts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      indian_districts: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          state_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          state_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          state_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "indian_districts_state_id_fkey"
+            columns: ["state_id"]
+            isOneToOne: false
+            referencedRelation: "indian_states"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      indian_states: {
+        Row: {
+          code: string | null
+          created_at: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          code?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       local_check_queries: {
         Row: {
           block: string | null

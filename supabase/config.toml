@@ -1,5 +1,8 @@
 project_id = "rmgtjzeuhckqhuwwzrlm"
 
+[functions.seed-location-data]
+verify_jwt = false
+
 [functions.process-query]
 verify_jwt = false
 
