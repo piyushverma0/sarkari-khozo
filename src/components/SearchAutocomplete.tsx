@@ -72,7 +72,7 @@ export const SearchAutocomplete = ({
       <Input
         placeholder={placeholder}
         className={cn(
-          "pl-12 h-14 text-base bg-background/80 border-2 border-primary/30 focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary/50 transition-all duration-200",
+          "pl-12 h-14 text-base bg-background/80 border-0 focus-visible:ring-2 focus-visible:ring-primary transition-all duration-200",
           className
         )}
         value={value}
