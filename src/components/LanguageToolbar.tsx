@@ -20,6 +20,8 @@ interface LanguageToolbarProps {
   onPause: () => void;
   onResume: () => void;
   onStop: () => void;
+  playbackSpeed: number;
+  onSpeedChange: (speed: number) => void;
   getLanguageLabel: (lang: Language) => string;
 }
 
@@ -33,6 +35,8 @@ const LanguageToolbar = ({
   onPause,
   onResume,
   onStop,
+  playbackSpeed,
+  onSpeedChange,
   getLanguageLabel,
 }: LanguageToolbarProps) => {
   return (
@@ -104,6 +108,24 @@ const LanguageToolbar = ({
               </Badge>
             )}
           </>
+        )}
+        
+        {/* Speed Control - Show when audio is playing or paused */}
+        {(isPlaying || isPaused) && (
+          <div className="flex items-center gap-1 ml-auto">
+            <span className="text-xs text-muted-foreground mr-1">Speed:</span>
+            {[0.5, 0.75, 1, 1.25, 1.5, 2].map((speed) => (
+              <Button
+                key={speed}
+                onClick={() => onSpeedChange(speed)}
+                size="sm"
+                variant={playbackSpeed === speed ? "default" : "ghost"}
+                className="h-7 px-2 text-xs"
+              >
+                {speed}x
+              </Button>
+            ))}
+          </div>
         )}
       </div>
     </div>

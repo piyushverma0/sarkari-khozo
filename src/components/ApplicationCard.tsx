@@ -108,6 +108,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
 
   // Translated content state
   const [translatedTitle, setTranslatedTitle] = useState(application.title);
@@ -252,6 +253,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
         
         // Create HTML5 Audio element
         const audio = new Audio(audioUrl);
+        audio.playbackRate = playbackSpeed;
         
         audio.onended = () => {
           setIsPlaying(false);
@@ -316,6 +318,13 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
       audioElement.currentTime = 0;
       setIsPlaying(false);
       setIsPaused(false);
+    }
+  };
+
+  const handleSpeedChange = (speed: number) => {
+    setPlaybackSpeed(speed);
+    if (audioElement) {
+      audioElement.playbackRate = speed;
     }
   };
 
@@ -563,6 +572,8 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           onPause={handlePause}
           onResume={handleResume}
           onStop={handleStop}
+          playbackSpeed={playbackSpeed}
+          onSpeedChange={handleSpeedChange}
           getLanguageLabel={getLanguageLabel}
         />
 

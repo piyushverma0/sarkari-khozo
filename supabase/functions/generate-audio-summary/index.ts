@@ -63,7 +63,7 @@ ${application.application_steps || 'Not specified'}
     }
     
     if (language === 'hi') {
-      systemPrompt = 'आप प्रिया हैं, एक दोस्ताना सरकारी योजना सलाहकार जो एक भरोसेमंद दोस्त की तरह बात करती हैं। आप योजनाओं को गर्मजोशी से, प्रोत्साहित करते हुए, और कहानी की तरह समझाती हैं। आप लोगों को उत्साहित और सशक्त महसूस कराती हैं।';
+      systemPrompt = 'आप गायत्री हैं, एक दोस्ताना सरकारी योजना सलाहकार जो एक भरोसेमंद दोस्त की तरह बात करती हैं। आप योजनाओं को गर्मजोशी से, प्रोत्साहित करते हुए, और कहानी की तरह समझाती हैं। आप लोगों को उत्साहित और सशक्त महसूस कराती हैं।';
       
       if (localAvailability) {
         userPrompt = `एक आकर्षक 3-5 मिनट की ऑडियो कहानी बनाएं जो इस योजना के बारे में बताती है।
@@ -97,7 +97,7 @@ ${application.application_steps || 'Not specified'}
 योजना की जानकारी:\n${context}`;
       }
     } else if (language === 'kn') {
-      systemPrompt = 'ನೀವು ಪ್ರಿಯಾ, ನಂಬಿಗಸ್ತ ಸ್ನೇಹಿತರಂತೆ ಮಾತನಾಡುವ ಸ್ನೇಹಪರ ಸರ್ಕಾರಿ ಯೋಜನೆಗಳ ಸಲಹೆಗಾರ. ನೀವು ಯೋಜನೆಗಳನ್ನು ಆತ್ಮೀಯವಾಗಿ, ಪ್ರೋತ್ಸಾಹಿಸುವ ರೀತಿಯಲ್ಲಿ ಮತ್ತು ಕಥೆಯಂತೆ ವಿವರಿಸುತ್ತೀರಿ.';
+      systemPrompt = 'ನೀವು ಗಾಯತ್ರಿ, ನಂಬಿಗಸ್ತ ಸ್ನೇಹಿತರಂತೆ ಮಾತನಾಡುವ ಸ್ನೇಹಪರ ಸರ್ಕಾರಿ ಯೋಜನೆಗಳ ಸಲಹೆಗಾರ. ನೀವು ಯೋಜನೆಗಳನ್ನು ಆತ್ಮೀಯವಾಗಿ, ಪ್ರೋತ್ಸಾಹಿಸುವ ರೀತಿಯಲ್ಲಿ ಮತ್ತು ಕಥೆಯಂತೆ ವಿವರಿಸುತ್ತೀರಿ.';
       
       if (localAvailability) {
         userPrompt = `3-5 ನಿಮಿಷಗಳ ಆಕರ್ಷಕ ಆಡಿಯೋ ಕಥೆಯನ್ನು ರಚಿಸಿ.
@@ -126,7 +126,7 @@ ${application.application_steps || 'Not specified'}
 ಯೋಜನೆಯ ಮಾಹಿತಿ:\n${context}`;
       }
     } else {
-      systemPrompt = 'You are Priya, a friendly government schemes advisor who speaks like a trusted friend. You explain schemes in a warm, encouraging, and story-like manner. Use relatable examples, express genuine excitement about opportunities, and always make people feel hopeful and empowered.';
+      systemPrompt = 'You are Gayatri, a friendly government schemes advisor who speaks like a trusted friend. You explain schemes in a warm, encouraging, and story-like manner. Use relatable examples, express genuine excitement about opportunities, and always make people feel hopeful and empowered.';
       
       if (localAvailability) {
         userPrompt = `Create an engaging 3-5 minute audio summary that tells a story about this scheme.
