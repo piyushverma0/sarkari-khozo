@@ -7,6 +7,7 @@ import { getUserSavedLocation } from "@/lib/locationService";
 import { LocalCheckDialog } from "./LocalCheckDialog";
 import { LocalCheckResults, LocalInitiativeResult } from "./LocalCheckResults";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface ApplicationData {
   id?: string;
@@ -27,6 +28,7 @@ interface LocalCheckPanelProps {
 
 export const LocalCheckPanel = ({ application, userId }: LocalCheckPanelProps) => {
   const { currentLanguage } = useTranslation();
+  const { toast } = useToast();
   const [expanded, setExpanded] = useState(false);
   const [savedLocation, setSavedLocation] = useState<any>(null);
   const [hasSavedLocation, setHasSavedLocation] = useState(false);
@@ -110,6 +112,14 @@ export const LocalCheckPanel = ({ application, userId }: LocalCheckPanelProps) =
           .eq('id', application.id);
         
         console.log('Cached local availability results');
+        
+        // Show tip about audio summary after a brief delay
+        setTimeout(() => {
+          toast({
+            title: "💡 Tip",
+            description: "Now you can listen to the full summary including your local availability!",
+          });
+        }, 2000);
       } catch (error) {
         console.error('Failed to cache results:', error);
       }

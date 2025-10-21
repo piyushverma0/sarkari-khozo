@@ -62,6 +62,13 @@ interface ApplicationData {
   state_specific?: string;
   success_rate?: string;
   dpiit_required?: boolean;
+  // Local availability cache
+  local_availability_cache?: {
+    results: any[];
+    state: string;
+    district?: string;
+    cachedAt: string;
+  };
 }
 
 interface ApplicationCardProps {
@@ -221,6 +228,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
             application_steps: translatedApplicationSteps,
           },
           language: currentLanguage,
+          localAvailability: application.local_availability_cache,
         },
       });
 
