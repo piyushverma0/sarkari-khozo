@@ -2,10 +2,11 @@ import { supabase } from "@/integrations/supabase/client";
 
 // Cache configuration
 const CACHE_EXPIRY_HOURS = 24;
+const CACHE_VERSION = 'v2'; // Increment to invalidate all caches
 const CACHE_KEYS = {
-  STATES: 'location_states_cache',
-  DISTRICTS: 'location_districts_cache',
-  BLOCKS: 'location_blocks_cache',
+  STATES: `location_states_cache_${CACHE_VERSION}`,
+  DISTRICTS: `location_districts_cache_${CACHE_VERSION}`,
+  BLOCKS: `location_blocks_cache_${CACHE_VERSION}`,
 };
 
 // Type definitions
