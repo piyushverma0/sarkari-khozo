@@ -318,40 +318,73 @@ export const LocalCheckDialog = ({
               </h3>
             </div>
             
-            <Input
-              placeholder="Search districts..."
-              value={districtSearch}
-              onChange={(e) => debouncedSetSearch(e.target.value)}
-              className="mb-2"
-              aria-label="Search for your district"
-            />
-            
-            <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto">
-              {filteredDistricts.length > 0 ? (
-                filteredDistricts.map(district => (
-                  <Button
-                    key={district}
-                    onClick={() => handleDistrictSelect(district)}
-                    variant="outline"
-                    size="lg"
-                    className="h-14 text-sm"
-                  >
-                    {district}
-                  </Button>
-                ))
-              ) : (
-                <p className="col-span-2 text-center text-muted-foreground py-4">
-                  No districts found
+            {districts.length > 0 ? (
+              <>
+                <Input
+                  placeholder="Search districts..."
+                  value={districtSearch}
+                  onChange={(e) => debouncedSetSearch(e.target.value)}
+                  className="mb-2"
+                  aria-label="Search for your district"
+                />
+                
+                <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto">
+                  {filteredDistricts.length > 0 ? (
+                    filteredDistricts.map(district => (
+                      <Button
+                        key={district}
+                        onClick={() => handleDistrictSelect(district)}
+                        variant="outline"
+                        size="lg"
+                        className="h-14 text-sm"
+                      >
+                        {district}
+                      </Button>
+                    ))
+                  ) : (
+                    <p className="col-span-2 text-center text-muted-foreground py-4">
+                      No districts found
+                    </p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  {currentLanguage === 'hi' 
+                    ? 'अपना जिला या गांव का नाम लिखें' 
+                    : 'Enter your district or village name'}
                 </p>
-              )}
+                <Input
+                  placeholder={currentLanguage === 'hi' ? 'जिला या गांव का नाम' : 'District or village name'}
+                  value={answers.district || ''}
+                  onChange={(e) => setAnswers(prev => ({ ...prev, district: e.target.value }))}
+                  className="h-12 text-base"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && answers.district) {
+                      setCurrentStep('block');
+                    }
+                  }}
+                />
+                <Button
+                  onClick={() => answers.district && setCurrentStep('block')}
+                  disabled={!answers.district}
+                  className="w-full"
+                >
+                  {currentLanguage === 'hi' ? 'जारी रखें' : 'Continue'}
+                </Button>
+              </div>
+            )}
+            
+            {districts.length > 0 && (
               <Button
                 onClick={() => setCurrentStep('block')}
                 variant="ghost"
-                className="col-span-2"
+                className="w-full mt-2"
               >
                 Skip
               </Button>
-            </div>
+            )}
           </div>
         );
 
