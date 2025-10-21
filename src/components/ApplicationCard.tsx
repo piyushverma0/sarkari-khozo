@@ -131,6 +131,8 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
   
   // Application stats state
   const [applicationStats, setApplicationStats] = useState<any>(null);
+  const [isExtractingStats, setIsExtractingStats] = useState(false);
+  const [lastExtractionAttempt, setLastExtractionAttempt] = useState<number | null>(null);
 
   // Check if this is a startup program - category is the ONLY source of truth
   const isStartupProgram = application.category?.toLowerCase() === 'startups';
@@ -208,6 +210,14 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
         
         if (data) {
           setApplicationStats(data);
+        } else {
+          // No stats found - auto-extract if we haven't tried recently
+          const now = Date.now();
+          const cooldownPeriod = 24 * 60 * 60 * 1000; // 24 hours
+          
+          if (!lastExtractionAttempt || (now - lastExtractionAttempt > cooldownPeriod)) {
+            await extractStatsAutomatically();
+          }
         }
       } catch (error) {
         console.error('Failed to load stats:', error);
@@ -216,6 +226,120 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
 
     loadStats();
   }, [application.id]);
+
+  // Auto-extract stats
+  const extractStatsAutomatically = async () => {
+    if (!application.id || isExtractingStats) return;
+    
+    setIsExtractingStats(true);
+    setLastExtractionAttempt(Date.now());
+    
+    try {
+      const content = `
+Title: ${application.title}
+Description: ${application.description}
+${application.eligibility ? `Eligibility: ${application.eligibility}` : ''}
+${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
+      `.trim();
+
+      const { data, error } = await supabase.functions.invoke('extract-application-stats', {
+        body: { 
+          content,
+          applicationId: application.id 
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data?.stats) {
+        // Reload stats from database
+        const { data: statsData } = await supabase
+          .from('scheme_stats')
+          .select('*')
+          .eq('application_id', application.id)
+          .order('year', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (statsData) {
+          setApplicationStats(statsData);
+          toast({
+            title: "Statistics extracted",
+            description: "Application volume data has been analyzed",
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error('Auto-extraction failed:', error);
+      // Don't show error toast for auto-extraction
+    } finally {
+      setIsExtractingStats(false);
+    }
+  };
+
+  // Manual stats refresh
+  const handleRefreshStats = async () => {
+    if (!application.id || isExtractingStats) return;
+    
+    setIsExtractingStats(true);
+    
+    try {
+      const content = `
+Title: ${application.title}
+Description: ${application.description}
+${application.eligibility ? `Eligibility: ${application.eligibility}` : ''}
+${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
+      `.trim();
+
+      toast({
+        title: "Analyzing statistics...",
+        description: "Extracting application volume data",
+      });
+
+      const { data, error } = await supabase.functions.invoke('extract-application-stats', {
+        body: { 
+          content,
+          applicationId: application.id 
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data?.stats) {
+        // Reload stats from database
+        const { data: statsData } = await supabase
+          .from('scheme_stats')
+          .select('*')
+          .eq('application_id', application.id)
+          .order('year', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (statsData) {
+          setApplicationStats(statsData);
+          toast({
+            title: "Statistics refreshed",
+            description: "Application volume data has been updated",
+          });
+        } else {
+          toast({
+            title: "No statistics available",
+            description: "Could not extract volume data from this application",
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error('Stats refresh failed:', error);
+      toast({
+        title: "Refresh failed",
+        description: error.message || "Could not extract statistics",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExtractingStats(false);
+    }
+  };
 
   // Translate content when language changes
   useEffect(() => {
@@ -811,9 +935,33 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
         )}
 
         {/* Application Statistics */}
-        {applicationStats && shouldDisplayStats(applicationStats) && (
+        {(applicationStats || isExtractingStats) && (
           <div className="mt-4">
-            <ApplicationStatsDisplay stats={applicationStats} />
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                Application Volume
+              </h4>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRefreshStats}
+                disabled={isExtractingStats}
+                className="h-7 px-2 gap-1"
+              >
+                <RefreshCw className={`w-3 h-3 ${isExtractingStats ? 'animate-spin' : ''}`} />
+                {isExtractingStats ? 'Analyzing...' : 'Refresh'}
+              </Button>
+            </div>
+            
+            {isExtractingStats && !applicationStats ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground p-4 border border-border/30 rounded-lg">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Extracting application statistics...</span>
+              </div>
+            ) : applicationStats && shouldDisplayStats(applicationStats) ? (
+              <ApplicationStatsDisplay stats={applicationStats} />
+            ) : null}
           </div>
         )}
 

@@ -15,8 +15,14 @@ serve(async (req) => {
     const { content, applicationId } = await req.json();
     console.log('Extracting stats for application:', applicationId);
 
-    if (!content) {
-      throw new Error('Content is required');
+    if (!content || typeof content !== 'string') {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Valid content string is required'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Initialize Supabase client
@@ -27,7 +33,14 @@ serve(async (req) => {
     // Use Lovable AI to extract stats
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY not configured');
+      console.error('LOVABLE_API_KEY not configured');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'AI service not configured'
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const prompt = `Extract application statistics from this text content about a government scheme, program, or job posting. 
@@ -77,14 +90,35 @@ Rules:
     });
 
     if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error('AI API error:', aiResponse.status, errorText);
+      
       if (aiResponse.status === 429) {
-        console.error('Rate limit exceeded');
-        return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+        return new Response(JSON.stringify({ 
+          success: false,
+          error: 'Rate limit exceeded. Please try again later.' 
+        }), {
           status: 429,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      throw new Error(`AI request failed: ${aiResponse.status}`);
+      if (aiResponse.status === 402) {
+        return new Response(JSON.stringify({ 
+          success: false,
+          error: 'AI service quota exceeded' 
+        }), {
+          status: 402,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'AI extraction service unavailable'
+      }), {
+        status: 503,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const aiData = await aiResponse.json();
@@ -98,7 +132,20 @@ Rules:
       jsonText = jsonText.replace(/```\n?/g, '');
     }
     
-    const stats = JSON.parse(jsonText);
+    let stats;
+    try {
+      stats = JSON.parse(jsonText);
+    } catch (parseError) {
+      console.error('Failed to parse AI response as JSON:', jsonText);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Could not extract valid statistics from content'
+      }), {
+        status: 422,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
     console.log('Extracted stats:', stats);
 
     // Validate stats
