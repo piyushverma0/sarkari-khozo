@@ -58,7 +58,15 @@ const Header = () => {
         </div>
 
         {user ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/dashboard")}
+              className="hidden sm:inline-flex"
+            >
+              My Applications
+            </Button>
             <NotificationCenter userId={user.id} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -71,6 +79,13 @@ const Header = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem 
+                  className="flex items-center gap-2 sm:hidden"
+                  onClick={() => navigate("/dashboard")}
+                >
+                  <User className="h-4 w-4" />
+                  <span>My Applications</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem className="flex items-center gap-2">
                   <User className="h-4 w-4" />
                   <span className="text-sm">{user.email}</span>

@@ -10,6 +10,7 @@ import Application from "./pages/Application";
 import Category from "./pages/Category";
 import StartupCategory from "./pages/StartupCategory";
 import LawyersCategory from "./pages/LawyersCategory";
+import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -31,6 +32,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/application" element={<Application />} />
             <Route path="/application/:id" element={<Application />} />
             <Route path="/category/:category/application" element={<Application />} />
