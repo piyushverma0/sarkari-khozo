@@ -29,6 +29,7 @@ export type Database = {
           funding_amount: string | null
           id: string
           important_dates: Json | null
+          local_availability_cache: Json | null
           program_type: string | null
           saved_at: string | null
           sector: string | null
@@ -54,6 +55,7 @@ export type Database = {
           funding_amount?: string | null
           id?: string
           important_dates?: Json | null
+          local_availability_cache?: Json | null
           program_type?: string | null
           saved_at?: string | null
           sector?: string | null
@@ -79,6 +81,7 @@ export type Database = {
           funding_amount?: string | null
           id?: string
           important_dates?: Json | null
+          local_availability_cache?: Json | null
           program_type?: string | null
           saved_at?: string | null
           sector?: string | null

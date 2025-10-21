@@ -29,7 +29,7 @@ interface LocalCheckDialogProps {
   userId?: string;
   savedLocation?: LocationData | null;
   onClose: () => void;
-  onResults: (results: LocalInitiativeResult[]) => void;
+  onResults: (results: LocalInitiativeResult[], state: string, district?: string) => void;
 }
 
 type Step = 'method' | 'state' | 'district' | 'block' | 'confirm';
@@ -202,7 +202,7 @@ export const LocalCheckDialog = ({
 
       if (error) throw error;
 
-      onResults(data.results || []);
+      onResults(data.results || [], answers.state, answers.district);
       
       toast({
         title: data.helperText || 'Search completed',
