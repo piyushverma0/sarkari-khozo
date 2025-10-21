@@ -195,7 +195,7 @@ const HeroSection = ({
             }} placeholder={placeholder} disabled={!user || isLoading} />
           </div>
           
-          <Button size="lg" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02]" onClick={handleTrackApplication} disabled={!user || isLoading}>
+          <Button size="lg" className="w-full h-12 rounded-full text-base font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02]" onClick={handleTrackApplication} disabled={!user || isLoading}>
             {isLoading ? <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 Analyzing Your Request...
