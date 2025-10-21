@@ -30,6 +30,12 @@ interface Block {
   district_id: string;
 }
 
+interface LocationApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+}
+
 // Generic cache helper
 const getCachedData = <T>(key: string): T | null => {
   try {
@@ -67,8 +73,8 @@ export const getAllStates = async (): Promise<State[]> => {
     const response = await fetch(`${API_BASE_URL}/locations/states`);
     if (!response.ok) throw new Error('Failed to fetch states');
     
-    const result = await response.json();
-    const states = result.states || [];
+    const result: LocationApiResponse<{ states: State[] }> = await response.json();
+    const states = result.data?.states || [];
     
     setCachedData(CACHE_KEYS.STATES, states);
     return states;
@@ -97,8 +103,8 @@ export const getDistrictsByState = async (stateName: string): Promise<string[]> 
     const response = await fetch(`${API_BASE_URL}/locations/districts?state_id=${state.id}`);
     if (!response.ok) throw new Error('Failed to fetch districts');
     
-    const result = await response.json();
-    const districts = (result.districts || []).map((d: District) => d.name);
+    const result: LocationApiResponse<{ districts: District[] }> = await response.json();
+    const districts = (result.data?.districts || []).map((d: District) => d.name);
     
     setCachedData(cacheKey, districts);
     return districts;
@@ -124,16 +130,16 @@ export const getBlocksByDistrict = async (stateName: string, districtName: strin
     const response = await fetch(`${API_BASE_URL}/locations/districts?state_id=${state.id}`);
     if (!response.ok) return [];
     
-    const districtResult = await response.json();
-    const district = (districtResult.districts || []).find((d: District) => d.name === districtName);
+    const districtResult: LocationApiResponse<{ districts: District[] }> = await response.json();
+    const district = (districtResult.data?.districts || []).find((d: District) => d.name === districtName);
     if (!district) return [];
 
     // Get blocks
     const blocksResponse = await fetch(`${API_BASE_URL}/locations/blocks?district_id=${district.id}`);
     if (!blocksResponse.ok) return [];
     
-    const blocksResult = await blocksResponse.json();
-    const blocks = (blocksResult.blocks || []).map((b: Block) => b.name);
+    const blocksResult: LocationApiResponse<{ blocks: Block[] }> = await blocksResponse.json();
+    const blocks = (blocksResult.data?.blocks || []).map((b: Block) => b.name);
     
     setCachedData(cacheKey, blocks);
     return blocks;
