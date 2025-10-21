@@ -50,3 +50,15 @@ verify_jwt = false
 
 [functions.seed-local-initiatives]
 verify_jwt = false
+
+[functions.schedule-notifications]
+verify_jwt = true
+
+[functions.send-pending-notifications]
+verify_jwt = false
+
+[functions.check-application-updates]
+verify_jwt = false
+
+[functions.update-application-status]
+verify_jwt = true
