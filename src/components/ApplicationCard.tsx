@@ -40,6 +40,7 @@ import LanguageToolbar from "./LanguageToolbar";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Skeleton } from "@/components/ui/skeleton";
 import ReactMarkdown from "react-markdown";
+import { ApplicationConfirmationDialog } from "./ApplicationConfirmationDialog";
 
 interface ApplicationData {
   id?: string;
@@ -54,6 +55,9 @@ interface ApplicationData {
   fee_structure?: string;
   deadline_reminders?: any;
   application_guidance?: any;
+  applied_confirmed?: boolean;
+  application_status?: string;
+  notification_preferences?: any;
   // Startup-specific fields
   program_type?: string;
   funding_amount?: string;
@@ -89,6 +93,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
   const [documentChecklist, setDocumentChecklist] = useState<string>("");
   const [isGeneratingChecklist, setIsGeneratingChecklist] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -526,12 +531,23 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
 
   // Helper to determine status badge
   const getStatusBadge = () => {
-    if (!importantDates) return null;
-    // This is a simplified version - in production you'd check actual dates
+    const status = application.application_status || 'discovered';
+    const statusConfig: Record<string, { label: string; variant: any; className: string }> = {
+      discovered: { label: 'Discovered', variant: 'secondary', className: 'bg-gray-100 text-gray-700' },
+      applied: { label: 'Applied', variant: 'default', className: 'bg-blue-100 text-blue-700' },
+      correction_window: { label: 'Correction Period', variant: 'secondary', className: 'bg-yellow-100 text-yellow-700' },
+      admit_card_released: { label: 'Admit Card Out', variant: 'default', className: 'bg-green-100 text-green-700' },
+      exam_completed: { label: 'Exam Done', variant: 'secondary', className: 'bg-purple-100 text-purple-700' },
+      result_pending: { label: 'Result Pending', variant: 'secondary', className: 'bg-orange-100 text-orange-700' },
+      result_released: { label: 'Result Out', variant: 'default', className: 'bg-green-100 text-green-700' },
+      archived: { label: 'Archived', variant: 'outline', className: 'bg-gray-100 text-gray-500' },
+    };
+    
+    const config = statusConfig[status] || statusConfig.discovered;
     return (
-      <Badge variant="secondary" className="gap-1">
-        <Clock className="w-3 h-3" />
-        Expected Soon
+      <Badge variant={config.variant} className={`gap-1 ${config.className}`}>
+        <CheckCircle2 className="w-3 h-3" />
+        {config.label}
       </Badge>
     );
   };
@@ -560,6 +576,30 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
 
   return (
     <Card className="w-full animate-fade-in">
+      {/* Confirmation Banner */}
+      {application.id && !application.applied_confirmed && (
+        <div className="bg-primary/10 border-b border-primary/20 p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Bell className="h-5 w-5 text-primary" />
+              <div>
+                <p className="font-medium">Track this application?</p>
+                <p className="text-sm text-muted-foreground">
+                  Confirm you've applied to get automated reminders and status updates
+                </p>
+              </div>
+            </div>
+            <Button 
+              onClick={() => setShowConfirmationDialog(true)}
+              size="sm"
+              className="shrink-0"
+            >
+              Confirm & Set Reminders
+            </Button>
+          </div>
+        </div>
+      )}
+      
       <CardHeader className="pb-4">
         {/* Language and Audio Toolbar */}
         <LanguageToolbar
@@ -1376,6 +1416,24 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
           onOpenChange={setShowReminderDialog}
           importantDates={importantDates}
           applicationTitle={application.title}
+        />
+      )}
+
+      {/* Application Confirmation Dialog */}
+      {application.id && (
+        <ApplicationConfirmationDialog
+          open={showConfirmationDialog}
+          onOpenChange={setShowConfirmationDialog}
+          application={{
+            id: application.id,
+            title: application.title,
+            important_dates: importantDates,
+            notification_preferences: application.notification_preferences
+          }}
+          onConfirm={() => {
+            // Reload to show updated state
+            window.location.reload();
+          }}
         />
       )}
     </Card>
