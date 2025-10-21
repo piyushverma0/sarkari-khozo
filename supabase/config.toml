@@ -138,3 +138,6 @@ verify_jwt = false
 
 [functions.cleanup-old-notifications]
 verify_jwt = false
+
+[functions.extract-application-stats]
+verify_jwt = false

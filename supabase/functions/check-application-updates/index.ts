@@ -83,6 +83,29 @@ serve(async (req) => {
           continue;
         }
 
+        // Try to extract application stats from the fresh data
+        try {
+          console.log(`Attempting to extract stats for ${application.id}`);
+          const contentForStats = `${freshData.title}\n${freshData.description}\n${JSON.stringify(freshData.important_dates)}`;
+          
+          const { data: statsData, error: statsError } = await supabase.functions.invoke(
+            'extract-application-stats',
+            {
+              body: {
+                content: contentForStats,
+                applicationId: application.id
+              }
+            }
+          );
+
+          if (!statsError && statsData?.success) {
+            console.log(`Stats extracted for ${application.id}:`, statsData.stats);
+          }
+        } catch (statsError) {
+          console.error(`Failed to extract stats for ${application.id}:`, statsError);
+          // Don't fail the whole update if stats extraction fails
+        }
+
         // Compare important dates
         const oldDates = application.important_dates || {};
         const newDates = freshData.important_dates || {};

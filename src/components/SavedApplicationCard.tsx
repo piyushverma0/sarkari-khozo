@@ -1,6 +1,10 @@
 import { useNavigate } from "react-router-dom";
-import { Calendar, ArrowRight } from "lucide-react";
+import { Calendar, ArrowRight, Flame } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
+import { getCompetitionLevel } from "@/utils/statsFormatting";
 
 interface SavedApplicationCardProps {
   id: string;
@@ -12,6 +16,29 @@ interface SavedApplicationCardProps {
 
 const SavedApplicationCard = ({ id, title, description, savedAt, category }: SavedApplicationCardProps) => {
   const navigate = useNavigate();
+  const [stats, setStats] = useState<any>(null);
+
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const { data } = await supabase
+          .from('scheme_stats')
+          .select('competition_ratio, data_confidence, confidence_score')
+          .eq('application_id', id)
+          .order('year', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (data && (data.data_confidence === 'verified' || (data.confidence_score && data.confidence_score > 0.7))) {
+          setStats(data);
+        }
+      } catch (error) {
+        console.error('Failed to load stats:', error);
+      }
+    };
+
+    loadStats();
+  }, [id]);
 
   const handleClick = () => {
     const categoryPath = category?.toLowerCase() || 'general';
@@ -35,6 +62,17 @@ const SavedApplicationCard = ({ id, title, description, savedAt, category }: Sav
             <Calendar className="w-3.5 h-3.5" />
             <span>Saved {formatDistanceToNow(savedAt, { addSuffix: true })}</span>
           </div>
+          
+          {/* Competition indicator */}
+          {stats?.competition_ratio && (
+            <Badge 
+              variant={getCompetitionLevel(stats.competition_ratio) === "high" ? "destructive" : "secondary"}
+              className="text-xs"
+            >
+              <Flame className="w-3 h-3 mr-1" />
+              {getCompetitionLevel(stats.competition_ratio) === "high" ? "High demand" : "Good odds"}
+            </Badge>
+          )}
         </div>
         
         <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0" />

@@ -41,6 +41,8 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { Skeleton } from "@/components/ui/skeleton";
 import ReactMarkdown from "react-markdown";
 import { ApplicationConfirmationDialog } from "./ApplicationConfirmationDialog";
+import ApplicationStatsDisplay from "./ApplicationStatsDisplay";
+import { shouldDisplayStats } from "@/utils/statsFormatting";
 
 interface ApplicationData {
   id?: string;
@@ -126,6 +128,9 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
   // AI Enrichment state
   const [enrichmentData, setEnrichmentData] = useState<any>(null);
   const [isLoadingEnrichment, setIsLoadingEnrichment] = useState(false);
+  
+  // Application stats state
+  const [applicationStats, setApplicationStats] = useState<any>(null);
 
   // Check if this is a startup program - category is the ONLY source of truth
   const isStartupProgram = application.category?.toLowerCase() === 'startups';
@@ -184,6 +189,33 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
 
     loadEnrichment();
   }, [application.id, application.title, shouldShowAIInsights]);
+
+  // Load application stats
+  useEffect(() => {
+    const loadStats = async () => {
+      if (!application.id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('scheme_stats')
+          .select('*')
+          .eq('application_id', application.id)
+          .order('year', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (error && error.code !== 'PGRST116') throw error;
+        
+        if (data) {
+          setApplicationStats(data);
+        }
+      } catch (error) {
+        console.error('Failed to load stats:', error);
+      }
+    };
+
+    loadStats();
+  }, [application.id]);
 
   // Translate content when language changes
   useEffect(() => {
@@ -776,6 +808,13 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
               {translatedDescription}
             </CardDescription>
           )
+        )}
+
+        {/* Application Statistics */}
+        {applicationStats && shouldDisplayStats(applicationStats) && (
+          <div className="mt-4">
+            <ApplicationStatsDisplay stats={applicationStats} />
+          </div>
         )}
 
         {/* Enhanced Startup Eligibility Section */}

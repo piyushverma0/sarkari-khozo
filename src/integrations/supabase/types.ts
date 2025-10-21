@@ -456,6 +456,59 @@ export type Database = {
         }
         Relationships: []
       }
+      scheme_stats: {
+        Row: {
+          applicants_count: number | null
+          application_id: string
+          competition_ratio: string | null
+          confidence_score: number | null
+          created_at: string | null
+          data_confidence: string | null
+          data_source: string | null
+          id: string
+          source_quote: string | null
+          updated_at: string | null
+          vacancies: number | null
+          year: number
+        }
+        Insert: {
+          applicants_count?: number | null
+          application_id: string
+          competition_ratio?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          data_confidence?: string | null
+          data_source?: string | null
+          id?: string
+          source_quote?: string | null
+          updated_at?: string | null
+          vacancies?: number | null
+          year: number
+        }
+        Update: {
+          applicants_count?: number | null
+          application_id?: string
+          competition_ratio?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          data_confidence?: string | null
+          data_source?: string | null
+          id?: string
+          source_quote?: string | null
+          updated_at?: string | null
+          vacancies?: number | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheme_stats_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

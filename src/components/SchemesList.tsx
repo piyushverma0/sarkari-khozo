@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ExternalLink, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import ApplicationStatsDisplay from "./ApplicationStatsDisplay";
+import { shouldDisplayStats } from "@/utils/statsFormatting";
 
 interface Scheme {
   title: string;
@@ -19,6 +21,7 @@ interface SchemesListProps {
 
 const SchemesList = ({ schemes, userId }: SchemesListProps) => {
   const [trackingId, setTrackingId] = useState<string | null>(null);
+  const [schemeStats, setSchemeStats] = useState<Map<string, any>>(new Map());
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -91,6 +94,11 @@ const SchemesList = ({ schemes, userId }: SchemesListProps) => {
             )}
           </CardHeader>
           <CardContent className="space-y-3">
+            {/* Display compact stats if available */}
+            {schemeStats.get(scheme.url) && shouldDisplayStats(schemeStats.get(scheme.url)) && (
+              <ApplicationStatsDisplay stats={schemeStats.get(scheme.url)} compact />
+            )}
+            
             <div className="flex gap-2">
               <Button
                 variant="default"
