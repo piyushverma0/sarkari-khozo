@@ -193,7 +193,7 @@ const HeroSection = ({ user, onAuthRequired }: HeroSectionProps) => {
     <section className="pt-32 pb-16 px-4">
       <div className="container mx-auto max-w-4xl text-center">
         <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
-          Track Exams, Jobs & Government Schemes — All in One Place
+          Track <span className="font-playfair italic">Exams</span>, <span className="font-playfair italic">Jobs</span> & <span className="font-playfair italic">Government Schemes</span> — All in One Place
         </h1>
         
         <p className="text-lg md:text-xl text-muted-foreground mb-12 max-w-2xl mx-auto">
