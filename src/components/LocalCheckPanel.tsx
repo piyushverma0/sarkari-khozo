@@ -8,7 +8,7 @@ import { LocalCheckDialog } from "./LocalCheckDialog";
 import { LocalCheckResults, LocalInitiativeResult } from "./LocalCheckResults";
 
 interface ApplicationData {
-  id: string;
+  id?: string;
   title: string;
   category?: string;
 }
@@ -76,10 +76,10 @@ export const LocalCheckPanel = ({ application, userId }: LocalCheckPanelProps) =
             <Button 
               onClick={() => setExpanded(true)}
               size="lg"
-              className="flex-1 h-16 text-lg"
-              aria-label="Check for my area"
+              className="flex-1 min-h-[48px] h-16 text-lg"
+              aria-label={currentLanguage === 'hi' ? 'मेरे क्षेत्र में जांचें' : 'Check for my area'}
             >
-              <MapPin className="w-6 h-6 mr-2" />
+              <MapPin className="w-6 h-6 mr-2" aria-hidden="true" />
               {currentLanguage === 'hi' ? 'मेरे क्षेत्र में जांचें' : 'Check for my area'}
             </Button>
             
@@ -88,10 +88,10 @@ export const LocalCheckPanel = ({ application, userId }: LocalCheckPanelProps) =
                 onClick={handleUseSavedLocation}
                 variant="outline"
                 size="lg"
-                className="flex-1 h-16 text-lg"
-                aria-label="Use saved location"
+                className="flex-1 min-h-[48px] h-16 text-lg"
+                aria-label={currentLanguage === 'hi' ? 'सहेजे गए स्थान का उपयोग करें' : 'Use saved location'}
               >
-                <MapPin className="w-6 h-6 mr-2" />
+                <MapPin className="w-6 h-6 mr-2" aria-hidden="true" />
                 {currentLanguage === 'hi' ? 'सहेजे गए स्थान का उपयोग करें' : 'Use saved location'}
               </Button>
             )}

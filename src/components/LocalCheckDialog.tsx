@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,9 +10,10 @@ import { toast } from "@/hooks/use-toast";
 import { INDIAN_STATES, getDistrictsByState, reverseGeocode, saveUserLocation } from "@/lib/locationService";
 import { supabase } from "@/integrations/supabase/client";
 import { LocalInitiativeResult } from "./LocalCheckResults";
+import { debounce } from "@/lib/debounce";
 
 interface ApplicationData {
-  id: string;
+  id?: string;
   title: string;
   category?: string;
 }
@@ -44,9 +45,16 @@ export const LocalCheckDialog = ({
   const [currentStep, setCurrentStep] = useState<Step>('method');
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState('');
   const [saveLocation, setSaveLocation] = useState(false);
   const [districts, setDistricts] = useState<string[]>([]);
   const [districtSearch, setDistrictSearch] = useState('');
+
+  // Debounced district search
+  const debouncedSetSearch = useMemo(
+    () => debounce((value: string) => setDistrictSearch(value), 500),
+    []
+  );
 
   const handleMethodChoice = async (method: 'saved' | 'browser' | 'manual') => {
     if (method === 'saved' && savedLocation?.saved_state) {
@@ -195,9 +203,10 @@ export const LocalCheckDialog = ({
                 onClick={() => handleMethodChoice('saved')}
                 variant="outline"
                 size="lg"
-                className="w-full h-16 text-base justify-start"
+                className="w-full min-h-[48px] h-16 text-base justify-start"
+                aria-label={`Use saved location: ${savedLocation.saved_state}`}
               >
-                <MapPin className="w-5 h-5 mr-3" />
+                <MapPin className="w-5 h-5 mr-3" aria-hidden="true" />
                 Use saved location ({savedLocation.saved_state})
               </Button>
             )}
@@ -206,9 +215,10 @@ export const LocalCheckDialog = ({
               onClick={() => handleMethodChoice('browser')}
               variant="outline"
               size="lg"
-              className="w-full h-16 text-base justify-start"
+              className="w-full min-h-[48px] h-16 text-base justify-start"
+              aria-label="Use my current browser location"
             >
-              <MapPin className="w-5 h-5 mr-3" />
+              <MapPin className="w-5 h-5 mr-3" aria-hidden="true" />
               Use current location
             </Button>
             
@@ -216,9 +226,10 @@ export const LocalCheckDialog = ({
               onClick={() => handleMethodChoice('manual')}
               variant="outline"
               size="lg"
-              className="w-full h-16 text-base justify-start"
+              className="w-full min-h-[48px] h-16 text-base justify-start"
+              aria-label="Manually enter my district or village"
             >
-              <Edit className="w-5 h-5 mr-3" />
+              <Edit className="w-5 h-5 mr-3" aria-hidden="true" />
               Type my district/village
             </Button>
           </div>
@@ -267,8 +278,9 @@ export const LocalCheckDialog = ({
             <Input
               placeholder="Search districts..."
               value={districtSearch}
-              onChange={(e) => setDistrictSearch(e.target.value)}
+              onChange={(e) => debouncedSetSearch(e.target.value)}
               className="mb-2"
+              aria-label="Search for your district"
             />
             
             <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto">
@@ -403,6 +415,16 @@ export const LocalCheckDialog = ({
   return (
     <div className="py-4">
       {renderStep()}
+      
+      {isProcessing && (
+        <div className="flex flex-col items-center justify-center py-8 gap-3 mt-4" role="status" aria-live="polite">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          {processingStatus && (
+            <p className="text-sm text-muted-foreground">{processingStatus}</p>
+          )}
+          <span className="sr-only">Loading local programs...</span>
+        </div>
+      )}
     </div>
   );
 };

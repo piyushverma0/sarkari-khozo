@@ -84,16 +84,25 @@ export const LocalCheckResults = ({ results, state, district }: LocalCheckResult
               ? 'हमारे पास अभी आपके इलाके के लिए कोई स्थानीय अभियान नहीं मिला। क्या मैं इसे निगरानी में रखूँ?'
               : "We don't have local program data for your area yet. Would you like us to monitor this?"}
           </CardDescription>
-          <div className="flex gap-2">
-            <Button onClick={handleMonitorRequest}>
-              <Bell className="w-4 h-4 mr-2" />
-              {currentLanguage === 'hi' ? 'निगरानी सेट करें' : 'Set up monitoring'}
-            </Button>
-            <Button variant="outline" onClick={handleContactSupport}>
-              <Mail className="w-4 h-4 mr-2" />
-              {currentLanguage === 'hi' ? 'सहायता से संपर्क करें' : 'Contact Support'}
-            </Button>
-          </div>
+      <div className="flex gap-2">
+        <Button 
+          onClick={handleMonitorRequest}
+          className="min-h-[48px]"
+          aria-label={currentLanguage === 'hi' ? 'निगरानी सेट करें' : 'Set up monitoring for this program'}
+        >
+          <Bell className="w-4 h-4 mr-2" aria-hidden="true" />
+          {currentLanguage === 'hi' ? 'निगरानी सेट करें' : 'Set up monitoring'}
+        </Button>
+        <Button 
+          variant="outline" 
+          onClick={handleContactSupport}
+          className="min-h-[48px]"
+          aria-label={currentLanguage === 'hi' ? 'सहायता से संपर्क करें' : 'Contact support team'}
+        >
+          <Mail className="w-4 h-4 mr-2" aria-hidden="true" />
+          {currentLanguage === 'hi' ? 'सहायता से संपर्क करें' : 'Contact Support'}
+        </Button>
+      </div>
         </CardContent>
       </Card>
     );
@@ -171,9 +180,9 @@ export const LocalCheckResults = ({ results, state, district }: LocalCheckResult
             {/* Action Buttons */}
             <div className="flex flex-wrap gap-2">
               {result.applyUrl && (
-                <Button asChild className="flex-1 h-12 min-w-[140px]">
-                  <a href={result.applyUrl} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="w-4 h-4 mr-2" />
+                <Button asChild className="flex-1 min-h-[48px] h-12 min-w-[140px]">
+                  <a href={result.applyUrl} target="_blank" rel="noopener noreferrer" aria-label={`Apply to ${result.title} (opens in new tab)`}>
+                    <ExternalLink className="w-4 h-4 mr-2" aria-hidden="true" />
                     Apply Now
                   </a>
                 </Button>
@@ -181,19 +190,20 @@ export const LocalCheckResults = ({ results, state, district }: LocalCheckResult
               <Button 
                 variant="outline" 
                 onClick={() => handleFindHelpCenter(result)} 
-                className="flex-1 h-12 min-w-[140px]"
+                className="flex-1 min-h-[48px] h-12 min-w-[140px]"
+                aria-label={`Find nearest help center for ${result.title}`}
               >
-                <MapPin className="w-4 h-4 mr-2" />
+                <MapPin className="w-4 h-4 mr-2" aria-hidden="true" />
                 Find Help Center
               </Button>
               <Button 
                 variant="outline" 
                 onClick={() => handleShare(result)} 
                 size="icon" 
-                className="h-12 w-12"
-                aria-label="Share program"
+                className="min-h-[48px] h-12 w-12"
+                aria-label={`Share ${result.title}`}
               >
-                <Share2 className="w-4 h-4" />
+                <Share2 className="w-4 h-4" aria-hidden="true" />
               </Button>
             </div>
             

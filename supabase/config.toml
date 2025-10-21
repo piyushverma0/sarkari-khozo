@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.check-local-availability]
 verify_jwt = false
+
+[functions.seed-local-initiatives]
+verify_jwt = false

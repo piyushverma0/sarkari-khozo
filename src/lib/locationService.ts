@@ -25,9 +25,38 @@ const DISTRICTS_BY_STATE: Record<string, string[]> = {
   'Andhra Pradesh': ['Visakhapatnam', 'Vijayawada', 'Guntur', 'Nellore', 'Kurnool', 'Tirupati', 'Rajahmundry', 'Kakinada', 'Kadapa', 'Anantapur'],
 };
 
+// Cache key for localStorage
+const DISTRICTS_CACHE_KEY = 'districts_cache';
+const CACHE_EXPIRY_HOURS = 24;
+
+// Get districts with caching
 export const getDistrictsByState = async (state: string): Promise<string[]> => {
-  // Return districts from the map, or empty array if state not found
-  return DISTRICTS_BY_STATE[state] || [];
+  try {
+    // Check cache first
+    const cached = localStorage.getItem(`${DISTRICTS_CACHE_KEY}_${state}`);
+    if (cached) {
+      const { data, timestamp } = JSON.parse(cached);
+      const age = Date.now() - timestamp;
+      // Use cache if less than 24 hours old
+      if (age < CACHE_EXPIRY_HOURS * 60 * 60 * 1000) {
+        return data;
+      }
+    }
+    
+    // Get districts from static data
+    const districts = DISTRICTS_BY_STATE[state] || [];
+    
+    // Cache the result
+    localStorage.setItem(`${DISTRICTS_CACHE_KEY}_${state}`, JSON.stringify({
+      data: districts,
+      timestamp: Date.now()
+    }));
+    
+    return districts;
+  } catch (error) {
+    console.error('Error getting districts:', error);
+    return DISTRICTS_BY_STATE[state] || [];
+  }
 };
 
 export const reverseGeocode = async (lat: number, lng: number): Promise<{
