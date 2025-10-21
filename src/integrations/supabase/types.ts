@@ -14,11 +14,107 @@ export type Database = {
   }
   public: {
     Tables: {
+      application_notifications: {
+        Row: {
+          application_id: string
+          created_at: string | null
+          delivered_at: string | null
+          delivery_status: string | null
+          id: string
+          message: string
+          metadata: Json | null
+          notification_type: string
+          scheduled_for: string
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string | null
+          delivered_at?: string | null
+          delivery_status?: string | null
+          id?: string
+          message: string
+          metadata?: Json | null
+          notification_type: string
+          scheduled_for: string
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string | null
+          delivered_at?: string | null
+          delivery_status?: string | null
+          id?: string
+          message?: string
+          metadata?: Json | null
+          notification_type?: string
+          scheduled_for?: string
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_notification_application"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      application_status_history: {
+        Row: {
+          application_id: string
+          change_reason: string | null
+          changed_by: string | null
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          new_status: string
+          previous_status: string | null
+        }
+        Insert: {
+          application_id: string
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          new_status: string
+          previous_status?: string | null
+        }
+        Update: {
+          application_id?: string
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          new_status?: string
+          previous_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_status_history_application"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       applications: {
         Row: {
           ai_enrichment: Json | null
           application_guidance: Json | null
+          application_status: string | null
           application_steps: string | null
+          applied_confirmed: boolean | null
           category: string | null
           deadline_reminders: Json | null
           description: string | null
@@ -29,10 +125,13 @@ export type Database = {
           funding_amount: string | null
           id: string
           important_dates: Json | null
+          last_checked_at: string | null
           local_availability_cache: Json | null
+          notification_preferences: Json | null
           program_type: string | null
           saved_at: string | null
           sector: string | null
+          source_check_frequency: string | null
           stage: string | null
           state_specific: string | null
           success_rate: string | null
@@ -44,7 +143,9 @@ export type Database = {
         Insert: {
           ai_enrichment?: Json | null
           application_guidance?: Json | null
+          application_status?: string | null
           application_steps?: string | null
+          applied_confirmed?: boolean | null
           category?: string | null
           deadline_reminders?: Json | null
           description?: string | null
@@ -55,10 +156,13 @@ export type Database = {
           funding_amount?: string | null
           id?: string
           important_dates?: Json | null
+          last_checked_at?: string | null
           local_availability_cache?: Json | null
+          notification_preferences?: Json | null
           program_type?: string | null
           saved_at?: string | null
           sector?: string | null
+          source_check_frequency?: string | null
           stage?: string | null
           state_specific?: string | null
           success_rate?: string | null
@@ -70,7 +174,9 @@ export type Database = {
         Update: {
           ai_enrichment?: Json | null
           application_guidance?: Json | null
+          application_status?: string | null
           application_steps?: string | null
+          applied_confirmed?: boolean | null
           category?: string | null
           deadline_reminders?: Json | null
           description?: string | null
@@ -81,10 +187,13 @@ export type Database = {
           funding_amount?: string | null
           id?: string
           important_dates?: Json | null
+          last_checked_at?: string | null
           local_availability_cache?: Json | null
+          notification_preferences?: Json | null
           program_type?: string | null
           saved_at?: string | null
           sector?: string | null
+          source_check_frequency?: string | null
           stage?: string | null
           state_specific?: string | null
           success_rate?: string | null
