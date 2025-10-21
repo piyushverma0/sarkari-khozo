@@ -1,4 +1,4 @@
-import { Menu, LogOut, User } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
+import logo from "@/assets/logo.jpg";
 
 const Header = () => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
@@ -52,10 +53,7 @@ const Header = () => {
     <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900/95 border-b border-slate-800/50">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-            <Menu className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <h1 className="text-xl font-bold">FormVerse</h1>
+          <img src={logo} alt="FormVerse Logo" className="h-10 w-auto" />
         </div>
 
         {user ? (
