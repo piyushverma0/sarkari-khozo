@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { MapPin, Edit, Loader2, ChevronLeft } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import { toast } from "@/hooks/use-toast";
-import { INDIAN_STATES, getDistrictsByState, reverseGeocode, saveUserLocation } from "@/lib/locationService";
+import { getAllStates, getDistrictsByState, getBlocksByDistrict, reverseGeocode, saveUserLocation } from "@/lib/locationService";
 import { supabase } from "@/integrations/supabase/client";
 import { LocalInitiativeResult } from "./LocalCheckResults";
 import { debounce } from "@/lib/debounce";
@@ -47,8 +47,19 @@ export const LocalCheckDialog = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
   const [saveLocation, setSaveLocation] = useState(false);
+  const [states, setStates] = useState<Array<{ id: string; name: string; code: string }>>([]);
   const [districts, setDistricts] = useState<string[]>([]);
+  const [blocks, setBlocks] = useState<string[]>([]);
   const [districtSearch, setDistrictSearch] = useState('');
+
+  // Load states on mount
+  useEffect(() => {
+    const loadStates = async () => {
+      const statesList = await getAllStates();
+      setStates(statesList);
+    };
+    loadStates();
+  }, []);
 
   // Debounced district search
   const debouncedSetSearch = useMemo(
@@ -116,15 +127,39 @@ export const LocalCheckDialog = ({
   };
 
   const handleStateSelect = async (state: string) => {
-    setAnswers(prev => ({ ...prev, state }));
-    const stateDistricts = await getDistrictsByState(state);
-    setDistricts(stateDistricts);
-    setCurrentStep('district');
+    setAnswers(prev => ({ ...prev, state, district: undefined, block: undefined }));
+    setIsProcessing(true);
+    try {
+      const stateDistricts = await getDistrictsByState(state);
+      setDistricts(stateDistricts);
+      setCurrentStep('district');
+    } catch (error) {
+      console.error('Error loading districts:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load districts',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const handleDistrictSelect = (district: string) => {
-    setAnswers(prev => ({ ...prev, district }));
-    setCurrentStep('block');
+  const handleDistrictSelect = async (district: string) => {
+    setAnswers(prev => ({ ...prev, district, block: undefined }));
+    setIsProcessing(true);
+    try {
+      if (answers.state) {
+        const blocksList = await getBlocksByDistrict(answers.state, district);
+        setBlocks(blocksList);
+      }
+      setCurrentStep('block');
+    } catch (error) {
+      console.error('Error loading blocks:', error);
+      setCurrentStep('block');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleBlockSubmit = () => {
@@ -247,19 +282,27 @@ export const LocalCheckDialog = ({
               </h3>
             </div>
             
-            <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto">
-              {INDIAN_STATES.map(state => (
-                <Button
-                  key={state}
-                  onClick={() => handleStateSelect(state)}
-                  variant="outline"
-                  size="lg"
-                  className="h-14 text-sm"
-                >
-                  {state}
-                </Button>
-              ))}
-            </div>
+            {states.length === 0 ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                <span className="text-sm text-muted-foreground">Loading states...</span>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto">
+                {states.map(state => (
+                  <Button
+                    key={state.id}
+                    onClick={() => handleStateSelect(state.name)}
+                    variant="outline"
+                    size="lg"
+                    className="h-14 text-sm"
+                    disabled={isProcessing}
+                  >
+                    {state.name}
+                  </Button>
+                ))}
+              </div>
+            )}
           </div>
         );
 
@@ -324,20 +367,52 @@ export const LocalCheckDialog = ({
               </h3>
             </div>
             
-            <Input
-              placeholder="Enter block or village name"
-              value={answers.block || ''}
-              onChange={(e) => setAnswers(prev => ({ ...prev, block: e.target.value }))}
-              className="h-12 text-base"
-            />
+            {blocks.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto mb-4">
+                {blocks.map(block => (
+                  <Button
+                    key={block}
+                    onClick={() => {
+                      setAnswers(prev => ({ ...prev, block }));
+                      handleBlockSubmit();
+                    }}
+                    variant="outline"
+                    size="lg"
+                    className="h-14 text-sm"
+                  >
+                    {block}
+                  </Button>
+                ))}
+              </div>
+            ) : (
+              <Input
+                placeholder="Enter block or village name"
+                value={answers.block || ''}
+                onChange={(e) => setAnswers(prev => ({ ...prev, block: e.target.value }))}
+                className="h-12 text-base mb-4"
+              />
+            )}
             
-            <Button
-              onClick={handleBlockSubmit}
-              size="lg"
-              className="w-full h-14"
-            >
-              Continue
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  setAnswers(prev => ({ ...prev, block: '' }));
+                  handleBlockSubmit();
+                }}
+                variant="outline"
+                size="lg"
+                className="flex-1 h-14"
+              >
+                Skip
+              </Button>
+              <Button
+                onClick={handleBlockSubmit}
+                size="lg"
+                className="flex-1 h-14"
+              >
+                Continue
+              </Button>
+            </div>
           </div>
         );
 
