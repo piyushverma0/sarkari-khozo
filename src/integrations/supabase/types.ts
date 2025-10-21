@@ -388,6 +388,7 @@ export type Database = {
           full_name: string | null
           id: string
           location_updated_at: string | null
+          push_subscription: Json | null
           saved_block: string | null
           saved_district: string | null
           saved_state: string | null
@@ -400,6 +401,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           location_updated_at?: string | null
+          push_subscription?: Json | null
           saved_block?: string | null
           saved_district?: string | null
           saved_state?: string | null
@@ -412,6 +414,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           location_updated_at?: string | null
+          push_subscription?: Json | null
           saved_block?: string | null
           saved_district?: string | null
           saved_state?: string | null

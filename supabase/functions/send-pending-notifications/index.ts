@@ -55,15 +55,69 @@ serve(async (req) => {
       try {
         console.log(`Processing notification ${notification.id} for user ${notification.user_id}`);
 
-        // For now, we're marking notifications as delivered to make them visible in-app
-        // In a future enhancement, we can add Web Push notifications here
-        
-        // TODO: Add Web Push notification logic here
-        // if (notificationPrefs.channels.includes('push')) {
-        //   await sendWebPushNotification(notification);
-        // }
+        // Fetch user's notification preferences and push subscription
+        const { data: application } = await supabase
+          .from('applications')
+          .select('notification_preferences')
+          .eq('id', notification.application_id)
+          .single();
 
-        // Mark as delivered
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('push_subscription')
+          .eq('user_id', notification.user_id)
+          .single();
+
+        const notificationPrefs = application?.notification_preferences || { 
+          enabled: true, 
+          channels: ['in_app'] 
+        };
+
+        // Send Web Push notification if enabled and subscription exists
+        if (
+          notificationPrefs.enabled && 
+          notificationPrefs.channels?.includes('push') && 
+          profile?.push_subscription
+        ) {
+          console.log(`Sending push notification to user ${notification.user_id}`);
+          
+          try {
+            const pushPayload = {
+              subscription: profile.push_subscription,
+              payload: {
+                title: notification.title,
+                body: notification.message,
+                icon: '/favicon.jpg',
+                badge: '/favicon.jpg',
+                data: {
+                  applicationId: notification.application_id,
+                  url: `/category/${notification.metadata?.category || 'general'}/application/${notification.application_id}`,
+                  notificationType: notification.notification_type
+                },
+                actions: [
+                  { action: 'view', title: 'View Details' },
+                  { action: 'dismiss', title: 'Dismiss' }
+                ]
+              }
+            };
+
+            const { error: pushError } = await supabase.functions.invoke('send-push-notification', {
+              body: pushPayload
+            });
+
+            if (pushError) {
+              console.error('Failed to send push notification:', pushError);
+              // Continue anyway - we'll still mark it as delivered for in-app
+            } else {
+              console.log('Push notification sent successfully');
+            }
+          } catch (pushError) {
+            console.error('Error sending push notification:', pushError);
+            // Continue anyway - we'll still mark it as delivered for in-app
+          }
+        }
+
+        // Mark as delivered (in-app notifications are always "delivered")
         const { error: updateError } = await supabase
           .from('application_notifications')
           .update({

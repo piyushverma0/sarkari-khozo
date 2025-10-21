@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 interface ApplicationConfirmationDialogProps {
   open: boolean;
@@ -37,6 +38,21 @@ export const ApplicationConfirmationDialog = ({
   const [confirmed, setConfirmed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const [userId, setUserId] = useState<string | undefined>();
+  
+  const { 
+    permission, 
+    isSubscribed, 
+    subscribe, 
+    unsubscribe,
+    isLoading: pushLoading 
+  } = usePushNotifications(userId);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUserId(data.user?.id);
+    });
+  }, []);
 
   // Notification preferences
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -68,6 +84,16 @@ export const ApplicationConfirmationDialog = ({
     if (step === 2) {
       setIsLoading(true);
       try {
+        // Subscribe to push notifications if enabled
+        if (notificationsEnabled && channels.push && !isSubscribed) {
+          await subscribe();
+        }
+        
+        // Unsubscribe if push is disabled
+        if ((!notificationsEnabled || !channels.push) && isSubscribed) {
+          await unsubscribe();
+        }
+
         // Update application with confirmation and preferences
         const { error: updateError } = await supabase
           .from('applications')
