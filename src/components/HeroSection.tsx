@@ -200,7 +200,9 @@ const HeroSection = ({ user, onAuthRequired }: HeroSectionProps) => {
           Just tell our AI what you're applying for. It will find the form, extract the details, and create a trackable card for you. Never miss a deadline again.
         </p>
 
-        <div className="glass-card rounded-2xl p-8 max-w-3xl mx-auto shadow-[var(--shadow-card)] border-2 border-primary/20 bg-card/40">
+        <div className="relative max-w-3xl mx-auto">
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary via-secondary to-accent opacity-50"></div>
+          <div className="relative glass-card rounded-2xl p-8 shadow-[var(--shadow-card)] bg-card/40 m-[2px]">
           <div className="relative mb-4">
             <SearchAutocomplete
               value={query}
@@ -232,6 +234,7 @@ const HeroSection = ({ user, onAuthRequired }: HeroSectionProps) => {
               "Sign In to Track"
             )}
           </Button>
+          </div>
         </div>
       </div>
     </section>
