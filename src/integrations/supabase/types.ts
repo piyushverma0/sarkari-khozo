@@ -92,12 +92,114 @@ export type Database = {
         }
         Relationships: []
       }
+      local_check_queries: {
+        Row: {
+          block: string | null
+          created_at: string | null
+          district: string | null
+          id: string
+          program_id: string | null
+          results_count: number | null
+          state: string | null
+          user_id: string
+        }
+        Insert: {
+          block?: string | null
+          created_at?: string | null
+          district?: string | null
+          id?: string
+          program_id?: string | null
+          results_count?: number | null
+          state?: string | null
+          user_id: string
+        }
+        Update: {
+          block?: string | null
+          created_at?: string | null
+          district?: string | null
+          id?: string
+          program_id?: string | null
+          results_count?: number | null
+          state?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "local_check_queries_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      local_initiatives: {
+        Row: {
+          apply_url: string | null
+          block: string | null
+          category: string | null
+          confidence_level: string | null
+          contact_info: Json | null
+          created_at: string | null
+          deadline: string | null
+          description: string | null
+          district: string | null
+          id: string
+          last_verified_at: string | null
+          mode: string | null
+          program_title: string
+          source_url: string | null
+          state: string
+          updated_at: string | null
+        }
+        Insert: {
+          apply_url?: string | null
+          block?: string | null
+          category?: string | null
+          confidence_level?: string | null
+          contact_info?: Json | null
+          created_at?: string | null
+          deadline?: string | null
+          description?: string | null
+          district?: string | null
+          id?: string
+          last_verified_at?: string | null
+          mode?: string | null
+          program_title: string
+          source_url?: string | null
+          state: string
+          updated_at?: string | null
+        }
+        Update: {
+          apply_url?: string | null
+          block?: string | null
+          category?: string | null
+          confidence_level?: string | null
+          contact_info?: Json | null
+          created_at?: string | null
+          deadline?: string | null
+          description?: string | null
+          district?: string | null
+          id?: string
+          last_verified_at?: string | null
+          mode?: string | null
+          program_title?: string
+          source_url?: string | null
+          state?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null
           email: string | null
           full_name: string | null
           id: string
+          location_updated_at: string | null
+          saved_block: string | null
+          saved_district: string | null
+          saved_state: string | null
           updated_at: string | null
           user_id: string
         }
@@ -106,6 +208,10 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          location_updated_at?: string | null
+          saved_block?: string | null
+          saved_district?: string | null
+          saved_state?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -114,6 +220,10 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          location_updated_at?: string | null
+          saved_block?: string | null
+          saved_district?: string | null
+          saved_state?: string | null
           updated_at?: string | null
           user_id?: string
         }
