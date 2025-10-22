@@ -1428,22 +1428,22 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
           {/* Eligibility - Open by default */}
           {application.eligibility && (
             <AccordionItem value="eligibility">
-              <AccordionTrigger className="text-xl font-semibold hover:no-underline">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-6 h-6 text-primary" />
+              <AccordionTrigger className="text-base sm:text-lg md:text-xl font-semibold hover:no-underline py-3 sm:py-4">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-primary flex-shrink-0" />
                   Quick Eligibility Snapshot
                 </div>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="space-y-4 pt-2">
+                <div className="space-y-3 sm:space-y-4 pt-2">
                   {application.eligibility.toLowerCase().includes('not yet released') || 
                    application.eligibility.toLowerCase().includes('not released') ? (
-                    <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+                    <div className="p-3 sm:p-4 bg-muted/50 rounded-lg space-y-2 sm:space-y-3">
                       <div className="flex items-start gap-2">
-                        <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                        <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="text-base font-medium">Eligibility details will be officially announced soon</p>
-                          <p className="text-base text-muted-foreground mt-1">
+                          <p className="text-sm sm:text-base font-medium">Eligibility details will be officially announced soon</p>
+                          <p className="text-sm sm:text-base text-muted-foreground mt-1">
                             Here's what we expect based on previous years 👇
                           </p>
                         </div>
@@ -1452,12 +1452,12 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                    ) : null}
                   {isTranslating && currentLanguage !== 'en' ? (
                     <div className="space-y-2">
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-5/6" />
-                      <Skeleton className="h-4 w-4/5" />
+                      <Skeleton className="h-3 sm:h-4 w-full" />
+                      <Skeleton className="h-3 sm:h-4 w-5/6" />
+                      <Skeleton className="h-3 sm:h-4 w-4/5" />
                     </div>
                   ) : (
-                    <div className="space-y-3 text-base leading-relaxed">
+                    <div className="space-y-2 sm:space-y-3 text-sm sm:text-base leading-relaxed">
                       {translatedEligibility.split('\n').map((line, idx) => {
                         const trimmedLine = line.trim();
                         if (!trimmedLine) return null;
@@ -1465,8 +1465,8 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                         // Handle bullet points
                         if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
                           return (
-                            <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
-                              <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                            <div key={idx} className="flex items-start gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-muted/30">
+                              <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 mt-0.5 flex-shrink-0" />
                               <span className="flex-1">{trimmedLine.replace(/^[•-]\s*/, '')}</span>
                             </div>
                           );
@@ -1476,7 +1476,7 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                         if (trimmedLine.includes('**')) {
                           const parts = trimmedLine.split(/\*\*([^*]+)\*\*/g);
                           return (
-                            <p key={idx} className="font-medium text-foreground mt-4 first:mt-0">
+                            <p key={idx} className="font-medium text-foreground mt-3 sm:mt-4 first:mt-0">
                               {parts.map((part, i) => 
                                 i % 2 === 1 ? <strong key={i} className="font-semibold">{part}</strong> : part
                               )}
@@ -1496,9 +1496,9 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                   <Button
                     onClick={() => setShowQuiz(true)}
                     variant="secondary"
-                    className="w-full mt-4"
+                    className="w-full mt-3 sm:mt-4 h-9 sm:h-10 text-sm sm:text-base"
                   >
-                    <ClipboardCheck className="w-4 h-4 mr-2" />
+                    <ClipboardCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
                     Take Quick Eligibility Check →
                   </Button>
                 </div>
@@ -1509,25 +1509,25 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
           {/* Documents - Collapsed by default */}
           {documentsRequired && documentsRequired.length > 0 && (
             <AccordionItem value="documents">
-              <AccordionTrigger className="text-xl font-semibold hover:no-underline">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-6 h-6 text-primary" />
+              <AccordionTrigger className="text-base sm:text-lg md:text-xl font-semibold hover:no-underline py-3 sm:py-4">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <FileText className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-primary flex-shrink-0" />
                   Keep These Ready 📂
                 </div>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="pt-2">
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
                     {documentsRequired.map((doc: string, index: number) => {
                       const DocIcon = getDocIcon(doc);
                       return (
                         <Badge
                           key={index}
                           variant="outline"
-                          className="py-2 px-4 text-base gap-2 hover:bg-muted"
+                          className="py-1.5 px-2.5 sm:py-2 sm:px-4 text-xs sm:text-sm md:text-base gap-1.5 sm:gap-2 hover:bg-muted"
                         >
-                          <DocIcon className="w-5 h-5" />
-                          {doc}
+                          <DocIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 flex-shrink-0" />
+                          <span className="truncate">{doc}</span>
                         </Badge>
                       );
                     })}
@@ -1540,9 +1540,9 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
           {/* Fee Structure - Collapsed by default */}
           {application.fee_structure && (
             <AccordionItem value="fees">
-              <AccordionTrigger className="text-xl font-semibold hover:no-underline">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="w-6 h-6 text-primary" />
+              <AccordionTrigger className="text-base sm:text-lg md:text-xl font-semibold hover:no-underline py-3 sm:py-4">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-primary flex-shrink-0" />
                   Fees Summary 💰
                 </div>
               </AccordionTrigger>
@@ -1550,20 +1550,20 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                 <div className="pt-2 space-y-2">
                   {isTranslating && currentLanguage !== 'en' ? (
                     <div className="space-y-2">
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-5/6" />
+                      <Skeleton className="h-3 sm:h-4 w-full" />
+                      <Skeleton className="h-3 sm:h-4 w-5/6" />
                     </div>
                   ) : (
                     <>
                       {translatedFeeStructure.toLowerCase().includes('not yet released') ||
                        translatedFeeStructure.toLowerCase().includes('not released') ? (
-                        <div className="p-3 bg-muted/50 rounded-lg mb-3">
-                          <p className="text-base">
+                        <div className="p-2 sm:p-3 bg-muted/50 rounded-lg mb-2 sm:mb-3">
+                          <p className="text-sm sm:text-base">
                             Exact fees coming soon — but here's last year's pattern so you can plan ahead 💰
                           </p>
                         </div>
                       ) : null}
-                      <div className="space-y-3 text-base leading-relaxed">
+                      <div className="space-y-2 sm:space-y-3 text-sm sm:text-base leading-relaxed">
                         {translatedFeeStructure.split('\n').map((line, idx) => {
                           const trimmedLine = line.trim();
                           if (!trimmedLine) return null;
@@ -1572,7 +1572,7 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                           if (trimmedLine.includes('**')) {
                             const parts = trimmedLine.split(/\*\*([^*]+)\*\*/g);
                             return (
-                              <div key={idx} className="font-medium text-foreground mt-4 first:mt-0 p-2 bg-muted/30 rounded-lg">
+                              <div key={idx} className="font-medium text-foreground mt-3 sm:mt-4 first:mt-0 p-2 bg-muted/30 rounded-lg">
                                 {parts.map((part, i) => 
                                   i % 2 === 1 ? <strong key={i} className="font-semibold">{part}</strong> : part
                                 )}
@@ -1583,8 +1583,8 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                           // Handle bullet points
                           if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
                             return (
-                              <div key={idx} className="flex items-start gap-3 p-2 ml-2">
-                                <span className="text-primary mt-1">•</span>
+                              <div key={idx} className="flex items-start gap-2 sm:gap-3 p-1.5 sm:p-2 ml-1 sm:ml-2">
+                                <span className="text-primary mt-0.5 sm:mt-1 flex-shrink-0">•</span>
                                 <span className="flex-1 text-muted-foreground">{trimmedLine.replace(/^[•-]\s*/, '')}</span>
                               </div>
                             );
@@ -1592,7 +1592,7 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                           
                           // Regular paragraphs
                           return (
-                            <p key={idx} className="text-muted-foreground leading-relaxed pl-2">
+                            <p key={idx} className="text-muted-foreground leading-relaxed pl-1 sm:pl-2">
                               {trimmedLine}
                             </p>
                           );
@@ -1608,18 +1608,18 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
           {/* Application Steps - Collapsed by default */}
           {application.application_steps && (
             <AccordionItem value="steps">
-              <AccordionTrigger className="text-xl font-semibold hover:no-underline">
-                <div className="flex items-center gap-2">
-                  <ClipboardList className="w-6 h-6 text-primary" />
+              <AccordionTrigger className="text-base sm:text-lg md:text-xl font-semibold hover:no-underline py-3 sm:py-4">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <ClipboardList className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-primary flex-shrink-0" />
                   How to Apply
                 </div>
               </AccordionTrigger>
               <AccordionContent>
                 {isTranslating && currentLanguage !== 'en' ? (
                   <div className="space-y-2 pt-2">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-5/6" />
-                    <Skeleton className="h-4 w-4/5" />
+                    <Skeleton className="h-3 sm:h-4 w-full" />
+                    <Skeleton className="h-3 sm:h-4 w-5/6" />
+                    <Skeleton className="h-3 sm:h-4 w-4/5" />
                   </div>
                 ) : (
                   <HowToApplySection 
