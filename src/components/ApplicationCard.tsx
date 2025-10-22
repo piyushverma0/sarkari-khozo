@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Trash2, ClipboardCheck, Bell, Calendar, FileText, DollarSign, ClipboardList, ExternalLink, Clock, CheckCircle2, AlertCircle, GraduationCap, CreditCard, IdCard, User, FileCheck, Save, Edit, X, Volume2, Phone, Mail, Smartphone, TrendingUp, Award, Building, MapPin, Sparkles, GitCompare, Loader2, RefreshCw } from "lucide-react";
+import { differenceInDays } from "date-fns";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -231,21 +232,22 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
     loadStats();
   }, [application.id]);
 
-  // Auto-refresh dates if they're all "Not yet announced" and data is stale
+  // Auto-refresh dates if ANY are "Not yet announced" or data is stale
   useEffect(() => {
     const checkAndRefreshDates = async () => {
       if (!application.id || !application.important_dates || isRefreshingDates) return;
       
       const dates = application.important_dates;
-      const allNotAnnounced = ['application_start', 'application_end', 'exam_date', 'admit_card_date']
-        .every(key => dates[key] === 'Not yet announced');
+      // Check if ANY date is "Not yet announced"
+      const hasUnannounced = ['application_start', 'application_end', 'exam_date', 'admit_card_date']
+        .some(key => dates[key] === 'Not yet announced');
       
       // Check if dates were last verified more than 7 days ago
       const lastVerified = application.dates_last_verified ? new Date(application.dates_last_verified) : null;
-      const daysSinceVerified = lastVerified ? (Date.now() - lastVerified.getTime()) / (1000 * 60 * 60 * 24) : 999;
+      const daysSinceVerified = lastVerified ? differenceInDays(new Date(), lastVerified) : 999;
       
-      // Auto-refresh if all dates are "Not yet announced" OR if dates are older than 7 days
-      const needsRefresh = allNotAnnounced || daysSinceVerified > 7;
+      // Auto-refresh if ANY date is "Not yet announced" OR if dates are older than 7 days
+      const needsRefresh = hasUnannounced || daysSinceVerified > 7;
       
       // Check cooldown to prevent too frequent refreshes
       const DATES_REFRESH_COOLDOWN = 24 * 60 * 60 * 1000; // 24 hours
