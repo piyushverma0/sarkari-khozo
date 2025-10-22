@@ -60,6 +60,9 @@ interface ApplicationData {
   applied_confirmed?: boolean;
   application_status?: string;
   notification_preferences?: any;
+  date_confidence?: string;
+  date_source?: string;
+  dates_last_verified?: string;
   // Startup-specific fields
   program_type?: string;
   funding_amount?: string;
@@ -227,6 +230,40 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
 
     loadStats();
   }, [application.id]);
+
+  // Auto-refresh dates if they're all "Not yet announced" and data is stale
+  useEffect(() => {
+    const checkAndRefreshDates = async () => {
+      if (!application.id || !application.important_dates || isRefreshingDates) return;
+      
+      const dates = application.important_dates;
+      const allNotAnnounced = ['application_start', 'application_end', 'exam_date', 'admit_card_date']
+        .every(key => dates[key] === 'Not yet announced');
+      
+      // Check if dates were last verified more than 7 days ago
+      const lastVerified = application.dates_last_verified ? new Date(application.dates_last_verified) : null;
+      const daysSinceVerified = lastVerified ? (Date.now() - lastVerified.getTime()) / (1000 * 60 * 60 * 24) : 999;
+      
+      // Auto-refresh if all dates are "Not yet announced" OR if dates are older than 7 days
+      const needsRefresh = allNotAnnounced || daysSinceVerified > 7;
+      
+      // Check cooldown to prevent too frequent refreshes
+      const DATES_REFRESH_COOLDOWN = 24 * 60 * 60 * 1000; // 24 hours
+      const cacheKey = `dates_refresh_${application.id}`;
+      const lastRefreshAttempt = localStorage.getItem(cacheKey);
+      
+      if (needsRefresh && (!lastRefreshAttempt || Date.now() - parseInt(lastRefreshAttempt) > DATES_REFRESH_COOLDOWN)) {
+        console.log('Auto-refreshing dates...');
+        localStorage.setItem(cacheKey, Date.now().toString());
+        await handleRefreshDates();
+      }
+    };
+
+    // Run after a short delay to let the UI load first
+    const timer = setTimeout(checkAndRefreshDates, 2000);
+    return () => clearTimeout(timer);
+  }, [application.id, application.important_dates, application.dates_last_verified]);
+
 
   // Auto-extract stats
   const extractStatsAutomatically = async () => {
@@ -1305,27 +1342,25 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
           {/* Important Dates - Open by default (hidden for startup programs as AI insights provide timeline) */}
           {importantDates && Object.keys(importantDates).filter(k => !['date_confidence', 'date_source', 'last_verified'].includes(k)).length > 0 && !isStartupProgram && (
             <AccordionItem value="dates">
-              <AccordionTrigger className="text-xl font-semibold hover:no-underline">
-                <div className="flex items-center gap-2 flex-1">
-                  <Calendar className="w-6 h-6 text-primary" />
-                  Key Dates
-                  {isRefreshingDates && (
-                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                  )}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRefreshDates();
-                  }}
+              <div className="flex items-center justify-between pr-4">
+                <AccordionTrigger className="text-xl font-semibold hover:no-underline flex-1">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-6 h-6 text-primary" />
+                    Key Dates
+                    {isRefreshingDates && (
+                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground ml-2" />
+                    )}
+                  </div>
+                </AccordionTrigger>
+                <button
+                  onClick={handleRefreshDates}
                   disabled={isRefreshingDates}
-                  className="ml-2"
+                  className="p-2 hover:bg-accent rounded-md transition-colors disabled:opacity-50"
+                  title="Refresh dates from official sources"
                 >
                   <RefreshCw className={`w-4 h-4 ${isRefreshingDates ? 'animate-spin' : ''}`} />
-                </Button>
-              </AccordionTrigger>
+                </button>
+              </div>
               <AccordionContent>
                 <div className="space-y-3 pt-2">
                   {Object.entries(importantDates)
@@ -1347,8 +1382,20 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                       );
                     })}
                   
+                  {/* Refresh prompt for old dates */}
+                  {Object.values(importantDates).some(v => v === 'Not yet announced') && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                      <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm text-muted-foreground">
+                          Click the refresh button above to search for updated dates from official sources
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Date Confidence & Source */}
-                  {importantDates.date_confidence && (
+                  {importantDates.date_confidence && importantDates.date_confidence !== 'Not yet announced' && (
                     <div className="flex items-center justify-between pt-2 border-t">
                       <Badge variant={
                         importantDates.date_confidence === 'verified' ? 'default' :
