@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { callClaude, logClaudeUsage } from "../_shared/claude-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -82,161 +83,22 @@ serve(async (req) => {
       );
     }
 
-    // Generate new enrichment using Lovable AI
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!lovableApiKey) {
-      throw new Error('LOVABLE_API_KEY not configured');
-    }
-
-    const enrichmentPrompt = `You are an expert on Indian startup funding programs and policies.
-
-Program Details:
-- Title: ${program.title}
-- Description: ${program.description || 'Not specified'}
-- State: ${program.state_specific || 'All India'}
-- Stage: ${program.stage || 'Any'}
-- Sector: ${program.sector || 'Any'}
-- Funding: ${program.funding_amount || 'Not specified'}
-- DPIIT Required: ${program.dpiit_required ? 'Yes' : 'No'}
-- Program Type: ${program.program_type || 'General'}
-
-Generate realistic, actionable enrichment data for this startup program. Focus on practical insights that would help founders prepare their application.
-
-Return structured data with:
-
-1. FOUNDER INSIGHTS (3 short tips, each 1 line):
-   - Based on typical application patterns for this type of program
-   - Include realistic approval timeline estimates
-   - Mention practical preparation advice
-
-2. PREPARATION CHECKLIST (5 items for each stage):
-   - Customize by startup stage (idea_stage, prototype_stage, revenue_stage)
-   - Focus on documents and specific requirements
-   - Be specific to the program type and requirements
-
-3. SUCCESS METRICS:
-   - Estimate realistic approval rate (e.g., "35-45%" for competitive programs)
-   - Typical approval timeline (e.g., "2-3 months")
-   - If real data exists for this program, use it; otherwise mark as "estimated"
-   - Confidence level: high/medium/low based on data availability
-
-4. APPLICATION STEPS (3-5 clear steps):
-   - Include specific portal/website registration details
-   - Document submission process
-   - Review and follow-up timeline
-
-5. REAL EXAMPLE:
-   - Create a realistic startup example that could have received this funding
-   - Include plausible name, location (in relevant state), sector, funding year
-   - Mark as "simulated" since it's not based on verified real data
-   - Make it inspiring but realistic
-
-6. HELP CONTACTS:
-   - List 2-3 known incubators for this state/program type
-   - Indicate if mentorship is typically available
-   - Generic contact information if specific contacts unavailable
-
-Be realistic and practical. Avoid overly optimistic language.`;
-
-    console.log('Calling Lovable AI for enrichment...');
+    // Generate new enrichment using Claude AI
+    console.log('Calling Claude AI for enrichment...');
     
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: 'You are an expert startup funding advisor for India. Return only valid JSON.' },
-          { role: 'user', content: enrichmentPrompt }
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "enrich_program_data",
-            description: "Return structured enrichment data for startup program",
-            parameters: {
-              type: "object",
-              properties: {
-                founder_insights: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "3 practical tips for founders (1 line each)"
-                },
-                preparation_checklist: {
-                  type: "object",
-                  properties: {
-                    idea_stage: { type: "array", items: { type: "string" } },
-                    prototype_stage: { type: "array", items: { type: "string" } },
-                    revenue_stage: { type: "array", items: { type: "string" } }
-                  },
-                  required: ["idea_stage", "prototype_stage", "revenue_stage"]
-                },
-                success_metrics: {
-                  type: "object",
-                  properties: {
-                    approval_rate: { type: "string" },
-                    avg_approval_time: { type: "string" },
-                    total_funded: { type: "number" },
-                    confidence_level: { type: "string", enum: ["high", "medium", "low"] },
-                    data_source: { type: "string" }
-                  },
-                  required: ["approval_rate", "avg_approval_time", "confidence_level", "data_source"]
-                },
-                apply_assistance: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "3-5 clear application steps"
-                },
-                real_example: {
-                  type: "object",
-                  properties: {
-                    name: { type: "string" },
-                    location: { type: "string" },
-                    sector: { type: "string" },
-                    funding_received: { type: "string" },
-                    year: { type: "string" },
-                    outcome: { type: "string" },
-                    is_simulated: { type: "boolean" }
-                  },
-                  required: ["name", "location", "sector", "funding_received", "year", "outcome", "is_simulated"]
-                },
-                help_contacts: {
-                  type: "object",
-                  properties: {
-                    incubators: { type: "array", items: { type: "string" } },
-                    mentors_available: { type: "boolean" },
-                    state_nodal_officer: { type: "string" }
-                  }
-                }
-              },
-              required: ["founder_insights", "preparation_checklist", "success_metrics", "apply_assistance", "real_example", "help_contacts"],
-              additionalProperties: false
-            }
-          }
-        }],
-        tool_choice: { type: "function", function: { name: "enrich_program_data" } }
-      }),
+    const aiResponse = await callClaude({
+      systemPrompt: 'You are an expert startup funding advisor for India. Return only valid JSON.',
+      userPrompt: enrichmentPrompt,
+      enableWebSearch: true,
+      maxWebSearchUses: 5,
+      temperature: 0.3,
     });
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI API error:', aiResponse.status, errorText);
-      throw new Error(`AI API error: ${aiResponse.status}`);
-    }
-
-    const aiData = await aiResponse.json();
+    logClaudeUsage('enrich-startup-program', aiResponse.tokensUsed, aiResponse.webSearchUsed || false);
     console.log('AI response received');
 
-    // Extract tool call result
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) {
-      throw new Error('No tool call in AI response');
-    }
-
-    const enrichedData = JSON.parse(toolCall.function.arguments);
+    // Parse the response content as JSON
+    const enrichedData = JSON.parse(aiResponse.content);
     
     // Build complete enrichment object
     const enrichment = {

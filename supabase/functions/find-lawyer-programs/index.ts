@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { callClaude, logClaudeUsage } from "../_shared/claude-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,15 +18,6 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Query is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY is not set');
-      return new Response(
-        JSON.stringify({ error: 'API configuration error' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -84,52 +76,20 @@ Intent: ${intentType || 'general'}
 
 Find 3-6 relevant legal opportunities matching this query. Return valid JSON only.`;
 
-    console.log('Calling Lovable AI API...');
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.7,
-        max_tokens: 4000,
-      }),
+    console.log('Calling Claude AI API with web search...');
+    const response = await callClaude({
+      systemPrompt,
+      userPrompt,
+      enableWebSearch: true,
+      maxWebSearchUses: 10,
+      temperature: 0.7,
+      maxTokens: 4000,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Lovable AI API error:', response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'AI credits exhausted. Please add credits to continue.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      return new Response(
-        JSON.stringify({ error: 'Failed to generate programs' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const data = await response.json();
-    console.log('Lovable AI response received');
+    logClaudeUsage('find-lawyer-programs', response.tokensUsed, response.webSearchUsed || false);
+    console.log('Claude AI response received');
     
-    const aiResponse = data.choices[0].message.content;
+    const aiResponse = response.content;
     console.log('AI Response:', aiResponse);
 
     let programs = [];

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { callClaude, logClaudeUsage } from "../_shared/claude-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -111,13 +112,8 @@ serve(async (req) => {
       confidence = 'high';
       helperText = `Found ${results.length} verified program${results.length > 1 ? 's' : ''} in your ${district ? 'district' : 'state'}`;
     } else {
-      // No direct matches - use Lovable AI for predictions
+      // No direct matches - use Claude AI for predictions
       console.log('No direct matches found, using AI to predict availability');
-
-      const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-      if (!LOVABLE_API_KEY) {
-        throw new Error('LOVABLE_API_KEY not configured');
-      }
 
       const aiPrompt = `You are a government schemes expert for India. Analyze if the following program is available in the user's location:
 
@@ -132,39 +128,17 @@ Based on:
 
 Provide a confidence assessment and actionable guidance. If this program is likely available, suggest how to apply (online, CSC, or government office). Keep your response concise and practical.`;
 
-      const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [
-            { role: 'system', content: 'You are a helpful government schemes expert for India. Provide clear, actionable guidance in simple language.' },
-            { role: 'user', content: aiPrompt }
-          ],
-        }),
+      const aiResponse = await callClaude({
+        systemPrompt: 'You are a helpful government schemes expert for India. Provide clear, actionable guidance in simple language.',
+        userPrompt: aiPrompt,
+        enableWebSearch: true,
+        maxWebSearchUses: 5,
+        temperature: 0.7,
       });
 
-      if (!aiResponse.ok) {
-        if (aiResponse.status === 429) {
-          return new Response(
-            JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
-            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        if (aiResponse.status === 402) {
-          return new Response(
-            JSON.stringify({ error: 'Payment required. Please add credits to your Lovable AI workspace.' }),
-            { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        throw new Error(`AI API error: ${aiResponse.status}`);
-      }
+      logClaudeUsage('check-local-availability', aiResponse.tokensUsed, aiResponse.webSearchUsed || false);
 
-      const aiData = await aiResponse.json();
-      const aiContent = aiData.choices?.[0]?.message?.content || '';
+      const aiContent = aiResponse.content;
 
       console.log('AI prediction:', aiContent);
 

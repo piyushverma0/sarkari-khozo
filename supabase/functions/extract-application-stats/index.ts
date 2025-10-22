@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callClaude, logClaudeUsage } from "../_shared/claude-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,19 +30,6 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Use Lovable AI to extract stats
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY not configured');
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'AI service not configured'
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
 
     const prompt = `Extract application statistics from this text content about a government scheme, program, or job posting. 
     
@@ -73,56 +61,17 @@ Rules:
 - Confidence > 0.8 if numbers are explicitly stated
 - Return ONLY valid JSON, no other text`;
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: 'You are a data extraction assistant that returns only valid JSON.' },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.1,
-      }),
+    const aiResponse = await callClaude({
+      systemPrompt: 'You are a data extraction assistant that returns only valid JSON.',
+      userPrompt: prompt,
+      enableWebSearch: true,
+      maxWebSearchUses: 5,
+      temperature: 0.1,
     });
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI API error:', aiResponse.status, errorText);
-      
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ 
-          success: false,
-          error: 'Rate limit exceeded. Please try again later.' 
-        }), {
-          status: 429,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ 
-          success: false,
-          error: 'AI service quota exceeded' 
-        }), {
-          status: 402,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'AI extraction service unavailable'
-      }), {
-        status: 503,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    logClaudeUsage('extract-application-stats', aiResponse.tokensUsed, aiResponse.webSearchUsed || false);
 
-    const aiData = await aiResponse.json();
-    const extractedText = aiData.choices[0].message.content.trim();
+    const extractedText = aiResponse.content.trim();
     
     // Remove markdown code blocks if present
     let jsonText = extractedText;

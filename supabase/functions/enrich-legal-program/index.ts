@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { callClaude, logClaudeUsage } from "../_shared/claude-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -140,105 +141,18 @@ Return structured data with:
 
 Be realistic and practical. Avoid overly optimistic language.`;
 
-    console.log('Calling Lovable AI for legal program enrichment...');
+    console.log('Calling Claude AI for legal program enrichment...');
     
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: 'You are an expert legal career advisor for India. Return only valid JSON.' },
-          { role: 'user', content: enrichmentPrompt }
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "enrich_legal_program_data",
-            description: "Return structured enrichment data for legal program",
-            parameters: {
-              type: "object",
-              properties: {
-                founder_insights: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "3 practical tips for legal professionals (1 line each)"
-                },
-                preparation_checklist: {
-                  type: "object",
-                  properties: {
-                    law_student: { type: "array", items: { type: "string" } },
-                    practicing_lawyer: { type: "array", items: { type: "string" } },
-                    researcher: { type: "array", items: { type: "string" } }
-                  },
-                  required: ["law_student", "practicing_lawyer", "researcher"]
-                },
-                success_metrics: {
-                  type: "object",
-                  properties: {
-                    approval_rate: { type: "string" },
-                    avg_approval_time: { type: "string" },
-                    total_funded: { type: "number" },
-                    confidence_level: { type: "string", enum: ["high", "medium", "low"] },
-                    data_source: { type: "string" }
-                  },
-                  required: ["approval_rate", "avg_approval_time", "confidence_level", "data_source"]
-                },
-                apply_assistance: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "3-5 clear application steps"
-                },
-                real_example: {
-                  type: "object",
-                  properties: {
-                    name: { type: "string" },
-                    location: { type: "string" },
-                    sector: { type: "string" },
-                    funding_received: { type: "string" },
-                    year: { type: "string" },
-                    outcome: { type: "string" },
-                    is_simulated: { type: "boolean" }
-                  },
-                  required: ["name", "location", "sector", "funding_received", "year", "outcome", "is_simulated"]
-                },
-                help_contacts: {
-                  type: "object",
-                  properties: {
-                    incubators: { type: "array", items: { type: "string" } },
-                    mentors_available: { type: "boolean" },
-                    state_nodal_officer: { type: "string" }
-                  }
-                }
-              },
-              required: ["founder_insights", "preparation_checklist", "success_metrics", "apply_assistance", "real_example", "help_contacts"],
-              additionalProperties: false
-            }
-          }
-        }],
-        tool_choice: { type: "function", function: { name: "enrich_legal_program_data" } }
-      }),
+    const aiResponse = await callClaude({
+      systemPrompt: 'You are an expert legal career advisor for India. Return only valid JSON.',
+      userPrompt: enrichmentPrompt,
+      enableWebSearch: true,
+      maxWebSearchUses: 5,
+      temperature: 0.3,
     });
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI API error:', aiResponse.status, errorText);
-      throw new Error(`AI API error: ${aiResponse.status}`);
-    }
-
-    const aiData = await aiResponse.json();
-    console.log('AI response received for legal program');
-
-    // Extract tool call result
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) {
-      throw new Error('No tool call in AI response');
-    }
-
-    const enrichedData = JSON.parse(toolCall.function.arguments);
+    logClaudeUsage('enrich-legal-program', aiResponse.tokensUsed, aiResponse.webSearchUsed || false);
+    const enrichedData = JSON.parse(aiResponse.content);
     
     // Build complete enrichment object
     const enrichment = {

@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { callClaude, logClaudeUsage } from "../_shared/claude-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,11 +19,6 @@ serve(async (req) => {
         JSON.stringify({ error: 'Category is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-    }
-
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY not configured');
     }
 
     console.log('Finding schemes for category:', category);
@@ -50,45 +46,20 @@ IMPORTANT: Return ONLY a valid JSON array, nothing else. Use this exact structur
 
 Return 4-6 quality results with official URLs.`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.3,
-      }),
+    const response = await callClaude({
+      systemPrompt: 'You are an expert on Indian government schemes. Return ONLY valid JSON.',
+      userPrompt: prompt,
+      enableWebSearch: true,
+      maxWebSearchUses: 10,
+      temperature: 0.3,
     });
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'AI credits exhausted. Please add funds.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      const errorText = await response.text();
-      console.error('AI error:', response.status, errorText);
-      throw new Error(`AI request failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log('AI response:', JSON.stringify(data));
+    logClaudeUsage('find-category-schemes', response.tokensUsed, response.webSearchUsed || false);
+    console.log('AI response:', JSON.stringify(response));
 
     let schemes;
     try {
-      const content = data.choices[0].message.content;
+      const content = response.content;
       const jsonMatch = content.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         schemes = JSON.parse(jsonMatch[0]);

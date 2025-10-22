@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { callClaude, logClaudeUsage } from "../_shared/claude-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,10 +32,7 @@ serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
-    }
+    console.log('Calling Claude AI with web search...');
 
     const prompt = `You are a startup policy expert in India. Find 3-6 current government and state-level startup programs.
 
@@ -69,35 +67,18 @@ Return ONLY valid JSON with this structure (no markdown, no backticks, just the 
   }
 ]`;
 
-    console.log('Calling Lovable AI...');
-
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-      }),
+    const response = await callClaude({
+      systemPrompt: 'You are a startup policy expert in India. Return ONLY valid JSON.',
+      userPrompt: prompt,
+      enableWebSearch: true,
+      maxWebSearchUses: 10,
+      temperature: 0.7,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Lovable AI error:', response.status, errorText);
-      throw new Error(`AI API error: ${response.status}`);
-    }
-
-    const data = await response.json();
+    logClaudeUsage('find-startup-programs', response.tokensUsed, response.webSearchUsed || false);
     console.log('AI response received');
     
-    const content = data.choices[0].message.content;
+    const content = response.content;
     
     // Parse the JSON response
     let programs;

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { callClaude, logClaudeUsage } from "../_shared/claude-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,11 +20,6 @@ serve(async (req) => {
         JSON.stringify({ error: 'Query is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-    }
-
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY not configured');
     }
 
     console.log('Processing query:', query);
@@ -76,33 +72,20 @@ CRITICAL RULES:
 - Sort active opportunities by deadline (soonest first)
 - Sort expired opportunities by deadline (most recent first)`;
 
-      const disambiguationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [
-            { role: 'user', content: disambiguationPrompt }
-          ],
-          temperature: 0.1,
-        }),
+      const disambiguationResponse = await callClaude({
+        systemPrompt: 'You are an expert at finding ALL active Indian government exams, jobs, and schemes. Return ONLY valid JSON.',
+        userPrompt: disambiguationPrompt,
+        enableWebSearch: true,
+        maxWebSearchUses: 10,
+        temperature: 0.1,
       });
 
-      if (!disambiguationResponse.ok) {
-        const errorText = await disambiguationResponse.text();
-        console.error('Disambiguation AI error:', disambiguationResponse.status, errorText);
-        throw new Error(`Disambiguation failed: ${disambiguationResponse.status}`);
-      }
-
-      const disambiguationData = await disambiguationResponse.json();
-      console.log('Disambiguation response:', JSON.stringify(disambiguationData));
+      logClaudeUsage('process-query-disambiguation', disambiguationResponse.tokensUsed, disambiguationResponse.webSearchUsed || false);
+      console.log('Disambiguation response:', JSON.stringify(disambiguationResponse));
 
       let disambiguationResult;
       try {
-        const content = disambiguationData.choices[0].message.content;
+        const content = disambiguationResponse.content;
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           disambiguationResult = JSON.parse(jsonMatch[0]);
@@ -312,33 +295,20 @@ CRITICAL RULES - CONTENT EXTRACTION:
 - For startup programs: Include all startup-specific fields (program_type, funding_amount, sector, stage, state_specific, success_rate, dpiit_required)
 - Focus on government-backed startup programs, state startup missions, and official funding schemes` : ''}`;
 
-    const extractionResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'user', content: comprehensivePrompt }
-        ],
-        temperature: 0.1, // Lower temperature for more deterministic extraction
-      }),
+    const extractionResponse = await callClaude({
+      systemPrompt: 'You are an expert at extracting information about Indian government applications, exams, jobs, and schemes. Return ONLY valid JSON.',
+      userPrompt: comprehensivePrompt,
+      enableWebSearch: true,
+      maxWebSearchUses: 10,
+      temperature: 0.1,
     });
 
-    if (!extractionResponse.ok) {
-      const errorText = await extractionResponse.text();
-      console.error('AI extraction error:', extractionResponse.status, errorText);
-      throw new Error(`AI extraction failed: ${extractionResponse.status}`);
-    }
-
-    const extractionData = await extractionResponse.json();
-    console.log('Comprehensive extraction response:', JSON.stringify(extractionData));
+    logClaudeUsage('process-query-extraction', extractionResponse.tokensUsed, extractionResponse.webSearchUsed || false);
+    console.log('Comprehensive extraction response:', JSON.stringify(extractionResponse));
 
     let result;
     try {
-      const content = extractionData.choices[0].message.content;
+      const content = extractionResponse.content;
       // Try to parse JSON from the response
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
