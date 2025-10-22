@@ -14,7 +14,7 @@ interface ActiveApplication {
   description: string;
   application_deadline: string;
   vacancies: string;
-  status: "active" | "closing_soon" | "upcoming";
+  status: "active" | "closing_soon" | "upcoming" | "closed";
 }
 
 interface ActiveApplicationsDialogProps {
@@ -124,6 +124,29 @@ export function ActiveApplicationsDialog({
     }
   };
 
+  const validateApplicationStatus = (application: ActiveApplication): "active" | "closing_soon" | "upcoming" | "closed" => {
+    if (!application.application_deadline || application.application_deadline === 'TBA') {
+      return application.status; // Keep original status if no deadline
+    }
+
+    const deadline = new Date(application.application_deadline);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day
+    deadline.setHours(0, 0, 0, 0);
+
+    const daysUntilDeadline = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysUntilDeadline < 0) {
+      return "closed"; // Deadline has passed
+    } else if (daysUntilDeadline <= 7) {
+      return "closing_soon"; // Within 7 days
+    } else if (application.status === "upcoming") {
+      return "upcoming"; // Keep upcoming status
+    } else {
+      return "active"; // More than 7 days away
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "active":
@@ -132,6 +155,8 @@ export function ActiveApplicationsDialog({
         return <Badge className="bg-yellow-500/20 text-yellow-700 dark:text-yellow-400">Closing Soon</Badge>;
       case "upcoming":
         return <Badge className="bg-blue-500/20 text-blue-700 dark:text-blue-400">Upcoming</Badge>;
+      case "closed":
+        return <Badge className="bg-red-500/20 text-red-700 dark:text-red-400">Closed</Badge>;
       default:
         return null;
     }
@@ -154,13 +179,16 @@ export function ActiveApplicationsDialog({
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {applications.map((app, index) => (
-              <Card key={index} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-semibold text-sm line-clamp-2 flex-1">{app.title}</h3>
-                    {getStatusBadge(app.status)}
-                  </div>
+            {applications.map((app, index) => {
+              const validatedStatus = validateApplicationStatus(app);
+              
+              return (
+                <Card key={index} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-semibold text-sm line-clamp-2 flex-1">{app.title}</h3>
+                      {getStatusBadge(validatedStatus)}
+                    </div>
                   
                   <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
                     {app.description}
@@ -213,7 +241,8 @@ export function ActiveApplicationsDialog({
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            );
+            })}
           </div>
         )}
       </DialogContent>
