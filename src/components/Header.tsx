@@ -80,18 +80,15 @@ const Header = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem 
-                  className="flex items-center gap-2 sm:hidden"
+                  className="sm:hidden"
                   onClick={() => navigate("/dashboard")}
                 >
-                  <User className="h-4 w-4" />
                   <span>My Applications</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
+                <DropdownMenuItem>
                   <span className="text-sm">{user.email}</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleSignOut} className="flex items-center gap-2">
-                  <LogOut className="h-4 w-4" />
+                <DropdownMenuItem onClick={handleSignOut}>
                   <span>Sign Out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
