@@ -55,6 +55,9 @@ const SchemesList = ({ schemes, userId }: SchemesListProps) => {
           documents_required: data.documents_required || null,
           fee_structure: data.fee_structure || null,
           deadline_reminders: data.deadline_reminders || null,
+          date_confidence: data.important_dates?.date_confidence || null,
+          date_source: data.important_dates?.date_source || null,
+          dates_last_verified: data.important_dates?.last_verified || new Date().toISOString(),
         })
         .select()
         .single();

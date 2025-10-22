@@ -127,15 +127,67 @@ CRITICAL RULES:
     // Check if query is startup-related
     const isStartupQuery = /startup|funding|incubation|accelerator|dpiit|entrepreneur|venture|seed.*fund|grant.*program/i.test(query);
 
-    // Single comprehensive extraction using AI
+    // Single comprehensive extraction using AI with enhanced date extraction
     const comprehensivePrompt = `You are an expert at extracting information about Indian government applications, exams, jobs, and schemes${isStartupQuery ? ', with special expertise in startup programs and funding opportunities' : ''}.
 
 User Query: "${query}"
+
+${!isStartupQuery ? `
+CRITICAL DATE EXTRACTION RULES (HIGHEST PRIORITY):
+1. ALWAYS search these sources for dates (in priority order):
+   - Official government website (ssc.nic.in, upsc.gov.in, rrbcdg.gov.in, ibps.in, railway.gov.in, etc.)
+   - Sarkari Result (sarkariresult.com) - most reliable for exam dates
+   - Testbook (testbook.com) - comprehensive date tracking
+   - Careers360 (careers360.com) - verified exam information
+   - Career Power (careerpower.in) - detailed exam schedules
+   - Official notification PDFs from government portals
+   - Times of India and Indian Express education sections
+
+2. DATE EXTRACTION METHODOLOGY:
+   - Search official notification PDFs first (look for "notification", "advertisement", "schedule")
+   - Check exam calendar pages on official government portals
+   - Look for "important dates" sections on official sites
+   - Cross-verify dates from multiple reliable sources
+   - If found on official website or 2+ reliable sources → confidence: "verified"
+   - If found on 1 reliable source → confidence: "estimated"
+   - If approximated from previous years → confidence: "tentative"
+   - ONLY use "Not yet announced" if genuinely unavailable after checking ALL sources
+
+3. DATE FORMAT HANDLING:
+   - Accept multiple Indian date formats:
+     * DD-MM-YYYY (15-05-2025)
+     * DD/MM/YYYY (15/05/2025)
+     * DD Month YYYY (15 May 2025)
+     * Month DD, YYYY (May 15, 2025)
+     * Month YYYY (May 2025 → use 01-05-2025)
+   - Convert ALL dates to YYYY-MM-DD format in output
+   - For date ranges like "15-05-2025 to 20-05-2025" → extract both start and end
+
+4. KEY DATES TO EXTRACT:
+   - application_start: When online registration opens
+   - application_end: Last date to apply (deadline)
+   - admit_card_date: When admit card is released/downloadable
+   - exam_date: Actual exam/test date (if multiple phases, use first date)
+   - result_date: When results are declared/announced
+   - correction_window_start: Start of application correction period (if applicable)
+   - correction_window_end: End of application correction period (if applicable)
+
+5. CONFIDENCE SCORING:
+   - "verified": Found on official government website OR found on 2+ reliable sources
+   - "estimated": Found on 1 reliable source (like sarkariresult.com)
+   - "tentative": Approximated based on previous year patterns
+
+6. SOURCE ATTRIBUTION:
+   - Always record the URL where dates were found in "date_source"
+   - Prefer official government URLs over third-party sites
+   - Set "last_verified" to current timestamp in ISO 8601 format
+` : ''}
 
 Your task:
 1. If the query is a URL, extract information directly from that URL
 2. If the query is a search term (like "SSC CGL 2024" or "PM Kisan Yojana"${isStartupQuery ? ' or "Startup India Seed Fund" or "NIDHI EIR"' : ''}), first search the web to find the official government URL
 3. Extract ALL details from the official source - be thorough and accurate
+${!isStartupQuery ? '4. For dates: Search ALL listed sources thoroughly before defaulting to "Not yet announced"' : ''}
 
 Return a JSON object with this EXACT structure:
 {
@@ -147,8 +199,14 @@ Return a JSON object with this EXACT structure:
   "important_dates": {
     "application_start": "YYYY-MM-DD or 'Not yet announced'",
     "application_end": "YYYY-MM-DD or 'Not yet announced'",
-    "exam_date": "YYYY-MM-DD or 'Not yet announced'",
-    "result_date": "YYYY-MM-DD or 'Not yet announced' (if applicable)"
+    "admit_card_date": "YYYY-MM-DD or 'Not yet announced'${!isStartupQuery ? ' (only for exams)' : ''}",
+    "exam_date": "YYYY-MM-DD or 'Not yet announced'${!isStartupQuery ? '' : ' (use null for non-exam programs)'}",
+    "result_date": "YYYY-MM-DD or 'Not yet announced' (if applicable)"${!isStartupQuery ? `,
+    "correction_window_start": "YYYY-MM-DD or null (if correction window exists)",
+    "correction_window_end": "YYYY-MM-DD or null (if correction window exists)",
+    "date_confidence": "verified or estimated or tentative",
+    "date_source": "URL where dates were found (prefer official government site)",
+    "last_verified": "Current timestamp in ISO 8601 format (e.g., 2025-05-16T10:00:00Z)"` : ''}
   },
   
   "eligibility": "Complete eligibility criteria as detailed text (age, education, etc.)",
@@ -194,14 +252,50 @@ Return a JSON object with this EXACT structure:
   "dpiit_required": true or false - whether DPIIT recognition is required (only for startup programs)` : ''}
 }
 
-CRITICAL RULES - IMPORTANT DATES FORMAT:
-- important_dates MUST be an object with snake_case keys (not an array!)
-- Example: {"application_start": "2025-01-15", "application_end": "2025-02-15", "exam_date": "2025-03-10"}
-- Use snake_case for keys: application_start, application_end, exam_date, result_date, etc.
-- Values should be "YYYY-MM-DD" format or "Not yet announced" / "N/A" for unreleased information
+${!isStartupQuery ? `
+EXAMPLE for SSC CPO 2025:
+{
+  "title": "SSC CPO SI - Sub-Inspector in Delhi Police, CAPFs and ASI in CISF Examination 2025",
+  "important_dates": {
+    "application_start": "2025-05-16",
+    "application_end": "2025-06-15",
+    "admit_card_date": "2025-08-20",
+    "exam_date": "2025-09-01",
+    "result_date": "Not yet announced",
+    "correction_window_start": "2025-06-16",
+    "correction_window_end": "2025-06-20",
+    "date_confidence": "verified",
+    "date_source": "https://ssc.nic.in/",
+    "last_verified": "2025-05-16T10:00:00Z"
+  }
 }
 
-CRITICAL RULES - READ CAREFULLY:
+EXAMPLE for UPSC CSE 2025:
+{
+  "title": "UPSC Civil Services Examination 2025",
+  "important_dates": {
+    "application_start": "2025-02-14",
+    "application_end": "2025-03-05",
+    "admit_card_date": "2025-05-15",
+    "exam_date": "2025-06-08",
+    "result_date": "Not yet announced",
+    "correction_window_start": null,
+    "correction_window_end": null,
+    "date_confidence": "verified",
+    "date_source": "https://upsc.gov.in/",
+    "last_verified": "2025-02-14T09:00:00Z"
+  }
+}
+` : ''}
+
+CRITICAL RULES - IMPORTANT DATES FORMAT:
+- important_dates MUST be an object with snake_case keys (not an array!)
+- Use snake_case for keys: application_start, application_end, admit_card_date, exam_date, result_date, correction_window_start, correction_window_end
+- Values should be "YYYY-MM-DD" format or "Not yet announced" for unreleased information
+- For correction windows: use null if not applicable
+${!isStartupQuery ? '- Include date_confidence, date_source, and last_verified fields' : ''}
+
+CRITICAL RULES - CONTENT EXTRACTION:
 - Extract information ONLY from the ACTUAL scheme/exam/job being queried
 - For SSC CGL: Use SSC-specific details (ssc.nic.in portal, SSC helpline numbers, SSC email)
 - For PM Kisan: Use PM Kisan-specific details (pmkisan.gov.in portal, PM Kisan helpline, PM Kisan email)

@@ -116,6 +116,9 @@ export type Database = {
           application_steps: string | null
           applied_confirmed: boolean | null
           category: string | null
+          date_confidence: string | null
+          date_source: string | null
+          dates_last_verified: string | null
           deadline_reminders: Json | null
           description: string | null
           documents_required: Json | null
@@ -147,6 +150,9 @@ export type Database = {
           application_steps?: string | null
           applied_confirmed?: boolean | null
           category?: string | null
+          date_confidence?: string | null
+          date_source?: string | null
+          dates_last_verified?: string | null
           deadline_reminders?: Json | null
           description?: string | null
           documents_required?: Json | null
@@ -178,6 +184,9 @@ export type Database = {
           application_steps?: string | null
           applied_confirmed?: boolean | null
           category?: string | null
+          date_confidence?: string | null
+          date_source?: string | null
+          dates_last_verified?: string | null
           deadline_reminders?: Json | null
           description?: string | null
           documents_required?: Json | null

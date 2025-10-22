@@ -96,6 +96,7 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
   const [isGeneratingChecklist, setIsGeneratingChecklist] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
+  const [isRefreshingDates, setIsRefreshingDates] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -274,6 +275,49 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
       // Don't show error toast for auto-extraction
     } finally {
       setIsExtractingStats(false);
+    }
+  };
+
+  // Handle manual date refresh
+  const handleRefreshDates = async () => {
+    if (!application.id || !application.url) return;
+    
+    setIsRefreshingDates(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('process-query', {
+        body: { query: application.url || application.title }
+      });
+
+      if (error) throw error;
+
+      if (data?.important_dates) {
+        const { error: updateError } = await supabase
+          .from('applications')
+          .update({
+            important_dates: data.important_dates,
+            date_confidence: data.important_dates.date_confidence || null,
+            date_source: data.important_dates.date_source || null,
+            dates_last_verified: data.important_dates.last_verified || new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', application.id);
+
+        if (updateError) throw updateError;
+        
+        window.location.reload();
+        toast({
+          title: "Dates Updated",
+          description: "Dates refreshed from official sources.",
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to refresh dates.",
+      });
+    } finally {
+      setIsRefreshingDates(false);
     }
   };
 
@@ -1259,24 +1303,74 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
       <CardContent className="pt-0">
         <Accordion type="multiple" defaultValue={["dates", "eligibility"]} className="w-full">
           {/* Important Dates - Open by default (hidden for startup programs as AI insights provide timeline) */}
-          {importantDates && Object.keys(importantDates).length > 0 && !isStartupProgram && (
+          {importantDates && Object.keys(importantDates).filter(k => !['date_confidence', 'date_source', 'last_verified'].includes(k)).length > 0 && !isStartupProgram && (
             <AccordionItem value="dates">
               <AccordionTrigger className="text-xl font-semibold hover:no-underline">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-1">
                   <Calendar className="w-6 h-6 text-primary" />
                   Key Dates
+                  {isRefreshingDates && (
+                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  )}
                 </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRefreshDates();
+                  }}
+                  disabled={isRefreshingDates}
+                  className="ml-2"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isRefreshingDates ? 'animate-spin' : ''}`} />
+                </Button>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-3 pt-2">
-                  {Object.entries(importantDates).map(([key, value]) => (
-                    <div key={key} className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-                      <span className="text-base font-medium capitalize">
-                        {key.replace(/_/g, ' ').replace(/date/i, '').trim()}
-                      </span>
-                      <span className="text-base font-semibold">{value as string}</span>
+                  {Object.entries(importantDates)
+                    .filter(([key]) => !['date_confidence', 'date_source', 'last_verified'].includes(key))
+                    .map(([key, value]) => {
+                      const isNotAnnounced = value === 'Not yet announced';
+                      return (
+                        <div key={key} className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+                          <span className="text-base font-medium capitalize">
+                            {key === 'admit_card_date' ? 'Admit Card' :
+                             key === 'correction_window_start' ? 'Correction Window Start' :
+                             key === 'correction_window_end' ? 'Correction Window End' :
+                             key.replace(/_/g, ' ').replace(/date/i, '').trim()}
+                          </span>
+                          <span className={`text-base font-semibold ${isNotAnnounced ? 'text-amber-500' : ''}`}>
+                            {value as string}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  
+                  {/* Date Confidence & Source */}
+                  {importantDates.date_confidence && (
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <Badge variant={
+                        importantDates.date_confidence === 'verified' ? 'default' :
+                        importantDates.date_confidence === 'estimated' ? 'secondary' : 'outline'
+                      }>
+                        {importantDates.date_confidence === 'verified' && '✓ Verified'}
+                        {importantDates.date_confidence === 'estimated' && '≈ Estimated'}
+                        {importantDates.date_confidence === 'tentative' && '? Tentative'}
+                      </Badge>
+                      {importantDates.date_source && (
+                        <a 
+                          href={importantDates.date_source} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
+                        >
+                          Source <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
                     </div>
-                  ))}
+                  )}
+                  
                   {deadlineReminders && deadlineReminders.length > 0 && (
                     <div className="mt-4">
                       <DeadlineCountdown 
