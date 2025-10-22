@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,6 +37,14 @@ export function ActiveApplicationsDialog({
   const [trackingId, setTrackingId] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (open) {
+      fetchActiveApplications();
+    } else {
+      setApplications([]);
+    }
+  }, [open, organizationName, organizationUrl]);
 
   const fetchActiveApplications = async () => {
     setIsLoading(true);
@@ -130,12 +138,7 @@ export function ActiveApplicationsDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(newOpen) => {
-      onOpenChange(newOpen);
-      if (newOpen) {
-        fetchActiveApplications();
-      }
-    }}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Active Applications - {organizationName}</DialogTitle>
