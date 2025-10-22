@@ -141,3 +141,6 @@ verify_jwt = false
 
 [functions.extract-application-stats]
 verify_jwt = false
+
+[functions.find-active-applications]
+verify_jwt = false

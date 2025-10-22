@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ExternalLink, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,11 +7,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import ApplicationStatsDisplay from "./ApplicationStatsDisplay";
 import { shouldDisplayStats } from "@/utils/statsFormatting";
+import { ActiveApplicationsDialog } from "./ActiveApplicationsDialog";
 
 interface Scheme {
   title: string;
   url: string;
   description?: string;
+  type?: "organization" | "single_application";
 }
 
 interface SchemesListProps {
@@ -22,8 +24,15 @@ interface SchemesListProps {
 const SchemesList = ({ schemes, userId }: SchemesListProps) => {
   const [trackingId, setTrackingId] = useState<string | null>(null);
   const [schemeStats, setSchemeStats] = useState<Map<string, any>>(new Map());
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedOrganization, setSelectedOrganization] = useState<Scheme | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const handleSeeActiveApplications = (scheme: Scheme) => {
+    setSelectedOrganization(scheme);
+    setDialogOpen(true);
+  };
 
   const handleTrackScheme = async (scheme: Scheme) => {
     setTrackingId(scheme.url);
@@ -85,53 +94,75 @@ const SchemesList = ({ schemes, userId }: SchemesListProps) => {
   };
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {schemes.map((scheme, index) => (
-        <Card key={index} className="animate-fade-in hover-scale">
-          <CardHeader>
-            <CardTitle className="text-xl">{scheme.title}</CardTitle>
-            {scheme.description && (
-              <CardDescription className="text-sm line-clamp-2">
-                {scheme.description}
-              </CardDescription>
-            )}
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {/* Display compact stats if available */}
-            {schemeStats.get(scheme.url) && shouldDisplayStats(schemeStats.get(scheme.url)) && (
-              <ApplicationStatsDisplay stats={schemeStats.get(scheme.url)} compact />
-            )}
-            
-            <div className="flex gap-2">
-              <Button
-                variant="default"
-                className="flex-1"
-                onClick={() => handleTrackScheme(scheme)}
-                disabled={trackingId === scheme.url}
-              >
-                {trackingId === scheme.url ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Tracking...
-                  </>
-                ) : (
-                  "Track Now"
+    <>
+      <div className="grid gap-4 md:grid-cols-2">
+        {schemes.map((scheme, index) => {
+          const isOrganization = scheme.type === "organization";
+          
+          return (
+            <Card key={index} className="animate-fade-in hover-scale">
+              <CardHeader>
+                <CardTitle className="text-xl">{scheme.title}</CardTitle>
+                {scheme.description && (
+                  <CardDescription className="text-sm line-clamp-2">
+                    {scheme.description}
+                  </CardDescription>
                 )}
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                asChild
-              >
-                <a href={scheme.url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {/* Display compact stats if available */}
+                {schemeStats.get(scheme.url) && shouldDisplayStats(schemeStats.get(scheme.url)) && (
+                  <ApplicationStatsDisplay stats={schemeStats.get(scheme.url)} compact />
+                )}
+                
+                <div className="flex gap-2">
+                  <Button
+                    variant="default"
+                    className="flex-1"
+                    onClick={() => 
+                      isOrganization 
+                        ? handleSeeActiveApplications(scheme)
+                        : handleTrackScheme(scheme)
+                    }
+                    disabled={trackingId === scheme.url}
+                  >
+                    {trackingId === scheme.url ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Tracking...
+                      </>
+                    ) : isOrganization ? (
+                      "See Active Applications"
+                    ) : (
+                      "Track Now"
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    asChild
+                  >
+                    <a href={scheme.url} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {selectedOrganization && (
+        <ActiveApplicationsDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          organizationName={selectedOrganization.title}
+          organizationUrl={selectedOrganization.url}
+          userId={userId}
+        />
+      )}
+    </>
   );
 };
 

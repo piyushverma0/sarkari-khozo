@@ -35,12 +35,20 @@ Focus on:
 - High-impact schemes that many people use
 - Mix of different types (scholarships, welfare schemes, exams, jobs)
 
+CRITICAL: You must determine the TYPE of each result:
+- "organization": Organizations that conduct MULTIPLE exams/schemes (RRB, SSC, UPSC, IBPS, State PSCs, Banking boards, Police recruitment boards)
+- "single_application": Single schemes/jobs/exams with ONE application process (specific job notifications, welfare schemes like PMKVY/MGNREGA, single exam cycles)
+
+Examples of ORGANIZATIONS: Railway Recruitment Board (RRB), Staff Selection Commission (SSC), Union Public Service Commission (UPSC), IBPS, State PSCs (UPPSC, BPSC), State Electricity Boards
+Examples of SINGLE_APPLICATION: RPF Constable Recruitment 2025, PMKVY Scheme, MGNREGA, PM Kisan, NEET 2025, JEE Main 2025
+
 IMPORTANT: Return ONLY a valid JSON array, nothing else. Use this exact structure:
 [
   {
     "title": "Official name of the scheme/exam/job",
     "url": "Official government URL",
-    "description": "One sentence description"
+    "description": "One sentence description",
+    "type": "organization" or "single_application"
   }
 ]
 
