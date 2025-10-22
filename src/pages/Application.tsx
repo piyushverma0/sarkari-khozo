@@ -8,12 +8,16 @@ import Header from "@/components/Header";
 import ApplicationCard from "@/components/ApplicationCard";
 import { ApplicationCardSkeleton } from "@/components/SkeletonLoader";
 import { LocalCheckPanel } from "@/components/LocalCheckPanel";
-
 const Application = () => {
-  const { id, category } = useParams();
+  const {
+    id,
+    category
+  } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { toast } = useToast();
+  const {
+    toast
+  } = useToast();
   const [application, setApplication] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -21,12 +25,15 @@ const Application = () => {
   // Get current user
   useEffect(() => {
     const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: {
+          user
+        }
+      } = await supabase.auth.getUser();
       setCurrentUser(user);
     };
     getCurrentUser();
   }, []);
-
   useEffect(() => {
     const fetchApplication = async () => {
       // Check if application data was passed via state (from AI search results)
@@ -41,74 +48,55 @@ const Application = () => {
         toast({
           variant: "destructive",
           title: "Program Not Saved",
-          description: "This program hasn't been tracked yet. Please track it first to save it permanently.",
+          description: "This program hasn't been tracked yet. Please track it first to save it permanently."
         });
         navigate("/");
         setIsLoading(false);
         return;
       }
-
       try {
-        const { data, error } = await supabase
-          .from('applications')
-          .select('*')
-          .eq('id', id)
-          .single();
-
+        const {
+          data,
+          error
+        } = await supabase.from('applications').select('*').eq('id', id).single();
         if (error) throw error;
-
         if (!data) {
           throw new Error("Program not found in your saved applications");
         }
-
         setApplication(data);
       } catch (error: any) {
         console.error("Error fetching application:", error);
         toast({
           variant: "destructive",
           title: "Error",
-          description: error.message || "Failed to load application.",
+          description: error.message || "Failed to load application."
         });
         navigate("/");
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchApplication();
   }, [id, navigate, toast, location.state]);
-
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background">
+    return <div className="min-h-screen bg-background">
         <Header />
-      <main className="pt-24 pb-16 px-2 sm:px-4">
+        <main className="pt-24 pb-16 px-4">
           <div className="container mx-auto max-w-4xl">
-            <Button
-              variant="ghost"
-              className="mb-6"
-              onClick={() => navigate("/")}
-            >
+            <Button variant="ghost" className="mb-6" onClick={() => navigate("/")}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Home
             </Button>
             <ApplicationCardSkeleton />
           </div>
         </main>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background">
       <Header />
-      <main className="pt-24 pb-16 px-2 sm:px-4">
+      <main className="pt-24 pb-16 px-0">
         <div className="container mx-auto max-w-4xl">
-          <Button
-            variant="ghost"
-            className="mb-6"
-            onClick={() => navigate("/")}
-          >
+          <Button variant="ghost" className="mb-6" onClick={() => navigate("/")}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Home
           </Button>
@@ -116,15 +104,11 @@ const Application = () => {
           {application && <ApplicationCard application={application} />}
           
           {/* Local Check Panel - Show below application card */}
-          {application && application.category && currentUser && (
-            <div className="mt-6">
+          {application && application.category && currentUser && <div className="mt-6">
               <LocalCheckPanel application={application} userId={currentUser.id} />
-            </div>
-          )}
+            </div>}
         </div>
       </main>
-    </div>
-  );
+    </div>;
 };
-
 export default Application;
