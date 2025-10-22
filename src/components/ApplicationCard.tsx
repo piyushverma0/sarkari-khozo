@@ -814,32 +814,32 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
   };
 
   return (
-    <Card className="w-full animate-fade-in">
+    <Card className="w-full animate-fade-in p-4 sm:p-6 md:p-8">
       {/* Confirmation Banner */}
       {application.id && !application.applied_confirmed && (
-        <div className="bg-primary/10 border-b border-primary/20 p-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Bell className="h-5 w-5 text-primary" />
+        <div className="bg-primary/10 border-b border-primary/20 p-3 sm:p-4 md:p-6 -mx-4 sm:-mx-6 md:-mx-8 -mt-4 sm:-mt-6 md:-mt-8 mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex items-start sm:items-center gap-2 sm:gap-3">
+              <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0 mt-0.5 sm:mt-0" />
               <div>
-                <p className="font-medium">Track this application?</p>
-                <p className="text-sm text-muted-foreground">
-                  Confirm you've applied to get automated reminders and status updates
+                <p className="text-sm sm:text-base font-medium">Track this application?</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Get automated reminders and status updates
                 </p>
               </div>
             </div>
             <Button 
               onClick={() => setShowConfirmationDialog(true)}
               size="sm"
-              className="shrink-0"
+              className="shrink-0 w-full sm:w-auto h-9"
             >
-              Confirm & Set Reminders
+              <span className="text-xs sm:text-sm">Confirm & Set Reminders</span>
             </Button>
           </div>
         </div>
       )}
       
-      <CardHeader className="pb-4">
+      <CardHeader className="pb-4 p-0">
         {/* Language and Audio Toolbar */}
         <LanguageToolbar
           currentLanguage={currentLanguage}
@@ -856,22 +856,22 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
           getLanguageLabel={getLanguageLabel}
         />
 
-        <div className="flex items-start justify-between gap-4 mb-3">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-3">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2 sm:mb-3">
               {isEditing ? (
                 <Input
                   value={editedData.title}
                   onChange={(e) => setEditedData({ ...editedData, title: e.target.value })}
-                  className="text-4xl font-bold h-auto py-2"
+                  className="text-2xl sm:text-3xl md:text-4xl font-bold h-auto py-2"
                 />
               ) : isTranslating && currentLanguage !== 'en' ? (
-                <Skeleton className="h-12 w-3/4" />
+                <Skeleton className="h-8 sm:h-10 md:h-12 w-3/4" />
               ) : (
-                <CardTitle className="text-4xl">{translatedTitle}</CardTitle>
+                <CardTitle className="text-2xl sm:text-3xl md:text-4xl leading-tight sm:leading-snug">{translatedTitle}</CardTitle>
               )}
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
               {isEditing ? (
                 <Input
                   value={editedData.category || ''}
@@ -882,7 +882,7 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
               ) : (
                 <>
                   {application.category && (
-                    <Badge variant="secondary" className="text-base px-3 py-1">{application.category}</Badge>
+                    <Badge variant="secondary" className="text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1">{application.category}</Badge>
                   )}
                   {getStatusBadge()}
                   
@@ -890,27 +890,29 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                   {isStartupProgram && (
                     <>
                       {application.program_type && (
-                        <Badge variant="default" className="text-base px-3 py-1 gap-1.5">
-                          <Building className="w-4 h-4" />
-                          {formatProgramType(application.program_type)}
+                        <Badge variant="default" className="text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 gap-1">
+                          <Building className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span className="hidden xs:inline">{formatProgramType(application.program_type)}</span>
+                          <span className="xs:hidden">{formatProgramType(application.program_type).split(' ')[0]}</span>
                         </Badge>
                       )}
                       {application.funding_amount && (
-                        <Badge variant="secondary" className="text-base px-3 py-1 gap-1.5 bg-green-50 text-green-700 border-green-200">
-                          <DollarSign className="w-4 h-4" />
+                        <Badge variant="secondary" className="text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 gap-1 bg-green-50 text-green-700 border-green-200">
+                          <DollarSign className="w-3 h-3 sm:w-4 sm:h-4" />
                           {application.funding_amount}
                         </Badge>
                       )}
                       {application.dpiit_required && (
-                        <Badge variant="outline" className="text-base px-3 py-1 gap-1.5">
-                          <Award className="w-4 h-4" />
-                          DPIIT Required
+                        <Badge variant="outline" className="text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 gap-1">
+                          <Award className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span className="hidden xs:inline">DPIIT Required</span>
+                          <span className="xs:hidden">DPIIT</span>
                         </Badge>
                       )}
                       {application.success_rate && (
-                        <Badge variant="outline" className={`text-base px-3 py-1 gap-1.5 ${getSuccessRateColor(application.success_rate)}`}>
-                          <TrendingUp className="w-4 h-4" />
-                          {application.success_rate} Success Rate
+                        <Badge variant="outline" className={`text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 gap-1 ${getSuccessRateColor(application.success_rate)}`}>
+                          <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4" />
+                          {application.success_rate}
                         </Badge>
                       )}
                     </>
@@ -919,7 +921,7 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
               )}
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 sm:gap-2 flex-shrink-0">
             {isEditing ? (
               <>
                 <Button
@@ -927,9 +929,10 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                   size="sm"
                   onClick={handleSave}
                   disabled={isSaving}
+                  className="h-8 sm:h-9 px-2 sm:px-3"
                 >
-                  <Save className="w-4 h-4 mr-2" />
-                  {isSaving ? "Saving..." : "Save"}
+                  <Save className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">{isSaving ? "Saving..." : "Save"}</span>
                 </Button>
                 <Button
                   variant="outline"
@@ -938,9 +941,10 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                     setIsEditing(false);
                     setEditedData(application);
                   }}
+                  className="h-8 sm:h-9 px-2 sm:px-3"
                 >
-                  <X className="w-4 h-4 mr-2" />
-                  Cancel
+                  <X className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Cancel</span>
                 </Button>
               </>
             ) : (
@@ -950,16 +954,17 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                     variant="outline"
                     size="sm"
                     onClick={() => setIsEditing(true)}
+                    className="h-8 sm:h-9 px-2 sm:px-3"
                   >
-                    <Edit className="w-4 h-4 mr-2" />
-                    Edit
+                    <Edit className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Edit</span>
                   </Button>
                 )}
                 {application.url && (
-                  <Button variant="outline" size="sm" asChild>
+                  <Button variant="outline" size="sm" asChild className="h-8 sm:h-9 px-2 sm:px-3">
                     <a href={application.url} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      Official Page
+                      <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Official</span>
                     </a>
                   </Button>
                 )}
@@ -1003,15 +1008,15 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
               value={editedData.description || ''}
               onChange={(e) => setEditedData({ ...editedData, description: e.target.value })}
               placeholder="Description"
-              className="text-lg leading-relaxed min-h-24"
+              className="text-sm sm:text-base md:text-lg leading-relaxed min-h-24"
             />
           ) : isTranslating && currentLanguage !== 'en' ? (
             <div className="space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-5/6" />
+              <Skeleton className="h-3 sm:h-4 w-full" />
+              <Skeleton className="h-3 sm:h-4 w-5/6" />
             </div>
           ) : (
-            <CardDescription className="text-lg leading-relaxed">
+            <CardDescription className="text-sm sm:text-base md:text-lg leading-relaxed">
               {translatedDescription}
             </CardDescription>
           )
@@ -1037,19 +1042,19 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
 
         {/* Enhanced Startup Eligibility Section */}
         {isStartupProgram && (application.stage || application.sector || application.state_specific) && (
-          <Card className="mt-4 bg-slate-800/40">
-            <CardContent className="pt-4">
-              <h4 className="font-semibold mb-3 flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-primary" />
+          <Card className="mt-3 sm:mt-4 bg-slate-800/40">
+            <CardContent className="pt-3 sm:pt-4 p-3 sm:p-4">
+              <h4 className="text-sm sm:text-base font-semibold mb-2 sm:mb-3 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
                 Program Eligibility Criteria
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                 {application.stage && (
-                  <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
-                    <div className="text-xs text-muted-foreground mb-1">Eligible Stages</div>
+                  <div className="p-2 sm:p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                    <div className="text-[10px] sm:text-xs text-muted-foreground mb-1">Eligible Stages</div>
                     <div className="flex flex-wrap gap-1">
                       {application.stage.split(',').map((s, idx) => (
-                        <Badge key={idx} variant="secondary" className="text-xs">
+                        <Badge key={idx} variant="secondary" className="text-[10px] sm:text-xs">
                           {s.trim()}
                         </Badge>
                       ))}
@@ -1057,15 +1062,15 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                   </div>
                 )}
                 {application.sector && (
-                  <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
-                    <div className="text-xs text-muted-foreground mb-1">Sectors</div>
-                    <div className="text-sm font-medium">{application.sector}</div>
+                  <div className="p-2 sm:p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                    <div className="text-[10px] sm:text-xs text-muted-foreground mb-1">Sectors</div>
+                    <div className="text-xs sm:text-sm font-medium">{application.sector}</div>
                   </div>
                 )}
                 {application.state_specific && (
-                  <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
-                    <div className="text-xs text-muted-foreground mb-1">Location</div>
-                    <div className="text-sm font-medium flex items-center gap-1">
+                  <div className="p-2 sm:p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                    <div className="text-[10px] sm:text-xs text-muted-foreground mb-1">Location</div>
+                    <div className="text-xs sm:text-sm font-medium flex items-center gap-1">
                       <MapPin className="w-3 h-3" />
                       {application.state_specific}
                     </div>
@@ -1078,21 +1083,21 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
 
         {/* Funding Details Section - For startup funding programs */}
         {isStartupProgram && application.funding_amount && application.program_type?.includes('funding') && (
-          <Card className="mt-4 bg-slate-800/40">
-            <CardContent className="pt-4">
-              <h4 className="font-semibold mb-3 flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-primary" />
+          <Card className="mt-3 sm:mt-4 bg-slate-800/40">
+            <CardContent className="pt-3 sm:pt-4 p-3 sm:p-4">
+              <h4 className="text-sm sm:text-base font-semibold mb-2 sm:mb-3 flex items-center gap-2">
+                <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
                 Funding Details
               </h4>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
-                  <span className="text-sm text-muted-foreground">Funding Amount</span>
-                  <span className="text-base font-bold text-green-500">{application.funding_amount}</span>
+              <div className="space-y-2 sm:space-y-3">
+                <div className="flex items-center justify-between p-2 sm:p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                  <span className="text-xs sm:text-sm text-muted-foreground">Funding Amount</span>
+                  <span className="text-sm sm:text-base font-bold text-green-500">{application.funding_amount}</span>
                 </div>
                 {application.program_type && (
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
-                    <span className="text-sm text-muted-foreground">Program Type</span>
-                    <span className="text-sm font-medium">{formatProgramType(application.program_type)}</span>
+                  <div className="flex items-center justify-between p-2 sm:p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                    <span className="text-xs sm:text-sm text-muted-foreground">Program Type</span>
+                    <span className="text-xs sm:text-sm font-medium">{formatProgramType(application.program_type)}</span>
                   </div>
                 )}
               </div>
@@ -1112,17 +1117,17 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
 
         {/* Founder/Professional Insights Section */}
         {shouldShowAIInsights && enrichmentData?.founder_insights && (
-          <Card className="mt-4 bg-gradient-to-br from-purple-900/20 to-blue-900/20 border-purple-500/30">
-            <CardContent className="pt-4">
-              <h4 className="font-semibold mb-3 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-purple-400" />
+          <Card className="mt-3 sm:mt-4 bg-gradient-to-br from-purple-900/20 to-blue-900/20 border-purple-500/30">
+            <CardContent className="pt-3 sm:pt-4 p-3 sm:p-4 md:p-6">
+              <h4 className="text-sm sm:text-base font-semibold mb-2 sm:mb-3 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400 flex-shrink-0" />
                 💡 {isLegalProgram ? 'Professional Insights' : 'Founder Insights'}
               </h4>
               <div className="space-y-2">
                 {enrichmentData.founder_insights.map((insight: string, idx: number) => (
-                  <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40">
-                    <CheckCircle2 className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm leading-relaxed">{insight}</span>
+                  <div key={idx} className="flex items-start gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-slate-900/40">
+                    <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm leading-relaxed">{insight}</span>
                   </div>
                 ))}
               </div>
@@ -1132,26 +1137,26 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
 
         {/* Stage-Specific Preparation Checklist */}
         {shouldShowAIInsights && enrichmentData?.preparation_checklist && (
-          <Card className="mt-4 bg-slate-800/40">
-            <CardContent className="pt-4">
-              <h4 className="font-semibold mb-3 flex items-center gap-2">
-                <ClipboardCheck className="w-5 h-5 text-primary" />
+          <Card className="mt-3 sm:mt-4 bg-slate-800/40">
+            <CardContent className="pt-3 sm:pt-4 p-3 sm:p-4">
+              <h4 className="text-sm sm:text-base font-semibold mb-2 sm:mb-3 flex items-center gap-2">
+                <ClipboardCheck className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
                 📋 Before You Apply
               </h4>
               
               <Tabs defaultValue="idea_stage" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 mb-3">
-                  <TabsTrigger value="idea_stage">Idea Stage</TabsTrigger>
-                  <TabsTrigger value="prototype_stage">Prototype</TabsTrigger>
-                  <TabsTrigger value="revenue_stage">Revenue</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-3 mb-2 sm:mb-3 h-8 sm:h-10">
+                  <TabsTrigger value="idea_stage" className="text-xs sm:text-sm">Idea Stage</TabsTrigger>
+                  <TabsTrigger value="prototype_stage" className="text-xs sm:text-sm">Prototype</TabsTrigger>
+                  <TabsTrigger value="revenue_stage" className="text-xs sm:text-sm">Revenue</TabsTrigger>
                 </TabsList>
                 
                 {Object.entries(enrichmentData.preparation_checklist).map(([stage, items]) => (
-                  <TabsContent key={stage} value={stage} className="space-y-2 mt-3">
+                  <TabsContent key={stage} value={stage} className="space-y-2 mt-2 sm:mt-3">
                     {(items as string[]).map((item: string, idx: number) => (
-                      <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
-                        <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                        <span className="text-sm">{item}</span>
+                      <div key={idx} className="flex items-start gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                        <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                        <span className="text-xs sm:text-sm">{item}</span>
                       </div>
                     ))}
                   </TabsContent>
@@ -1163,36 +1168,36 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
 
         {/* Success Probability Meter */}
         {shouldShowAIInsights && enrichmentData?.success_metrics && (
-          <Card className="mt-4 bg-slate-800/40">
-            <CardContent className="pt-4">
-              <h4 className="font-semibold mb-3 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-primary" />
+          <Card className="mt-3 sm:mt-4 bg-slate-800/40">
+            <CardContent className="pt-3 sm:pt-4 p-3 sm:p-4">
+              <h4 className="text-sm sm:text-base font-semibold mb-2 sm:mb-3 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
                 📊 Success Insights
               </h4>
-              <div className="space-y-3">
-                <div className="p-4 rounded-lg bg-gradient-to-r from-green-900/30 to-blue-900/30 border border-green-500/30">
+              <div className="space-y-2 sm:space-y-3">
+                <div className="p-3 sm:p-4 rounded-lg bg-gradient-to-r from-green-900/30 to-blue-900/30 border border-green-500/30">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-muted-foreground">Estimated Approval Rate</span>
-                    <span className="text-2xl font-bold text-green-400">
+                    <span className="text-xs sm:text-sm text-muted-foreground">Estimated Approval Rate</span>
+                    <span className="text-xl sm:text-2xl font-bold text-green-400">
                       {enrichmentData.success_metrics.approval_rate}
                     </span>
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
-                    <div className="text-xs text-muted-foreground mb-1">Avg Timeline</div>
-                    <div className="text-sm font-medium">{enrichmentData.success_metrics.avg_approval_time}</div>
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  <div className="p-2 sm:p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                    <div className="text-[10px] sm:text-xs text-muted-foreground mb-1">Avg Timeline</div>
+                    <div className="text-xs sm:text-sm font-medium">{enrichmentData.success_metrics.avg_approval_time}</div>
                   </div>
                   {enrichmentData.success_metrics.total_funded && (
-                    <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
-                      <div className="text-xs text-muted-foreground mb-1">Startups Funded</div>
-                      <div className="text-sm font-bold text-primary">{enrichmentData.success_metrics.total_funded}</div>
+                    <div className="p-2 sm:p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                      <div className="text-[10px] sm:text-xs text-muted-foreground mb-1">Startups Funded</div>
+                      <div className="text-xs sm:text-sm font-bold text-primary">{enrichmentData.success_metrics.total_funded}</div>
                     </div>
                   )}
                 </div>
                 
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[10px] sm:text-xs text-muted-foreground">
                   {enrichmentData.success_metrics.confidence_level === 'high' ? '✓' : '~'} Based on {enrichmentData.success_metrics.data_source}
                 </p>
               </div>
@@ -1202,35 +1207,35 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
 
         {/* Real-Life Example */}
         {shouldShowAIInsights && enrichmentData?.real_example && (
-          <Card className="mt-4 bg-gradient-to-br from-indigo-900/20 to-cyan-900/20 border-indigo-500/30">
-            <CardContent className="pt-4">
-              <h4 className="font-semibold mb-3 flex items-center gap-2">
-                <Award className="w-5 h-5 text-yellow-400" />
+          <Card className="mt-3 sm:mt-4 bg-gradient-to-br from-indigo-900/20 to-cyan-900/20 border-indigo-500/30">
+            <CardContent className="pt-3 sm:pt-4 p-3 sm:p-4">
+              <h4 className="text-sm sm:text-base font-semibold mb-2 sm:mb-3 flex items-center gap-2">
+                <Award className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400 flex-shrink-0" />
                 🚀 Success Story
               </h4>
-              <div className="p-4 rounded-lg bg-slate-900/40 space-y-2">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-semibold text-base">{enrichmentData.real_example.name}</p>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                      <MapPin className="w-3 h-3" />
-                      {enrichmentData.real_example.location} • {enrichmentData.real_example.sector}
+              <div className="p-3 sm:p-4 rounded-lg bg-slate-900/40 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm sm:text-base font-semibold truncate">{enrichmentData.real_example.name}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                      <MapPin className="w-3 h-3 flex-shrink-0" />
+                      <span className="truncate">{enrichmentData.real_example.location} • {enrichmentData.real_example.sector}</span>
                     </p>
                   </div>
-                  <Badge variant="secondary" className="text-xs">
+                  <Badge variant="secondary" className="text-[10px] sm:text-xs flex-shrink-0">
                     {enrichmentData.real_example.year}
                   </Badge>
                 </div>
                 <div className="pt-2 border-t border-slate-700/50">
-                  <p className="text-sm">
+                  <p className="text-xs sm:text-sm">
                     <span className="text-green-400 font-semibold">{enrichmentData.real_example.funding_received}</span> received
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
                     {enrichmentData.real_example.outcome}
                   </p>
                 </div>
                 {enrichmentData.real_example.is_simulated && (
-                  <p className="text-xs text-muted-foreground italic">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground italic">
                     * Representative example for illustration
                   </p>
                 )}
@@ -1241,22 +1246,22 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
 
         {/* Help Contacts Section (Enhanced) */}
         {shouldShowAIInsights && enrichmentData?.help_contacts && (
-          <Card className="mt-4 bg-slate-800/40">
-            <CardContent className="pt-4">
-              <h4 className="font-semibold mb-3 flex items-center gap-2">
-                <Building className="w-5 h-5 text-primary" />
+          <Card className="mt-3 sm:mt-4 bg-slate-800/40">
+            <CardContent className="pt-3 sm:pt-4 p-3 sm:p-4">
+              <h4 className="text-sm sm:text-base font-semibold mb-2 sm:mb-3 flex items-center gap-2">
+                <Building className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
                 🤝 Get Support
               </h4>
-              <p className="text-sm text-muted-foreground mb-4">
+              <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
                 Connect with incubators and mentors who can help with your application
               </p>
               
               {enrichmentData.help_contacts.incubators && enrichmentData.help_contacts.incubators.length > 0 && (
-                <div className="space-y-2 mb-4">
-                  <p className="text-sm font-medium">Recommended Incubators:</p>
-                  <div className="flex flex-wrap gap-2">
+                <div className="space-y-2 mb-3 sm:mb-4">
+                  <p className="text-xs sm:text-sm font-medium">Recommended Incubators:</p>
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
                     {enrichmentData.help_contacts.incubators.map((inc: string, idx: number) => (
-                      <Badge key={idx} variant="outline" className="text-sm">
+                      <Badge key={idx} variant="outline" className="text-xs sm:text-sm">
                         {inc}
                       </Badge>
                     ))}
@@ -1265,9 +1270,9 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
               )}
               
               {enrichmentData.help_contacts.state_nodal_officer && (
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
-                  <Mail className="w-5 h-5 text-primary flex-shrink-0" />
-                  <span className="text-sm">Contact: <strong>{enrichmentData.help_contacts.state_nodal_officer}</strong></span>
+                <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                  <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
+                  <span className="text-xs sm:text-sm">Contact: <strong>{enrichmentData.help_contacts.state_nodal_officer}</strong></span>
                 </div>
               )}
             </CardContent>
@@ -1275,11 +1280,11 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
         )}
 
         {/* Quick Actions */}
-        <div className="flex gap-2 mt-4 flex-wrap">
+        <div className="flex flex-col sm:flex-row gap-2 mt-4">
           {application.url && (
-            <Button asChild size="lg" className="flex-1 min-w-[200px]">
+            <Button asChild size="lg" className="w-full sm:flex-1 h-10 sm:h-11">
               <a href={application.url} target="_blank" rel="noopener noreferrer">
-                Apply Now
+                <span className="text-sm sm:text-base">Apply Now</span>
               </a>
             </Button>
           )}
@@ -1288,10 +1293,10 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
               onClick={() => setShowQuiz(true)}
               variant="outline"
               size="lg"
-              className="flex-1 min-w-[200px]"
+              className="w-full sm:flex-1 h-10 sm:h-11"
             >
               <ClipboardCheck className="w-4 h-4 mr-2" />
-              See if You Qualify
+              <span className="text-sm sm:text-base">See if You Qualify</span>
             </Button>
           )}
           {isStartupProgram && (
@@ -1300,41 +1305,41 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                 onClick={() => setShowStartupQuiz(true)}
                 variant="outline"
                 size="lg"
-                className="flex-1 min-w-[200px]"
+                className="w-full sm:flex-1 h-10 sm:h-11"
               >
                 <ClipboardCheck className="w-4 h-4 mr-2" />
-                Check Eligibility
+                <span className="text-sm sm:text-base">Check Eligibility</span>
               </Button>
               <Button
                 onClick={() => setShowComparison(true)}
                 variant="outline"
                 size="lg"
-                className="flex-1 min-w-[200px]"
+                className="w-full sm:flex-1 h-10 sm:h-11"
               >
                 <GitCompare className="w-4 h-4 mr-2" />
-                Compare Programs
+                <span className="text-sm sm:text-base">Compare Programs</span>
               </Button>
               <ProgramChatDialog program={application} />
             </>
           )}
           {importantDates && (
-            <Button variant="outline" size="lg" onClick={() => setShowReminderDialog(true)}>
+            <Button variant="outline" size="lg" onClick={() => setShowReminderDialog(true)} className="w-full sm:w-auto h-10 sm:h-11">
               <Bell className="w-4 h-4 mr-2" />
-              Set Reminder
+              <span className="text-sm sm:text-base">Set Reminder</span>
             </Button>
           )}
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0">
+      <CardContent className="pt-0 p-0 mt-4 sm:mt-6">
         <Accordion type="multiple" defaultValue={["dates", "eligibility"]} className="w-full">
           {/* Important Dates - Open by default (hidden for startup programs as AI insights provide timeline) */}
           {importantDates && Object.keys(importantDates).filter(k => !['date_confidence', 'date_source', 'last_verified'].includes(k)).length > 0 && !isStartupProgram && (
             <AccordionItem value="dates">
-              <div className="flex items-center justify-between pr-4">
-                <AccordionTrigger className="text-xl font-semibold hover:no-underline flex-1">
+              <div className="flex items-center justify-between pr-2 sm:pr-4">
+                <AccordionTrigger className="text-base sm:text-lg md:text-xl font-semibold hover:no-underline flex-1 py-3 sm:py-4">
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-6 h-6 text-primary" />
+                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-primary" />
                     Key Dates
                     {isRefreshingDates && (
                       <Loader2 className="w-4 h-4 animate-spin text-muted-foreground ml-2" />
