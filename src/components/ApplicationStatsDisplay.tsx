@@ -1,8 +1,10 @@
-import { Users, Target, Flame, Info, TrendingUp, Clock } from "lucide-react";
+import { Users, Target, Flame, Info, TrendingUp, Clock, ChevronDown, Package, Scale } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useState } from "react";
 import {
   formatIndianNumber,
   calculateRatio,
@@ -26,6 +28,8 @@ interface ApplicationStatsDisplayProps {
 }
 
 const ApplicationStatsDisplay = ({ stats, compact = false }: ApplicationStatsDisplayProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+  
   if (!stats) return null;
 
   const { applicants_count, vacancies, data_confidence, data_source, year, live_count } = stats;
@@ -61,96 +65,111 @@ const ApplicationStatsDisplay = ({ stats, compact = false }: ApplicationStatsDis
 
   // Full detailed view
   return (
-    <Card className="border-primary/20">
-      <CardHeader className="pb-3">
+    <Card className="border-primary/20 bg-card/50 backdrop-blur">
+      <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
             <TrendingUp className="w-5 h-5" />
-            Application Statistics {year && `(${year})`}
+            Application Insights
           </CardTitle>
           {data_confidence && (
-            <Badge variant={getConfidenceBadgeVariant(data_confidence)}>
+            <Badge variant={getConfidenceBadgeVariant(data_confidence)} className="text-xs">
               {getConfidenceLabel(data_confidence)}
             </Badge>
           )}
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="grid gap-3">
-          {applicants_count && (
-            <div className="flex items-center gap-3">
-              <Users className="w-5 h-5 text-primary" />
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Applicants</p>
-                <p className="text-lg font-semibold">{formatIndianNumber(applicants_count)}</p>
-              </div>
+      
+      <CardContent className="space-y-4">
+        {/* Compact 3-tile snapshot */}
+        <div className="grid grid-cols-3 gap-3">
+          {vacancies && (
+            <div className="flex flex-col items-center p-3 rounded-lg bg-primary/5 border border-primary/10">
+              <Package className="w-4 h-4 mb-1 text-primary" />
+              <p className="text-xs text-muted-foreground mb-1">Vacancies</p>
+              <p className="text-xl font-bold">{formatIndianNumber(vacancies)}</p>
             </div>
           )}
 
-          {vacancies && (
-            <div className="flex items-center gap-3">
-              <Target className="w-5 h-5 text-primary" />
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Vacancies</p>
-                <p className="text-lg font-semibold">{formatIndianNumber(vacancies)}</p>
-              </div>
+          {applicants_count && (
+            <div className="flex flex-col items-center p-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
+              <Users className="w-4 h-4 mb-1 text-blue-600 dark:text-blue-400" />
+              <p className="text-xs text-muted-foreground mb-1">Last Year</p>
+              <p className="text-xl font-bold">{formatIndianNumber(applicants_count)}</p>
             </div>
           )}
 
           {ratio && (
-            <div className="flex items-center gap-3">
-              <Flame 
-                className={`w-5 h-5 ${
-                  competitionLevel === "high" ? "text-destructive" :
-                  competitionLevel === "medium" ? "text-yellow-500" :
-                  "text-green-500"
-                }`} 
-              />
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Competition</p>
-                <p className="text-lg font-semibold">~{ratio}</p>
-              </div>
-            </div>
-          )}
-
-          {live_count && (
-            <div className="flex items-center gap-3">
-              <Clock className="w-5 h-5 text-primary animate-pulse" />
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Live Registrations</p>
-                <p className="text-lg font-semibold">{formatIndianNumber(live_count)} ⚡</p>
-              </div>
+            <div className={`flex flex-col items-center p-3 rounded-lg border ${
+              competitionLevel === "high" 
+                ? "bg-destructive/5 border-destructive/10" 
+                : competitionLevel === "medium"
+                ? "bg-yellow-500/5 border-yellow-500/10"
+                : "bg-green-500/5 border-green-500/10"
+            }`}>
+              <Scale className={`w-4 h-4 mb-1 ${
+                competitionLevel === "high" ? "text-destructive" :
+                competitionLevel === "medium" ? "text-yellow-600 dark:text-yellow-500" :
+                "text-green-600 dark:text-green-500"
+              }`} />
+              <p className="text-xs text-muted-foreground mb-1">Competition</p>
+              <p className="text-xl font-bold">{ratio}</p>
             </div>
           )}
         </div>
 
-        {data_source && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-start gap-2 pt-2 border-t">
-                  <Info className="w-4 h-4 mt-0.5 text-muted-foreground" />
-                  <p className="text-xs text-muted-foreground line-clamp-2">
-                    Data from: {data_source}
-                  </p>
+        {/* Progressive disclosure - See Details */}
+        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+          <CollapsibleTrigger asChild>
+            <Button 
+              variant="ghost" 
+              className="w-full text-sm h-8 gap-2"
+            >
+              <Info className="w-3.5 h-3.5" />
+              {isOpen ? "Hide Details" : "See Details"}
+              <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+            </Button>
+          </CollapsibleTrigger>
+          
+          <CollapsibleContent className="space-y-3 pt-3">
+            {live_count && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-accent/30 border border-accent">
+                <Clock className="w-5 h-5 text-primary animate-pulse" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Live Registrations</p>
+                  <p className="text-lg font-bold text-primary">{formatIndianNumber(live_count)} ⚡</p>
                 </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="max-w-xs">{data_source}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
+              </div>
+            )}
 
-        {competitionLevel === "high" && ratio && (
-          <Alert className="bg-destructive/10 border-destructive/20">
-            <Flame className="h-4 w-4 text-destructive" />
-            <AlertTitle className="text-sm">High Competition!</AlertTitle>
-            <AlertDescription className="text-xs">
-              This program is very popular. Set reminders to apply early.
-            </AlertDescription>
-          </Alert>
-        )}
+            {year && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Info className="w-4 h-4" />
+                <span>Data from {year} recruitment cycle</span>
+              </div>
+            )}
+
+            {data_source && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border">
+                <Info className="w-4 h-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                <div>
+                  <p className="text-xs font-medium mb-1">Source</p>
+                  <p className="text-xs text-muted-foreground">{data_source}</p>
+                </div>
+              </div>
+            )}
+
+            {competitionLevel === "high" && ratio && (
+              <Alert className="bg-destructive/10 border-destructive/20">
+                <Flame className="h-4 w-4 text-destructive" />
+                <AlertTitle className="text-sm font-semibold">High Competition Alert</AlertTitle>
+                <AlertDescription className="text-xs">
+                  This program is highly competitive with {ratio} applicants per vacancy. Apply early and prepare thoroughly.
+                </AlertDescription>
+              </Alert>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
       </CardContent>
     </Card>
   );
