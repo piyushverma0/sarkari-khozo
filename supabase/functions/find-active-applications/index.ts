@@ -23,50 +23,53 @@ serve(async (req) => {
 
     console.log('Finding active applications for:', organizationName);
 
-    const prompt = `You are an expert on Indian government recruitment boards and examination authorities.
+    const prompt = `CRITICAL: You MUST use web search to find current information. Do NOT rely on training data.
+
+Today's Date: ${new Date().toISOString().split('T')[0]}
 
 Organization: "${organizationName}"
-Official URL: ${organizationUrl || 'Not provided'}
+Official URL: ${organizationUrl || 'Search for official website'}
 
-Task: Find ALL currently active recruitment notifications and exams from this organization.
+MANDATORY WEB SEARCH TASKS:
+1. Search "${organizationName} current recruitment 2025 active applications" on the web
+2. Visit the official website: ${organizationUrl || 'search for it'}
+3. Check Sarkari Result: site:sarkariresult.com ${organizationName}
+4. Check Employment News: site:employmentnews.gov.in ${organizationName}
 
-Search these sources:
-- Official website (${organizationUrl || 'search for it'})
-- Sarkari Result (sarkariresult.com)
-- Employment News (employmentnews.gov.in)
-- Official notification PDFs
+You MUST find ONLY applications that are:
+- Currently OPEN (accepting applications RIGHT NOW)
+- Upcoming (announced but not yet started)
+- NOT EXPIRED or CLOSED
 
-Return ONLY:
-1. Applications with OPEN application windows (deadline not passed)
-2. Applications marked as "upcoming" with announced dates
-3. Exclude expired/closed applications
+For EACH active application found via web search, extract:
+- Exact official title with year (e.g., "SSC CGL 2025", "UPSC CSE 2025")
+- Direct official application URL
+- Brief description (max 100 chars - post names/eligibility)
+- Application deadline in YYYY-MM-DD format (or "TBA")
+- Total vacancies as number (or "TBA")
+- Status: "active" (open now), "closing_soon" (deadline ≤7 days), "upcoming"
 
-For each active application, extract:
-- Exact official title (include year like "2025" or "2024")
-- Direct application URL (official link)
-- Brief description (post names, eligibility in one line - max 100 chars)
-- Application deadline (format: YYYY-MM-DD, or "TBA" if not announced)
-- Total vacancies (number only, or "TBA" if not announced)
-- Status: "active" (open now), "closing_soon" (deadline within 7 days), "upcoming" (not open yet)
-
-IMPORTANT: Return ONLY a valid JSON array, nothing else. Use this exact structure:
+STRICT OUTPUT FORMAT - Return ONLY this JSON array, nothing else:
 [
   {
-    "title": "RRB NTPC 2025",
-    "url": "https://rrbcdg.gov.in/...",
-    "description": "Non-Technical Popular Categories - Graduate level posts",
-    "application_deadline": "2025-12-15",
-    "vacancies": "35208",
+    "title": "SSC CGL 2025",
+    "url": "https://ssc.gov.in/...",
+    "description": "Combined Graduate Level Examination - Various Group B & C posts",
+    "application_deadline": "2025-11-15",
+    "vacancies": "17727",
     "status": "active"
   }
 ]
 
-Return 3-10 currently active/upcoming applications. If none found, return empty array [].`;
+Return 3-10 active applications. If NONE found after web search, return [].
+
+REMEMBER: Use web search! Today is ${new Date().toISOString().split('T')[0]}.`;
 
     const response = await callClaude({
       systemPrompt: 'You are an expert on Indian government recruitment. Return ONLY valid JSON array.',
       userPrompt: prompt,
       enableWebSearch: true,
+      forceWebSearch: true, // Force web search to get current data
       maxWebSearchUses: 15,
       temperature: 0.3,
     });

@@ -3,6 +3,7 @@ export interface ClaudeCallOptions {
   userPrompt: string;
   enableWebSearch?: boolean;
   maxWebSearchUses?: number;
+  forceWebSearch?: boolean; // Force Claude to use web search tool
   temperature?: number;
   maxTokens?: number;
 }
@@ -27,6 +28,7 @@ export async function callClaude(options: ClaudeCallOptions): Promise<ClaudeResp
     userPrompt,
     enableWebSearch = false,
     maxWebSearchUses = 5,
+    forceWebSearch = false,
     temperature = 0.3,
     maxTokens = 4096,
   } = options;
@@ -59,6 +61,14 @@ export async function callClaude(options: ClaudeCallOptions): Promise<ClaudeResp
         max_uses: maxWebSearchUses,
       },
     ];
+    
+    // Force web search usage if requested
+    if (forceWebSearch) {
+      requestPayload.tool_choice = {
+        type: "tool",
+        name: "web_search",
+      };
+    }
   }
 
   try {
