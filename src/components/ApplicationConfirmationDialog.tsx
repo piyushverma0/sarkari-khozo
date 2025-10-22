@@ -331,7 +331,7 @@ export const ApplicationConfirmationDialog = ({
                         }
                       />
                       <label htmlFor="inApp" className="flex items-center gap-2 cursor-pointer">
-                        <span>📱 In-App Alerts</span>
+                        <span>In-App Alerts</span>
                       </label>
                     </div>
 
@@ -345,7 +345,7 @@ export const ApplicationConfirmationDialog = ({
                         }
                       />
                       <label htmlFor="email" className="flex items-center gap-2">
-                        <span>📧 Email</span>
+                        <span>Email</span>
                         <Badge variant="outline" className="text-xs">Coming Soon</Badge>
                       </label>
                     </div>

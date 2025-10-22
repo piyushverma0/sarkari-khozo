@@ -185,25 +185,25 @@ const LawyerIntentDialog = ({ open, onOpenChange, intentType, onComplete }: Lawy
               <div className="flex items-center space-x-2 p-3 rounded-lg border cursor-pointer hover:bg-accent">
                 <RadioGroupItem value="student" id="student" />
                 <Label htmlFor="student" className="flex-1 cursor-pointer">
-                  🧑‍🎓 Law Student
+                  Law Student
                 </Label>
               </div>
               <div className="flex items-center space-x-2 p-3 rounded-lg border cursor-pointer hover:bg-accent">
                 <RadioGroupItem value="graduate" id="graduate" />
                 <Label htmlFor="graduate" className="flex-1 cursor-pointer">
-                  🎓 Law Graduate (Fresh)
+                  Law Graduate (Fresh)
                 </Label>
               </div>
               <div className="flex items-center space-x-2 p-3 rounded-lg border cursor-pointer hover:bg-accent">
                 <RadioGroupItem value="advocate" id="advocate" />
                 <Label htmlFor="advocate" className="flex-1 cursor-pointer">
-                  ⚖️ Practicing Lawyer
+                  Practicing Lawyer
                 </Label>
               </div>
               <div className="flex items-center space-x-2 p-3 rounded-lg border cursor-pointer hover:bg-accent">
                 <RadioGroupItem value="researcher" id="researcher" />
                 <Label htmlFor="researcher" className="flex-1 cursor-pointer">
-                  🔍 Legal Researcher
+                  Legal Researcher
                 </Label>
               </div>
             </RadioGroup>
@@ -240,19 +240,19 @@ const LawyerIntentDialog = ({ open, onOpenChange, intentType, onComplete }: Lawy
               <div className="flex items-center space-x-2 p-3 rounded-lg border cursor-pointer hover:bg-accent">
                 <RadioGroupItem value="government" id="government" />
                 <Label htmlFor="government" className="flex-1 cursor-pointer">
-                  🏛️ Government Programs
+                  Government Programs
                 </Label>
               </div>
               <div className="flex items-center space-x-2 p-3 rounded-lg border cursor-pointer hover:bg-accent">
                 <RadioGroupItem value="ngo" id="ngo" />
                 <Label htmlFor="ngo" className="flex-1 cursor-pointer">
-                  🤝 NGO & Non-Profit
+                  NGO & Non-Profit
                 </Label>
               </div>
               <div className="flex items-center space-x-2 p-3 rounded-lg border cursor-pointer hover:bg-accent">
                 <RadioGroupItem value="both" id="both" />
                 <Label htmlFor="both" className="flex-1 cursor-pointer">
-                  🌐 Both
+                  Both
                 </Label>
               </div>
             </RadioGroup>
