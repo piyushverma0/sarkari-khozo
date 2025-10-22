@@ -1020,30 +1020,17 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
         {/* Application Statistics */}
         {(applicationStats || isExtractingStats) && (
           <div className="mt-4">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-semibold flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-primary" />
-                Application Volume
-              </h4>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleRefreshStats}
-                disabled={isExtractingStats}
-                className="h-7 px-2 gap-1"
-              >
-                <RefreshCw className={`w-3 h-3 ${isExtractingStats ? 'animate-spin' : ''}`} />
-                {isExtractingStats ? 'Analyzing...' : 'Refresh'}
-              </Button>
-            </div>
-            
             {isExtractingStats && !applicationStats ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground p-4 border border-border/30 rounded-lg">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span>Extracting application statistics...</span>
               </div>
             ) : applicationStats && shouldDisplayStats(applicationStats) ? (
-              <ApplicationStatsDisplay stats={applicationStats} />
+              <ApplicationStatsDisplay 
+                stats={applicationStats}
+                onRefresh={handleRefreshStats}
+                isRefreshing={isExtractingStats}
+              />
             ) : null}
           </div>
         )}

@@ -1,4 +1,4 @@
-import { Users, Target, Flame, Info, TrendingUp, Clock, ChevronDown, Package, Scale } from "lucide-react";
+import { Users, Target, Flame, Info, TrendingUp, Clock, ChevronDown, Package, Scale, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,9 +25,11 @@ interface ApplicationStatsDisplayProps {
     confidence_score?: number;
   };
   compact?: boolean;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
-const ApplicationStatsDisplay = ({ stats, compact = false }: ApplicationStatsDisplayProps) => {
+const ApplicationStatsDisplay = ({ stats, compact = false, onRefresh, isRefreshing = false }: ApplicationStatsDisplayProps) => {
   const [isOpen, setIsOpen] = useState(false);
   
   if (!stats) return null;
@@ -72,34 +74,63 @@ const ApplicationStatsDisplay = ({ stats, compact = false }: ApplicationStatsDis
             <TrendingUp className="w-5 h-5" />
             Application Insights
           </CardTitle>
-          {data_confidence && (
-            <Badge variant={getConfidenceBadgeVariant(data_confidence)} className="text-xs">
-              {getConfidenceLabel(data_confidence)}
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {data_confidence && (
+              <Badge variant={getConfidenceBadgeVariant(data_confidence)} className="text-xs">
+                {getConfidenceLabel(data_confidence)}
+              </Badge>
+            )}
+            {onRefresh && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onRefresh}
+                disabled={isRefreshing}
+                className="h-8 w-8 p-0"
+                title="Refresh statistics"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       
       <CardContent className="space-y-4">
-        {/* Compact 3-tile snapshot */}
+        {/* Compact 3-tile snapshot - Always show all 3 tiles */}
         <div className="grid grid-cols-3 gap-3">
-          {vacancies && (
+          {/* Vacancies Tile */}
+          {vacancies ? (
             <div className="flex flex-col items-center p-3 rounded-lg bg-primary/5 border border-primary/10">
               <Package className="w-4 h-4 mb-1 text-primary" />
               <p className="text-xs text-muted-foreground mb-1">Vacancies</p>
               <p className="text-xl font-bold">{formatIndianNumber(vacancies)}</p>
             </div>
+          ) : (
+            <div className="flex flex-col items-center p-3 rounded-lg bg-muted/30 border border-border">
+              <Package className="w-4 h-4 mb-1 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground mb-1">Vacancies</p>
+              <p className="text-sm text-muted-foreground">Not available</p>
+            </div>
           )}
 
-          {applicants_count && (
+          {/* Applicants Tile */}
+          {applicants_count ? (
             <div className="flex flex-col items-center p-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
               <Users className="w-4 h-4 mb-1 text-blue-600 dark:text-blue-400" />
               <p className="text-xs text-muted-foreground mb-1">Last Year</p>
               <p className="text-xl font-bold">{formatIndianNumber(applicants_count)}</p>
             </div>
+          ) : (
+            <div className="flex flex-col items-center p-3 rounded-lg bg-muted/30 border border-border">
+              <Users className="w-4 h-4 mb-1 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground mb-1">Last Year</p>
+              <p className="text-sm text-muted-foreground">Not available</p>
+            </div>
           )}
 
-          {ratio && (
+          {/* Competition Tile */}
+          {ratio && ratio !== "N/A" ? (
             <div className={`flex flex-col items-center p-3 rounded-lg border ${
               competitionLevel === "high" 
                 ? "bg-destructive/5 border-destructive/10" 
@@ -114,6 +145,12 @@ const ApplicationStatsDisplay = ({ stats, compact = false }: ApplicationStatsDis
               }`} />
               <p className="text-xs text-muted-foreground mb-1">Competition</p>
               <p className="text-xl font-bold">{ratio}</p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center p-3 rounded-lg bg-muted/30 border border-border">
+              <Scale className="w-4 h-4 mb-1 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground mb-1">Competition</p>
+              <p className="text-sm text-muted-foreground">Not available</p>
             </div>
           )}
         </div>
