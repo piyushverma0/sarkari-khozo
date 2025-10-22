@@ -95,7 +95,7 @@ const Application = () => {
   return <div className="min-h-screen bg-background">
       <Header />
       <main className="pt-24 pb-16 px-0">
-        <div className="container mx-auto max-w-4xl px-1 sm:px-2 md:px-4">
+        <div className="container mx-auto max-w-4xl px-2 sm:px-3 md:px-4">
           <Button variant="ghost" className="mb-6" onClick={() => navigate("/")}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Home
