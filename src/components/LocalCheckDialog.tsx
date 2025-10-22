@@ -228,8 +228,8 @@ export const LocalCheckDialog = ({
     switch (currentStep) {
       case 'method':
         return (
-          <div className="space-y-3">
-            <h3 className="font-medium text-lg mb-4">
+          <div className="space-y-2 sm:space-y-3">
+            <h3 className="font-medium text-base sm:text-lg mb-3 sm:mb-4">
               {currentLanguage === 'hi' ? 'अपना क्षेत्र कैसे खोजें?' : 'How should we find your area?'}
             </h3>
             
@@ -238,11 +238,11 @@ export const LocalCheckDialog = ({
                 onClick={() => handleMethodChoice('saved')}
                 variant="outline"
                 size="lg"
-                className="w-full min-h-[48px] h-16 text-base justify-start"
+                className="w-full min-h-[44px] h-12 sm:h-14 md:h-16 text-sm sm:text-base justify-start"
                 aria-label={`Use saved location: ${savedLocation.saved_state}`}
               >
-                <MapPin className="w-5 h-5 mr-3" aria-hidden="true" />
-                Use saved location ({savedLocation.saved_state})
+                <MapPin className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 flex-shrink-0" aria-hidden="true" />
+                <span className="truncate">Use saved location ({savedLocation.saved_state})</span>
               </Button>
             )}
             
@@ -250,10 +250,10 @@ export const LocalCheckDialog = ({
               onClick={() => handleMethodChoice('browser')}
               variant="outline"
               size="lg"
-              className="w-full min-h-[48px] h-16 text-base justify-start"
+              className="w-full min-h-[44px] h-12 sm:h-14 md:h-16 text-sm sm:text-base justify-start"
               aria-label="Use my current browser location"
             >
-              <MapPin className="w-5 h-5 mr-3" aria-hidden="true" />
+              <MapPin className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 flex-shrink-0" aria-hidden="true" />
               Use current location
             </Button>
             
@@ -261,10 +261,10 @@ export const LocalCheckDialog = ({
               onClick={() => handleMethodChoice('manual')}
               variant="outline"
               size="lg"
-              className="w-full min-h-[48px] h-16 text-base justify-start"
+              className="w-full min-h-[44px] h-12 sm:h-14 md:h-16 text-sm sm:text-base justify-start"
               aria-label="Manually enter my district or village"
             >
-              <Edit className="w-5 h-5 mr-3" aria-hidden="true" />
+              <Edit className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 flex-shrink-0" aria-hidden="true" />
               Type my district/village
             </Button>
           </div>
@@ -272,30 +272,30 @@ export const LocalCheckDialog = ({
 
       case 'state':
         return (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 mb-4">
-              <Button variant="ghost" size="sm" onClick={() => setCurrentStep('method')}>
+          <div className="space-y-2 sm:space-y-3">
+            <div className="flex items-center gap-2 mb-3 sm:mb-4">
+              <Button variant="ghost" size="sm" onClick={() => setCurrentStep('method')} className="h-8 w-8 sm:h-9 sm:w-9 p-0">
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <h3 className="font-medium text-lg">
+              <h3 className="font-medium text-base sm:text-lg">
                 {currentLanguage === 'hi' ? 'कौन सा राज्य?' : 'Which state?'}
               </h3>
             </div>
             
             {states.length === 0 ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                <span className="text-sm text-muted-foreground">Loading states...</span>
+              <div className="flex items-center justify-center py-6 sm:py-8">
+                <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin mr-2" />
+                <span className="text-xs sm:text-sm text-muted-foreground">Loading states...</span>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-1.5 sm:gap-2 max-h-[300px] sm:max-h-[400px] overflow-y-auto">
                 {states.map(state => (
                   <Button
                     key={state.id}
                     onClick={() => handleStateSelect(state.name)}
                     variant="outline"
                     size="lg"
-                    className="h-14 text-sm"
+                    className="h-11 sm:h-14 text-xs sm:text-sm"
                     disabled={isProcessing}
                   >
                     {state.name}
@@ -308,12 +308,12 @@ export const LocalCheckDialog = ({
 
       case 'district':
         return (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 mb-4">
-              <Button variant="ghost" size="sm" onClick={() => setCurrentStep('state')}>
+          <div className="space-y-2 sm:space-y-3">
+            <div className="flex items-center gap-2 mb-3 sm:mb-4">
+              <Button variant="ghost" size="sm" onClick={() => setCurrentStep('state')} className="h-8 w-8 sm:h-9 sm:w-9 p-0">
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <h3 className="font-medium text-lg">
+              <h3 className="font-medium text-base sm:text-lg">
                 {currentLanguage === 'hi' ? 'कौन सा जिला?' : 'Which district?'}
               </h3>
             </div>
@@ -324,11 +324,11 @@ export const LocalCheckDialog = ({
                   placeholder="Search districts..."
                   value={districtSearch}
                   onChange={(e) => debouncedSetSearch(e.target.value)}
-                  className="mb-2"
+                  className="mb-2 h-10 sm:h-11 text-sm sm:text-base"
                   aria-label="Search for your district"
                 />
                 
-                <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto">
+                <div className="grid grid-cols-2 gap-1.5 sm:gap-2 max-h-[300px] sm:max-h-[400px] overflow-y-auto">
                   {filteredDistricts.length > 0 ? (
                     filteredDistricts.map(district => (
                       <Button
@@ -336,21 +336,21 @@ export const LocalCheckDialog = ({
                         onClick={() => handleDistrictSelect(district)}
                         variant="outline"
                         size="lg"
-                        className="h-14 text-sm"
+                        className="h-11 sm:h-14 text-xs sm:text-sm"
                       >
                         {district}
                       </Button>
                     ))
                   ) : (
-                    <p className="col-span-2 text-center text-muted-foreground py-4">
+                    <p className="col-span-2 text-center text-muted-foreground py-4 text-xs sm:text-sm">
                       No districts found
                     </p>
                   )}
                 </div>
               </>
             ) : (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
+              <div className="space-y-3 sm:space-y-4">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {currentLanguage === 'hi' 
                     ? 'अपना जिला या गांव का नाम लिखें' 
                     : 'Enter your district or village name'}
@@ -359,7 +359,7 @@ export const LocalCheckDialog = ({
                   placeholder={currentLanguage === 'hi' ? 'जिला या गांव का नाम' : 'District or village name'}
                   value={answers.district || ''}
                   onChange={(e) => setAnswers(prev => ({ ...prev, district: e.target.value }))}
-                  className="h-12 text-base"
+                  className="h-11 sm:h-12 text-sm sm:text-base"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && answers.district) {
                       setCurrentStep('block');
@@ -369,7 +369,7 @@ export const LocalCheckDialog = ({
                 <Button
                   onClick={() => answers.district && setCurrentStep('block')}
                   disabled={!answers.district}
-                  className="w-full"
+                  className="w-full h-10 sm:h-11 text-sm sm:text-base"
                 >
                   {currentLanguage === 'hi' ? 'जारी रखें' : 'Continue'}
                 </Button>
@@ -380,7 +380,7 @@ export const LocalCheckDialog = ({
               <Button
                 onClick={() => setCurrentStep('block')}
                 variant="ghost"
-                className="w-full mt-2"
+                className="w-full mt-2 h-9 sm:h-10 text-xs sm:text-sm"
               >
                 Skip
               </Button>
@@ -390,18 +390,18 @@ export const LocalCheckDialog = ({
 
       case 'block':
         return (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 mb-4">
-              <Button variant="ghost" size="sm" onClick={() => setCurrentStep('district')}>
+          <div className="space-y-3 sm:space-y-4">
+            <div className="flex items-center gap-2 mb-3 sm:mb-4">
+              <Button variant="ghost" size="sm" onClick={() => setCurrentStep('district')} className="h-8 w-8 sm:h-9 sm:w-9 p-0">
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <h3 className="font-medium text-lg">
+              <h3 className="font-medium text-base sm:text-lg">
                 {currentLanguage === 'hi' ? 'ब्लॉक या गांव? (वैकल्पिक)' : 'Which block or village? (Optional)'}
               </h3>
             </div>
             
             {blocks.length > 0 ? (
-              <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto mb-4">
+              <div className="grid grid-cols-2 gap-1.5 sm:gap-2 max-h-[250px] sm:max-h-[300px] overflow-y-auto mb-3 sm:mb-4">
                 {blocks.map(block => (
                   <Button
                     key={block}
@@ -411,7 +411,7 @@ export const LocalCheckDialog = ({
                     }}
                     variant="outline"
                     size="lg"
-                    className="h-14 text-sm"
+                    className="h-11 sm:h-14 text-xs sm:text-sm"
                   >
                     {block}
                   </Button>
@@ -422,7 +422,7 @@ export const LocalCheckDialog = ({
                 placeholder="Enter block or village name"
                 value={answers.block || ''}
                 onChange={(e) => setAnswers(prev => ({ ...prev, block: e.target.value }))}
-                className="h-12 text-base mb-4"
+                className="h-11 sm:h-12 text-sm sm:text-base mb-3 sm:mb-4"
               />
             )}
             
@@ -434,14 +434,14 @@ export const LocalCheckDialog = ({
                 }}
                 variant="outline"
                 size="lg"
-                className="flex-1 h-14"
+                className="flex-1 h-11 sm:h-14 text-sm sm:text-base"
               >
                 Skip
               </Button>
               <Button
                 onClick={handleBlockSubmit}
                 size="lg"
-                className="flex-1 h-14"
+                className="flex-1 h-11 sm:h-14 text-sm sm:text-base"
               >
                 Continue
               </Button>
@@ -451,26 +451,26 @@ export const LocalCheckDialog = ({
 
       case 'confirm':
         return (
-          <div className="space-y-4">
-            <h3 className="font-medium text-lg mb-4">Confirm your location</h3>
+          <div className="space-y-3 sm:space-y-4">
+            <h3 className="font-medium text-base sm:text-lg mb-3 sm:mb-4">Confirm your location</h3>
             
             <Card>
-              <CardContent className="pt-6">
+              <CardContent className="pt-4 sm:pt-6 p-4 sm:p-6">
                 <dl className="space-y-2">
                   <div>
-                    <dt className="text-sm text-muted-foreground">State</dt>
-                    <dd className="font-medium">{answers.state}</dd>
+                    <dt className="text-xs sm:text-sm text-muted-foreground">State</dt>
+                    <dd className="font-medium text-sm sm:text-base">{answers.state}</dd>
                   </div>
                   {answers.district && (
                     <div>
-                      <dt className="text-sm text-muted-foreground">District</dt>
-                      <dd className="font-medium">{answers.district}</dd>
+                      <dt className="text-xs sm:text-sm text-muted-foreground">District</dt>
+                      <dd className="font-medium text-sm sm:text-base">{answers.district}</dd>
                     </div>
                   )}
                   {answers.block && (
                     <div>
-                      <dt className="text-sm text-muted-foreground">Block/Village</dt>
-                      <dd className="font-medium">{answers.block}</dd>
+                      <dt className="text-xs sm:text-sm text-muted-foreground">Block/Village</dt>
+                      <dd className="font-medium text-sm sm:text-base">{answers.block}</dd>
                     </div>
                   )}
                 </dl>
@@ -478,13 +478,13 @@ export const LocalCheckDialog = ({
             </Card>
 
             {userId && (
-              <div className="flex items-center gap-2 p-4 border rounded-lg">
+              <div className="flex items-center gap-2 p-3 sm:p-4 border rounded-lg">
                 <Switch
                   id="save-location"
                   checked={saveLocation}
                   onCheckedChange={setSaveLocation}
                 />
-                <Label htmlFor="save-location" className="text-sm cursor-pointer">
+                <Label htmlFor="save-location" className="text-xs sm:text-sm cursor-pointer">
                   Save this location for future checks
                 </Label>
               </div>
@@ -495,7 +495,7 @@ export const LocalCheckDialog = ({
                 onClick={() => setCurrentStep('method')}
                 variant="outline"
                 size="lg"
-                className="flex-1 h-14"
+                className="flex-1 h-11 sm:h-14 text-sm sm:text-base"
               >
                 Change
               </Button>
@@ -503,11 +503,11 @@ export const LocalCheckDialog = ({
                 onClick={handleSubmit}
                 disabled={isProcessing}
                 size="lg"
-                className="flex-1 h-14"
+                className="flex-1 h-11 sm:h-14 text-sm sm:text-base"
               >
                 {isProcessing ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2 animate-spin" />
                     Checking...
                   </>
                 ) : (

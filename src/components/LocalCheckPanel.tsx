@@ -133,35 +133,35 @@ export const LocalCheckPanel = ({ application, userId }: LocalCheckPanelProps) =
   };
 
   return (
-    <Card className="mt-6 border-2 border-primary/30 bg-gradient-to-br from-blue-900/10 to-purple-900/10">
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <MapPin className="w-5 h-5 text-primary" />
-          <CardTitle className="text-lg">
+    <Card className="mt-4 sm:mt-6 border-2 border-primary/30 bg-gradient-to-br from-blue-900/10 to-purple-900/10">
+      <CardHeader className="p-4 sm:p-6">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
+          <CardTitle className="text-base sm:text-lg">
             {currentLanguage === 'hi' 
               ? 'स्थानीय जांच — क्या यह आपके पास सक्रिय है?' 
               : 'Local Check — Is this active near you?'}
           </CardTitle>
         </div>
-        <CardDescription>
+        <CardDescription className="text-xs sm:text-sm">
           {currentLanguage === 'hi'
             ? 'जांचें कि यह योजना/कार्यक्रम आपके जिले या ब्लॉक में चल रहा है या नहीं।'
             : 'Check if this scheme/program is running in your district or block.'}
         </CardDescription>
       </CardHeader>
       
-      <CardContent>
+      <CardContent className="p-4 sm:p-6 pt-0">
         {!expanded ? (
           <>
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <Button 
                 onClick={() => setExpanded(true)}
                 size="lg"
-                className="flex-1 min-h-[48px] h-16 text-lg"
+                className="flex-1 min-h-[44px] h-12 sm:h-14 md:h-16 text-sm sm:text-base md:text-lg"
                 aria-label={currentLanguage === 'hi' ? 'मेरे क्षेत्र में जांचें' : 'Check for my area'}
                 disabled={isLoadingCache}
               >
-                <MapPin className="w-6 h-6 mr-2" aria-hidden="true" />
+                <MapPin className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 mr-1.5 sm:mr-2" aria-hidden="true" />
                 {currentLanguage === 'hi' ? 'मेरे क्षेत्र में जांचें' : 'Check for my area'}
               </Button>
               
@@ -170,25 +170,26 @@ export const LocalCheckPanel = ({ application, userId }: LocalCheckPanelProps) =
                   onClick={handleUseSavedLocation}
                   variant="outline"
                   size="lg"
-                  className="flex-1 min-h-[48px] h-16 text-lg"
+                  className="flex-1 min-h-[44px] h-12 sm:h-14 md:h-16 text-sm sm:text-base md:text-lg"
                   aria-label={currentLanguage === 'hi' ? 'सहेजे गए स्थान का उपयोग करें' : 'Use saved location'}
                   disabled={isLoadingCache}
                 >
-                  <MapPin className="w-6 h-6 mr-2" aria-hidden="true" />
-                  {currentLanguage === 'hi' ? 'सहेजे गए स्थान का उपयोग करें' : 'Use saved location'}
+                  <MapPin className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 mr-1.5 sm:mr-2" aria-hidden="true" />
+                  <span className="hidden sm:inline">{currentLanguage === 'hi' ? 'सहेजे गए स्थान का उपयोग करें' : 'Use saved location'}</span>
+                  <span className="sm:hidden">{currentLanguage === 'hi' ? 'सहेजा गया' : 'Saved'}</span>
                 </Button>
               )}
             </div>
             
             {results && (
-              <div className="mt-3">
+              <div className="mt-2 sm:mt-3">
                 <Button
                   onClick={handleRefreshCache}
                   variant="ghost"
                   size="sm"
-                  className="w-full"
+                  className="w-full h-9 sm:h-10 text-xs sm:text-sm"
                 >
-                  <RefreshCw className="w-4 h-4 mr-2" />
+                  <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
                   {currentLanguage === 'hi' ? 'परिणाम ताज़ा करें' : 'Refresh Results'}
                 </Button>
               </div>
