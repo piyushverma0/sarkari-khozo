@@ -176,7 +176,7 @@ const HeroSection = ({
   };
   return <>
       <OpportunitySelectionDialog isOpen={showDisambiguation} organizationName={disambiguationData?.organization_name || ""} activeOpportunities={disambiguationData?.active_opportunities || []} expiredOpportunities={disambiguationData?.expired_opportunities || []} onSelect={handleOpportunitySelected} onClose={() => setShowDisambiguation(false)} />
-    <section className="pt-20 sm:pt-24 md:pt-32 pb-16 px-3 sm:px-4">
+    <section className="pt-20 sm:pt-24 md:pt-32 pb-16 px-2 sm:px-4">
       <div className="container mx-auto max-w-4xl text-center">
         <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
           Track <span className="font-playfair italic">Exams, Jobs</span> & <span className="font-playfair italic">Government Schemes</span> — All in One Place
@@ -186,7 +186,7 @@ const HeroSection = ({
           Just tell our AI what you're applying for. It will find the form, extract the details, and create a trackable card for you. Never miss a deadline again.
         </p>
 
-        <div className="glass-card rounded-2xl p-4 sm:p-6 md:p-8 w-full max-w-3xl mx-auto shadow-[var(--shadow-card)] border-2 border-primary/20 bg-neutral-900">
+        <div className="glass-card rounded-2xl p-3 sm:p-6 md:p-8 w-full max-w-full sm:max-w-3xl mx-auto shadow-[var(--shadow-card)] border-2 border-primary/20 bg-neutral-900">
           <div className="relative mb-4">
             <SearchAutocomplete value={query} onChange={setQuery} onSelect={value => {
               setQuery(value);
