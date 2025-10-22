@@ -1637,24 +1637,24 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
 
         {/* Quick Checklist Section - Outside Accordion */}
         {documentsRequired && documentsRequired.length > 0 && (
-          <div className="mt-8 mx-6 mb-6">
-            <div className="border rounded-xl p-5 bg-slate-800/40 backdrop-blur-sm shadow-lg">
-              <h4 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                <FileCheck className="w-6 h-6 text-primary" />
+          <div className="mt-6 sm:mt-8 mx-3 sm:mx-6 mb-4 sm:mb-6">
+            <div className="border rounded-xl p-3 sm:p-4 md:p-5 bg-slate-800/40 backdrop-blur-sm shadow-lg">
+              <h4 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 flex items-center gap-1.5 sm:gap-2">
+                <FileCheck className="w-5 h-5 sm:w-6 sm:h-6 text-primary flex-shrink-0" />
                 Quick Checklist — Keep These Ready
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                 {documentsRequired.map((doc: string, index: number) => {
                   const DocIcon = getDocIcon(doc);
                   return (
                     <div 
                       key={index}
-                      className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-700/50 hover:border-primary/30 transition-colors"
+                      className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-lg bg-slate-900/60 border border-slate-700/50 hover:border-primary/30 transition-colors"
                     >
-                      <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
-                      <span className="text-sm flex items-center gap-2">
-                        <DocIcon className="w-4 h-4" />
-                        {doc}
+                      <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 flex-shrink-0" />
+                      <span className="text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2 min-w-0">
+                        <DocIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                        <span className="break-words">{doc}</span>
                       </span>
                     </div>
                   );
@@ -1666,35 +1666,35 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
 
         {/* Need Help Section - Outside Accordion (hidden for startup programs as AI insights provide help contacts) */}
         {(application.application_guidance?.helpline || application.application_guidance?.email || application.url) && !isStartupProgram && (
-          <div className="mx-6 mb-8">
-            <div className="border rounded-xl p-5 bg-slate-800/40 backdrop-blur-sm shadow-lg">
-              <h4 className="font-semibold text-lg mb-2 flex items-center gap-2">
+          <div className="mx-3 sm:mx-6 mb-6 sm:mb-8">
+            <div className="border rounded-xl p-3 sm:p-4 md:p-5 bg-slate-800/40 backdrop-blur-sm shadow-lg">
+              <h4 className="font-semibold text-base sm:text-lg mb-1.5 sm:mb-2 flex items-center gap-1.5 sm:gap-2">
                 💬 Need Help?
               </h4>
-              <p className="text-sm text-muted-foreground mb-4">
+              <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
                 If you face any issues while applying, reach out for assistance:
               </p>
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {application.application_guidance?.helpline && (
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
-                    <Phone className="w-5 h-5 text-primary flex-shrink-0" />
-                    <span className="text-sm">Helpline: <strong>{application.application_guidance.helpline}</strong></span>
+                  <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                    <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
+                    <span className="text-xs sm:text-sm">Helpline: <strong>{application.application_guidance.helpline}</strong></span>
                   </div>
                 )}
                 {application.application_guidance?.email && (
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
-                    <Mail className="w-5 h-5 text-primary flex-shrink-0" />
-                    <span className="text-sm break-all">Email: <strong>{application.application_guidance.email}</strong></span>
+                  <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                    <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
+                    <span className="text-xs sm:text-sm break-all">Email: <strong>{application.application_guidance.email}</strong></span>
                   </div>
                 )}
                 {!application.application_guidance?.helpline && !application.application_guidance?.email && application.url && (
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
-                    <ExternalLink className="w-5 h-5 text-primary flex-shrink-0" />
+                  <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                    <ExternalLink className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
                     <a 
                       href={application.url} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="text-sm hover:text-primary transition-colors"
+                      className="text-xs sm:text-sm hover:text-primary transition-colors"
                     >
                       Visit <strong>official website</strong> for contact details
                     </a>
