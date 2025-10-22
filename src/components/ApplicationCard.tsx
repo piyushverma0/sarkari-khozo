@@ -1356,20 +1356,20 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                 </button>
               </div>
               <AccordionContent>
-                <div className="space-y-3 pt-2">
+                <div className="space-y-2 sm:space-y-3 pt-2">
                   {Object.entries(importantDates)
                     .filter(([key]) => !['date_confidence', 'date_source', 'last_verified'].includes(key))
                     .map(([key, value]) => {
                       const isNotAnnounced = value === 'Not yet announced';
                       return (
-                        <div key={key} className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-                          <span className="text-base font-medium capitalize">
+                        <div key={key} className="flex justify-between items-center gap-2 p-2 sm:p-3 rounded-lg bg-muted/50">
+                          <span className="text-xs sm:text-sm md:text-base font-medium capitalize flex-shrink-0">
                             {key === 'admit_card_date' ? 'Admit Card' :
                              key === 'correction_window_start' ? 'Correction Window Start' :
                              key === 'correction_window_end' ? 'Correction Window End' :
                              key.replace(/_/g, ' ').replace(/date/i, '').trim()}
                           </span>
-                          <span className={`text-base font-semibold ${isNotAnnounced ? 'text-amber-500' : ''}`}>
+                          <span className={`text-xs sm:text-sm md:text-base font-semibold text-right ${isNotAnnounced ? 'text-amber-500' : ''}`}>
                             {value as string}
                           </span>
                         </div>
@@ -1378,10 +1378,10 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                   
                   {/* Refresh prompt for old dates */}
                   {Object.values(importantDates).some(v => v === 'Not yet announced') && (
-                    <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                      <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                      <div className="flex-1">
-                        <p className="text-sm text-muted-foreground">
+                    <div className="flex items-start gap-2 p-2 sm:p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                      <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs sm:text-sm text-muted-foreground">
                           Click the refresh button above to search for updated dates from official sources
                         </p>
                       </div>
@@ -1390,11 +1390,11 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                   
                   {/* Date Confidence & Source */}
                   {importantDates.date_confidence && importantDates.date_confidence !== 'Not yet announced' && (
-                    <div className="flex items-center justify-between pt-2 border-t">
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t">
                       <Badge variant={
                         importantDates.date_confidence === 'verified' ? 'default' :
                         importantDates.date_confidence === 'estimated' ? 'secondary' : 'outline'
-                      }>
+                      } className="text-[10px] sm:text-xs flex-shrink-0">
                         {importantDates.date_confidence === 'verified' && '✓ Verified'}
                         {importantDates.date_confidence === 'estimated' && '≈ Estimated'}
                         {importantDates.date_confidence === 'tentative' && '? Tentative'}
@@ -1404,9 +1404,9 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                           href={importantDates.date_source} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
+                          className="text-[10px] sm:text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
                         >
-                          Source <ExternalLink className="w-3 h-3" />
+                          Source <ExternalLink className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                         </a>
                       )}
                     </div>
