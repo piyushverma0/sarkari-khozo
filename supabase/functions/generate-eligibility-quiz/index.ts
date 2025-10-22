@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { callClaude, logClaudeUsage } from "../_shared/claude-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -30,11 +31,6 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY not configured');
-    }
-
     // Check if this is a startup program quiz (has programTitle)
     const isStartupQuiz = !!programTitle;
 
@@ -63,40 +59,16 @@ Analyze the user's answers against the eligibility criteria and return a JSON ob
 
 Be specific and actionable in your suggestions. If not eligible, explain what they need to do to become eligible.`;
 
-      const analysisResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [
-            { role: 'user', content: analysisPrompt }
-          ],
-        }),
+      const analysisResponse = await callClaude({
+        systemPrompt: 'You are a startup program eligibility expert. Return ONLY valid JSON.',
+        userPrompt: analysisPrompt,
+        enableWebSearch: false,
+        temperature: 0.3,
       });
 
-      if (!analysisResponse.ok) {
-        if (analysisResponse.status === 429) {
-          return new Response(
-            JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
-            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        if (analysisResponse.status === 402) {
-          return new Response(
-            JSON.stringify({ error: 'AI credits exhausted. Please add funds.' }),
-            { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        const errorText = await analysisResponse.text();
-        console.error('Lovable AI error:', analysisResponse.status, errorText);
-        throw new Error(`AI API error: ${analysisResponse.status}`);
-      }
+      logClaudeUsage('generate-eligibility-quiz-analysis', analysisResponse.tokensUsed, false);
 
-      const analysisData = await analysisResponse.json();
-      const content = analysisData.choices[0].message.content;
+      const content = analysisResponse.content;
 
       let result;
       try {
@@ -151,45 +123,18 @@ Return ONLY valid JSON (no markdown, no backticks) with this structure:
 
 Make questions specific to the program's eligibility criteria. Keep options clear and mutually exclusive.`;
 
-      console.log('Calling Lovable AI...');
-      const quizResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [
-            { role: 'user', content: quizPrompt }
-          ],
-        }),
+      console.log('Calling Claude AI...');
+      const quizResponse = await callClaude({
+        systemPrompt: 'You are a startup program eligibility expert. Return ONLY valid JSON.',
+        userPrompt: quizPrompt,
+        enableWebSearch: false,
+        temperature: 0.3,
       });
 
-      console.log('AI Response status:', quizResponse.status);
+      logClaudeUsage('generate-eligibility-quiz-generation', quizResponse.tokensUsed, false);
+      console.log('AI Response received');
 
-      if (!quizResponse.ok) {
-        if (quizResponse.status === 429) {
-          console.error('Rate limit exceeded');
-          return new Response(
-            JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
-            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        if (quizResponse.status === 402) {
-          console.error('AI credits exhausted');
-          return new Response(
-            JSON.stringify({ error: 'AI credits exhausted. Please add funds.' }),
-            { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        const errorText = await quizResponse.text();
-        console.error('Lovable AI error:', quizResponse.status, errorText);
-        throw new Error(`AI API error: ${quizResponse.status}`);
-      }
-
-      const quizData = await quizResponse.json();
-      const content = quizData.choices[0].message.content;
+      const content = quizResponse.content;
       console.log('AI Response content (first 200 chars):', content.substring(0, 200));
 
       let questions;
@@ -258,44 +203,18 @@ Example format:
 
 Return ONLY the JSON array, no other text.`;
 
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [
-            { role: 'user', content: prompt }
-          ],
-          temperature: 0.3,
-        }),
+      const response = await callClaude({
+        systemPrompt: 'You are an eligibility assessment expert. Return ONLY valid JSON.',
+        userPrompt: prompt,
+        enableWebSearch: false,
+        temperature: 0.3,
       });
 
-      if (!response.ok) {
-        if (response.status === 429) {
-          return new Response(
-            JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
-            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        if (response.status === 402) {
-          return new Response(
-            JSON.stringify({ error: 'AI credits exhausted. Please add funds.' }),
-            { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        const errorText = await response.text();
-        console.error('AI error:', response.status, errorText);
-        throw new Error(`AI request failed: ${response.status}`);
-      }
-
-      const data = await response.json();
+      logClaudeUsage('generate-eligibility-quiz-standard', response.tokensUsed, false);
 
       let quiz;
       try {
-        const content = data.choices[0].message.content;
+        const content = response.content;
         const jsonMatch = content.match(/\[[\s\S]*\]/);
         if (jsonMatch) {
           quiz = JSON.parse(jsonMatch[0]);

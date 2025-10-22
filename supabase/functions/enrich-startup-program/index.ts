@@ -84,6 +84,88 @@ serve(async (req) => {
     }
 
     // Generate new enrichment using Claude AI
+    const enrichmentPrompt = `You are an expert on Indian startup funding programs and policies.
+
+Program Details:
+- Title: ${program.title}
+- Description: ${program.description || 'Not specified'}
+- State: ${program.state_specific || 'All India'}
+- Stage: ${program.stage || 'Any'}
+- Sector: ${program.sector || 'Any'}
+- Funding: ${program.funding_amount || 'Not specified'}
+- DPIIT Required: ${program.dpiit_required ? 'Yes' : 'No'}
+- Program Type: ${program.program_type || 'General'}
+
+Generate realistic, actionable enrichment data for this startup program. Focus on practical insights that would help founders prepare their application.
+
+Return structured data with:
+
+1. FOUNDER INSIGHTS (3 short tips, each 1 line):
+   - Based on typical application patterns for this type of program
+   - Include realistic approval timeline estimates
+   - Mention practical preparation advice
+
+2. PREPARATION CHECKLIST (5 items for each stage):
+   - Customize by startup stage (idea_stage, prototype_stage, revenue_stage)
+   - Focus on documents and specific requirements
+   - Be specific to the program type and requirements
+
+3. SUCCESS METRICS:
+   - Estimate realistic approval rate (e.g., "35-45%" for competitive programs)
+   - Typical approval timeline (e.g., "2-3 months")
+   - If real data exists for this program, use it; otherwise mark as "estimated"
+   - Confidence level: high/medium/low based on data availability
+
+4. APPLICATION STEPS (3-5 clear steps):
+   - Include specific portal/website registration details
+   - Document submission process
+   - Review and follow-up timeline
+
+5. REAL EXAMPLE:
+   - Create a realistic startup example that could have received this funding
+   - Include plausible name, location (in relevant state), sector, funding year
+   - Mark as "simulated" since it's not based on verified real data
+   - Make it inspiring but realistic
+
+6. HELP CONTACTS:
+   - List 2-3 known incubators for this state/program type
+   - Indicate if mentorship is typically available
+   - Generic contact information if specific contacts unavailable
+
+Return as JSON with these exact keys:
+{
+  "founder_insights": ["tip1", "tip2", "tip3"],
+  "preparation_checklist": {
+    "idea_stage": ["item1", "item2", "item3", "item4", "item5"],
+    "prototype_stage": ["item1", "item2", "item3", "item4", "item5"],
+    "revenue_stage": ["item1", "item2", "item3", "item4", "item5"]
+  },
+  "success_metrics": {
+    "approval_rate": "35-45%",
+    "avg_approval_time": "2-3 months",
+    "total_funded": 100,
+    "confidence_level": "medium",
+    "data_source": "estimated"
+  },
+  "apply_assistance": ["step1", "step2", "step3"],
+  "real_example": {
+    "name": "Example Startup",
+    "location": "Bangalore",
+    "sector": "Tech",
+    "funding_received": "₹10 lakh",
+    "year": "2024",
+    "outcome": "Successfully scaled to 50+ users",
+    "is_simulated": true
+  },
+  "help_contacts": {
+    "incubators": ["Incubator 1", "Incubator 2"],
+    "mentors_available": true,
+    "state_nodal_officer": "Contact via state startup mission"
+  }
+}
+
+Be realistic and practical. Avoid overly optimistic language.`;
+
     console.log('Calling Claude AI for enrichment...');
     
     const aiResponse = await callClaude({

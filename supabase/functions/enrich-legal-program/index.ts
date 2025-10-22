@@ -83,12 +83,7 @@ serve(async (req) => {
       );
     }
 
-    // Generate new enrichment using Lovable AI
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!lovableApiKey) {
-      throw new Error('LOVABLE_API_KEY not configured');
-    }
-
+    // Generate new enrichment using Claude AI
     const enrichmentPrompt = `You are an expert on Indian legal education, judiciary exams, fellowships, and legal career opportunities.
 
 Program Details:
@@ -100,46 +95,7 @@ Program Details:
 - Funding: ${program.funding_amount || 'Not specified'}
 - Eligibility: ${program.eligibility || 'Not specified'}
 
-Generate realistic, actionable enrichment data for this legal program/opportunity. Focus on practical insights that would help law students, advocates, and legal professionals prepare their application.
-
-Return structured data with:
-
-1. PROFESSIONAL INSIGHTS (3 short tips, each 1 line):
-   - Based on typical application patterns for this type of legal program
-   - Include realistic selection timeline estimates
-   - Mention practical preparation advice (e.g., Bar Council requirements, court-specific docs)
-
-2. PREPARATION CHECKLIST (5 items for each profile type):
-   - law_student: For LLB/LLM students
-   - practicing_lawyer: For enrolled advocates
-   - researcher: For legal scholars and academics
-   - Focus on documents, certifications, and specific requirements
-   - Be specific to the program type (judiciary exam, fellowship, internship, etc.)
-
-3. SUCCESS METRICS:
-   - Estimate realistic selection rate (e.g., "15-20%" for judiciary exams, "30-40%" for fellowships)
-   - Typical selection timeline (e.g., "3-6 months" for judiciary, "1-2 months" for internships)
-   - If real data exists for this program, use it; otherwise mark as "estimated"
-   - Confidence level: high/medium/low based on data availability
-
-4. APPLICATION STEPS (3-5 clear steps):
-   - Include specific portal/website registration details
-   - Document submission process (online/offline)
-   - Interview/exam preparation if applicable
-   - Review and result timeline
-
-5. REAL EXAMPLE:
-   - Create a realistic candidate example who could have been selected
-   - Include plausible name, background (law school/practice area), location, year selected
-   - Mark as "simulated" since it's not based on verified real data
-   - Make it inspiring but realistic
-
-6. HELP CONTACTS:
-   - List 2-3 relevant legal services authorities, bar councils, or court registries
-   - Indicate if mentorship/guidance is typically available
-   - Generic contact information if specific contacts unavailable
-
-Be realistic and practical. Avoid overly optimistic language.`;
+Return JSON with founder_insights, preparation_checklist (law_student, practicing_lawyer, researcher), success_metrics, apply_assistance, real_example, help_contacts.`;
 
     console.log('Calling Claude AI for legal program enrichment...');
     

@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { callClaude, logClaudeUsage } from "../_shared/claude-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,11 +18,6 @@ serve(async (req) => {
       throw new Error('Text and target language are required');
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
-    }
-
     // Determine language prompt
     let languageName = '';
     let languageContext = '';
@@ -36,58 +32,20 @@ serve(async (req) => {
       throw new Error('Unsupported language. Use "hi" for Hindi or "kn" for Kannada');
     }
 
-    const systemPrompt = `You are a professional translator for Indian government schemes and applications. 
-Translate the following content accurately into ${languageName}.
-${languageContext}
-Maintain official terminology, dates, and proper nouns.
-Only return the translated text, nothing else.`;
-
     console.log('Translating to:', languageName);
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: text }
-        ],
-      }),
+    const response = await callClaude({
+      systemPrompt: `You are a professional translator for Indian government schemes. Translate to ${languageName}. ${languageContext} Only return the translated text.`,
+      userPrompt: text,
+      enableWebSearch: false,
+      temperature: 0.3,
     });
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'Translation credits exhausted. Please add credits to your workspace.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      const errorText = await response.text();
-      console.error('AI Gateway error:', response.status, errorText);
-      throw new Error('Translation service error');
-    }
-
-    const data = await response.json();
-    const translatedText = data.choices?.[0]?.message?.content;
-
-    if (!translatedText) {
-      throw new Error('No translation received');
-    }
-
+    logClaudeUsage('translate-content', response.tokensUsed, false);
     console.log('Translation successful');
 
     return new Response(
-      JSON.stringify({ translatedText }),
+      JSON.stringify({ translatedText: response.content }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

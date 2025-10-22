@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { callClaude, logClaudeUsage } from "../_shared/claude-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,11 +14,6 @@ serve(async (req) => {
 
   try {
     const { messages } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY not configured');
-    }
 
     const systemPrompt = `You are a friendly CSC Locator Assistant helping users find their nearest Common Service Centre (CSC) in India.
 
@@ -38,32 +34,18 @@ Keep your tone:
 
 If the user mentions a village or rural area, also suggest visiting their local Panchayat office or Village Level Entrepreneur (VLE).`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...messages
-        ],
-      }),
+    const response = await callClaude({
+      systemPrompt,
+      userPrompt: messages.map((m: any) => `${m.role}: ${m.content}`).join('\n'),
+      enableWebSearch: true,
+      maxWebSearchUses: 3,
+      temperature: 0.7,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI API error:', response.status, errorText);
-      throw new Error(`AI API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const aiMessage = data.choices[0].message.content;
+    logClaudeUsage('find-nearest-csc', response.tokensUsed, response.webSearchUsed || false);
 
     return new Response(
-      JSON.stringify({ message: aiMessage }),
+      JSON.stringify({ message: response.content }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
