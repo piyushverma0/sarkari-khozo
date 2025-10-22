@@ -176,7 +176,7 @@ const HeroSection = ({
   };
   return <>
       <OpportunitySelectionDialog isOpen={showDisambiguation} organizationName={disambiguationData?.organization_name || ""} activeOpportunities={disambiguationData?.active_opportunities || []} expiredOpportunities={disambiguationData?.expired_opportunities || []} onSelect={handleOpportunitySelected} onClose={() => setShowDisambiguation(false)} />
-    <section className="pt-20 sm:pt-24 md:pt-32 pb-16 px-4">
+    <section className="pt-20 sm:pt-24 md:pt-32 pb-16 px-3 sm:px-4">
       <div className="container mx-auto max-w-4xl text-center">
         <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
           Track <span className="font-playfair italic">Exams, Jobs</span> & <span className="font-playfair italic">Government Schemes</span> — All in One Place
@@ -195,11 +195,11 @@ const HeroSection = ({
             }} placeholder={placeholder} disabled={!user || isLoading} />
           </div>
           
-          <Button size="lg" className="w-full h-12 rounded-full text-base font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02]" onClick={handleTrackApplication} disabled={!user || isLoading}>
+          <Button size="lg" className="w-full h-10 sm:h-11 md:h-12 rounded-full text-sm sm:text-base font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02]" onClick={handleTrackApplication} disabled={!user || isLoading}>
             {isLoading ? <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Analyzing Your Request...
-              </> : user ? <>Track <span className="hidden sm:inline">My </span>Application</> : "Sign In to Track"}
+                <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                <span className="text-xs sm:text-sm md:text-base">Analyzing Your Request...</span>
+              </> : user ? <><span className="text-sm sm:text-base">Track <span className="hidden sm:inline">My </span>Application</span></> : <span className="text-sm sm:text-base">Sign In to Track</span>}
           </Button>
         </div>
       </div>
