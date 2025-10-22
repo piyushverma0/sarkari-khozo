@@ -31,23 +31,26 @@ Organization: "${organizationName}"
 Official URL: ${organizationUrl || 'Search for official website'}
 
 MANDATORY WEB SEARCH TASKS:
-1. Search "${organizationName} current recruitment 2025 active applications" on the web
+1. Search "${organizationName} recruitment 2025 applications" on the web
 2. Visit the official website: ${organizationUrl || 'search for it'}
 3. Check Sarkari Result: site:sarkariresult.com ${organizationName}
 4. Check Employment News: site:employmentnews.gov.in ${organizationName}
 
-You MUST find ONLY applications that are:
+Find ALL recent applications from this organization including:
 - Currently OPEN (accepting applications RIGHT NOW)
 - Upcoming (announced but not yet started)
-- NOT EXPIRED or CLOSED
+- Recently CLOSED (deadline passed within last 3 months)
+- Closing Soon (deadline within 7 days)
 
-For EACH active application found via web search, extract:
+PRIORITIZE active/upcoming applications, but ALSO include recently closed ones to give users complete picture.
+
+For EACH application found via web search, extract:
 - Exact official title with year (e.g., "SSC CGL 2025", "UPSC CSE 2025")
 - Direct official application URL
 - Brief description (max 100 chars - post names/eligibility)
 - Application deadline in YYYY-MM-DD format (or "TBA")
 - Total vacancies as number (or "TBA")
-- Status: "active" (open now), "closing_soon" (deadline ≤7 days), "upcoming"
+- Status: "active" (open now), "closing_soon" (deadline ≤7 days), "upcoming" (not started), "closed" (deadline passed)
 
 STRICT OUTPUT FORMAT - Return ONLY this JSON array, nothing else:
 [
@@ -61,7 +64,7 @@ STRICT OUTPUT FORMAT - Return ONLY this JSON array, nothing else:
   }
 ]
 
-Return 3-10 active applications. If NONE found after web search, return [].
+Return 5-15 applications (prioritize active/upcoming, then recently closed). If NONE found after web search, return [].
 
 REMEMBER: Use web search! Today is ${new Date().toISOString().split('T')[0]}.`;
 
