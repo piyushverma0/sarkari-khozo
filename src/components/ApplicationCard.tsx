@@ -1452,17 +1452,39 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                       <Skeleton className="h-4 w-4/5" />
                     </div>
                   ) : (
-                    <div className="space-y-2 text-base leading-relaxed whitespace-pre-line">
+                    <div className="space-y-3 text-base leading-relaxed">
                       {translatedEligibility.split('\n').map((line, idx) => {
-                      if (line.trim().startsWith('•') || line.trim().startsWith('-')) {
+                        const trimmedLine = line.trim();
+                        if (!trimmedLine) return null;
+                        
+                        // Handle bullet points
+                        if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
+                          return (
+                            <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
+                              <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                              <span className="flex-1">{trimmedLine.replace(/^[•-]\s*/, '')}</span>
+                            </div>
+                          );
+                        }
+                        
+                        // Handle bold headers (markdown style **text:** or **text**)
+                        if (trimmedLine.includes('**')) {
+                          const parts = trimmedLine.split(/\*\*([^*]+)\*\*/g);
+                          return (
+                            <p key={idx} className="font-medium text-foreground mt-4 first:mt-0">
+                              {parts.map((part, i) => 
+                                i % 2 === 1 ? <strong key={i} className="font-semibold">{part}</strong> : part
+                              )}
+                            </p>
+                          );
+                        }
+                        
+                        // Regular paragraphs
                         return (
-                          <div key={idx} className="flex items-start gap-2 p-2 rounded hover:bg-muted/50">
-                            <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                            <span>{line.replace(/^[•-]\s*/, '')}</span>
-                          </div>
+                          <p key={idx} className="text-muted-foreground leading-relaxed">
+                            {trimmedLine}
+                          </p>
                         );
-                      }
-                        return line.trim() ? <p key={idx}>{line}</p> : null;
                       })}
                     </div>
                   )}
@@ -1536,8 +1558,40 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                           </p>
                         </div>
                       ) : null}
-                      <div className="text-base leading-relaxed whitespace-pre-line">
-                        {translatedFeeStructure}
+                      <div className="space-y-3 text-base leading-relaxed">
+                        {translatedFeeStructure.split('\n').map((line, idx) => {
+                          const trimmedLine = line.trim();
+                          if (!trimmedLine) return null;
+                          
+                          // Handle bold headers (markdown style **text:** or **text**)
+                          if (trimmedLine.includes('**')) {
+                            const parts = trimmedLine.split(/\*\*([^*]+)\*\*/g);
+                            return (
+                              <div key={idx} className="font-medium text-foreground mt-4 first:mt-0 p-2 bg-muted/30 rounded-lg">
+                                {parts.map((part, i) => 
+                                  i % 2 === 1 ? <strong key={i} className="font-semibold">{part}</strong> : part
+                                )}
+                              </div>
+                            );
+                          }
+                          
+                          // Handle bullet points
+                          if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
+                            return (
+                              <div key={idx} className="flex items-start gap-3 p-2 ml-2">
+                                <span className="text-primary mt-1">•</span>
+                                <span className="flex-1 text-muted-foreground">{trimmedLine.replace(/^[•-]\s*/, '')}</span>
+                              </div>
+                            );
+                          }
+                          
+                          // Regular paragraphs
+                          return (
+                            <p key={idx} className="text-muted-foreground leading-relaxed pl-2">
+                              {trimmedLine}
+                            </p>
+                          );
+                        })}
                       </div>
                     </>
                   )}
