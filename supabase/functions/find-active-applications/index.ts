@@ -76,6 +76,12 @@ REMEMBER: Use web search! Today is ${new Date().toISOString().split('T')[0]}.`;
 
     logClaudeUsage('find-active-applications', response.tokensUsed, response.webSearchUsed || false);
     console.log('AI response:', JSON.stringify(response));
+    console.log('Web search used:', response.webSearchUsed);
+    
+    // Verify web search was actually used
+    if (!response.webSearchUsed) {
+      console.error('WARNING: Web search was not used despite forceWebSearch=true');
+    }
 
     let applications;
     try {
