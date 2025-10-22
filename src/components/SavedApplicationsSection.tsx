@@ -90,10 +90,10 @@ const SavedApplicationsSection = ({ userId }: SavedApplicationsSectionProps) => 
 
   if (isLoading) {
     return (
-      <section className="py-16 px-4 bg-gradient-to-b from-transparent to-background/50">
+      <section className="py-8 sm:py-12 md:py-16 px-3 sm:px-4 bg-gradient-to-b from-transparent to-background/50">
         <div className="container mx-auto max-w-4xl">
-          <h2 className="text-3xl font-bold mb-8">Your Saved Applications</h2>
-          <div className="space-y-4">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">Your Saved Applications</h2>
+          <div className="space-y-3 sm:space-y-4">
             <SavedApplicationSkeleton />
             <SavedApplicationSkeleton />
             <SavedApplicationSkeleton />
@@ -105,13 +105,13 @@ const SavedApplicationsSection = ({ userId }: SavedApplicationsSectionProps) => 
 
   if (applications.length === 0) {
     return (
-      <section className="py-16 px-4 bg-gradient-to-b from-transparent to-background/50">
+      <section className="py-8 sm:py-12 md:py-16 px-3 sm:px-4 bg-gradient-to-b from-transparent to-background/50">
         <div className="container mx-auto max-w-4xl">
-          <h2 className="text-3xl font-bold mb-8">Your Saved Applications</h2>
-          <div className="glass-card rounded-2xl p-12 text-center space-y-4">
-            <FolderOpen className="w-16 h-16 mx-auto text-muted-foreground opacity-50" />
-            <h3 className="text-xl font-semibold text-muted-foreground">No Applications Yet</h3>
-            <p className="text-muted-foreground max-w-md mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">Your Saved Applications</h2>
+          <div className="glass-card rounded-2xl p-6 sm:p-8 md:p-12 text-center space-y-3 sm:space-y-4">
+            <FolderOpen className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-muted-foreground opacity-50" />
+            <h3 className="text-lg sm:text-xl font-semibold text-muted-foreground">No Applications Yet</h3>
+            <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto">
               Start tracking your applications by searching above or exploring categories. 
               All your tracked applications will appear here.
             </p>
@@ -122,16 +122,16 @@ const SavedApplicationsSection = ({ userId }: SavedApplicationsSectionProps) => 
   }
 
   return (
-    <section className="py-16 px-4 bg-gradient-to-b from-transparent to-background/50">
+    <section className="py-8 sm:py-12 md:py-16 px-3 sm:px-4 bg-gradient-to-b from-transparent to-background/50">
       <div className="container mx-auto max-w-4xl">
-        <h2 className="text-3xl font-bold mb-8">
+        <h2 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">
           Your Saved Applications
-          <span className="ml-3 text-lg font-normal text-muted-foreground">
+          <span className="ml-2 sm:ml-3 text-base sm:text-lg font-normal text-muted-foreground">
             ({applications.length})
           </span>
         </h2>
         
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {applications.map((app) => (
             <SavedApplicationCard
               key={app.id}
