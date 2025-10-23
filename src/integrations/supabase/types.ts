@@ -213,6 +213,99 @@ export type Database = {
         }
         Relationships: []
       }
+      discovery_stories: {
+        Row: {
+          category: string
+          click_count: number | null
+          created_at: string | null
+          excerpt: string | null
+          expires_at: string | null
+          full_content: string | null
+          headline: string
+          id: string
+          image_alt: string | null
+          image_url: string | null
+          impact_statement: string | null
+          is_active: boolean | null
+          is_featured: boolean | null
+          key_takeaways: string[] | null
+          published_date: string | null
+          region: string | null
+          relevance_score: number | null
+          save_count: number | null
+          scraped_at: string | null
+          share_count: number | null
+          source_name: string | null
+          source_url: string
+          states: string[] | null
+          subcategory: string | null
+          summary: string
+          tags: string[] | null
+          updated_at: string | null
+          view_count: number | null
+        }
+        Insert: {
+          category: string
+          click_count?: number | null
+          created_at?: string | null
+          excerpt?: string | null
+          expires_at?: string | null
+          full_content?: string | null
+          headline: string
+          id?: string
+          image_alt?: string | null
+          image_url?: string | null
+          impact_statement?: string | null
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          key_takeaways?: string[] | null
+          published_date?: string | null
+          region?: string | null
+          relevance_score?: number | null
+          save_count?: number | null
+          scraped_at?: string | null
+          share_count?: number | null
+          source_name?: string | null
+          source_url: string
+          states?: string[] | null
+          subcategory?: string | null
+          summary: string
+          tags?: string[] | null
+          updated_at?: string | null
+          view_count?: number | null
+        }
+        Update: {
+          category?: string
+          click_count?: number | null
+          created_at?: string | null
+          excerpt?: string | null
+          expires_at?: string | null
+          full_content?: string | null
+          headline?: string
+          id?: string
+          image_alt?: string | null
+          image_url?: string | null
+          impact_statement?: string | null
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          key_takeaways?: string[] | null
+          published_date?: string | null
+          region?: string | null
+          relevance_score?: number | null
+          save_count?: number | null
+          scraped_at?: string | null
+          share_count?: number | null
+          source_name?: string | null
+          source_url?: string
+          states?: string[] | null
+          subcategory?: string | null
+          summary?: string
+          tags?: string[] | null
+          updated_at?: string | null
+          view_count?: number | null
+        }
+        Relationships: []
+      }
       indian_blocks: {
         Row: {
           created_at: string | null
@@ -514,6 +607,119 @@ export type Database = {
             columns: ["application_id"]
             isOneToOne: false
             referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      story_scraping_sources: {
+        Row: {
+          avg_articles_per_scrape: number | null
+          category: string
+          created_at: string | null
+          failure_count: number | null
+          id: string
+          is_active: boolean | null
+          last_error: string | null
+          last_scraped_at: string | null
+          last_success_at: string | null
+          priority: number | null
+          region: string | null
+          scrape_config: Json | null
+          source_name: string
+          source_type: string
+          success_count: number | null
+          total_scrapes: number | null
+          updated_at: string | null
+          url: string
+        }
+        Insert: {
+          avg_articles_per_scrape?: number | null
+          category: string
+          created_at?: string | null
+          failure_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_error?: string | null
+          last_scraped_at?: string | null
+          last_success_at?: string | null
+          priority?: number | null
+          region?: string | null
+          scrape_config?: Json | null
+          source_name: string
+          source_type: string
+          success_count?: number | null
+          total_scrapes?: number | null
+          updated_at?: string | null
+          url: string
+        }
+        Update: {
+          avg_articles_per_scrape?: number | null
+          category?: string
+          created_at?: string | null
+          failure_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_error?: string | null
+          last_scraped_at?: string | null
+          last_success_at?: string | null
+          priority?: number | null
+          region?: string | null
+          scrape_config?: Json | null
+          source_name?: string
+          source_type?: string
+          success_count?: number | null
+          total_scrapes?: number | null
+          updated_at?: string | null
+          url?: string
+        }
+        Relationships: []
+      }
+      user_story_interactions: {
+        Row: {
+          clicked_source_at: string | null
+          created_at: string | null
+          id: string
+          read_duration_seconds: number | null
+          saved_at: string | null
+          shared_at: string | null
+          story_id: string
+          unsaved_at: string | null
+          updated_at: string | null
+          user_id: string
+          viewed_at: string | null
+        }
+        Insert: {
+          clicked_source_at?: string | null
+          created_at?: string | null
+          id?: string
+          read_duration_seconds?: number | null
+          saved_at?: string | null
+          shared_at?: string | null
+          story_id: string
+          unsaved_at?: string | null
+          updated_at?: string | null
+          user_id: string
+          viewed_at?: string | null
+        }
+        Update: {
+          clicked_source_at?: string | null
+          created_at?: string | null
+          id?: string
+          read_duration_seconds?: number | null
+          saved_at?: string | null
+          shared_at?: string | null
+          story_id?: string
+          unsaved_at?: string | null
+          updated_at?: string | null
+          user_id?: string
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_story_interactions_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "discovery_stories"
             referencedColumns: ["id"]
           },
         ]
