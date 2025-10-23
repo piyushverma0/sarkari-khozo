@@ -39,7 +39,7 @@ export const StoryCard = ({
   if (viewMode === 'compact') {
     return (
       <Card 
-        className="overflow-hidden hover:bg-accent/50 transition-all duration-200 cursor-pointer border-border/50"
+        className="overflow-hidden hover:bg-muted/20 transition-all duration-200 cursor-pointer border-border/50"
         onClick={onView}
       >
         <div className="p-4">
@@ -89,7 +89,7 @@ export const StoryCard = ({
   // Full view - Featured story
   return (
     <Card 
-      className="overflow-hidden hover:bg-accent/50 transition-all duration-200 cursor-pointer border-border/50"
+      className="overflow-hidden hover:bg-muted/20 transition-all duration-200 cursor-pointer border-border/50"
       onClick={onView}
     >
       <div className="p-6">
