@@ -86,6 +86,12 @@ interface ApplicationCardProps {
 }
 
 const ApplicationCard = ({ application }: ApplicationCardProps) => {
+  // Helper function to sanitize text by removing cite tags
+  const sanitizeText = (text: string | undefined | null): string => {
+    if (!text) return '';
+    return text.replace(/<cite[^>]*>/g, '').replace(/<\/cite>/g, '');
+  };
+
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -124,10 +130,10 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
 
   // Translated content state
   const [translatedTitle, setTranslatedTitle] = useState(application.title);
-  const [translatedDescription, setTranslatedDescription] = useState(application.description);
-  const [translatedEligibility, setTranslatedEligibility] = useState(application.eligibility || '');
-  const [translatedFeeStructure, setTranslatedFeeStructure] = useState(application.fee_structure || '');
-  const [translatedApplicationSteps, setTranslatedApplicationSteps] = useState(application.application_steps || '');
+  const [translatedDescription, setTranslatedDescription] = useState(sanitizeText(application.description));
+  const [translatedEligibility, setTranslatedEligibility] = useState(sanitizeText(application.eligibility));
+  const [translatedFeeStructure, setTranslatedFeeStructure] = useState(sanitizeText(application.fee_structure));
+  const [translatedApplicationSteps, setTranslatedApplicationSteps] = useState(sanitizeText(application.application_steps));
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   
   // AI Enrichment state
@@ -464,20 +470,20 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
       if (currentLanguage === 'en') {
         // Reset to original content
         setTranslatedTitle(application.title);
-        setTranslatedDescription(application.description);
-        setTranslatedEligibility(application.eligibility || '');
-        setTranslatedFeeStructure(application.fee_structure || '');
-        setTranslatedApplicationSteps(application.application_steps || '');
+        setTranslatedDescription(sanitizeText(application.description));
+        setTranslatedEligibility(sanitizeText(application.eligibility));
+        setTranslatedFeeStructure(sanitizeText(application.fee_structure));
+        setTranslatedApplicationSteps(sanitizeText(application.application_steps));
         return;
       }
 
       // Translate all content
       const [title, description, eligibility, feeStructure, appSteps] = await Promise.all([
         translateText(application.title, currentLanguage),
-        translateText(application.description, currentLanguage),
-        application.eligibility ? translateText(application.eligibility, currentLanguage) : Promise.resolve(''),
-        application.fee_structure ? translateText(application.fee_structure, currentLanguage) : Promise.resolve(''),
-        application.application_steps ? translateText(application.application_steps, currentLanguage) : Promise.resolve(''),
+        translateText(sanitizeText(application.description), currentLanguage),
+        application.eligibility ? translateText(sanitizeText(application.eligibility), currentLanguage) : Promise.resolve(''),
+        application.fee_structure ? translateText(sanitizeText(application.fee_structure), currentLanguage) : Promise.resolve(''),
+        application.application_steps ? translateText(sanitizeText(application.application_steps), currentLanguage) : Promise.resolve(''),
       ]);
 
       setTranslatedTitle(title);
@@ -1161,7 +1167,7 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                 {enrichmentData.founder_insights.map((insight: string, idx: number) => (
                   <div key={idx} className="flex items-start gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-slate-900/40">
                     <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                    <span className="text-xs sm:text-sm leading-relaxed">{insight}</span>
+                    <span className="text-xs sm:text-sm leading-relaxed">{sanitizeText(insight)}</span>
                   </div>
                 ))}
               </div>
@@ -1190,7 +1196,7 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                     {(items as string[]).map((item: string, idx: number) => (
                       <div key={idx} className="flex items-start gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
                         <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                        <span className="text-xs sm:text-sm">{item}</span>
+                        <span className="text-xs sm:text-sm">{sanitizeText(item)}</span>
                       </div>
                     ))}
                   </TabsContent>
@@ -1250,10 +1256,10 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
               <div className="p-3 sm:p-4 rounded-lg bg-slate-900/40 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-sm sm:text-base font-semibold truncate">{enrichmentData.real_example.name}</p>
+                    <p className="text-sm sm:text-base font-semibold truncate">{sanitizeText(enrichmentData.real_example.name)}</p>
                     <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1 mt-1">
                       <MapPin className="w-3 h-3 flex-shrink-0" />
-                      <span className="truncate">{enrichmentData.real_example.location} • {enrichmentData.real_example.sector}</span>
+                      <span className="truncate">{sanitizeText(enrichmentData.real_example.location)} • {sanitizeText(enrichmentData.real_example.sector)}</span>
                     </p>
                   </div>
                   <Badge variant="secondary" className="text-[10px] sm:text-xs flex-shrink-0">
@@ -1262,10 +1268,10 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                 </div>
                 <div className="pt-2 border-t border-slate-700/50">
                   <p className="text-xs sm:text-sm">
-                    <span className="text-green-400 font-semibold">{enrichmentData.real_example.funding_received}</span> received
+                    <span className="text-green-400 font-semibold">{sanitizeText(enrichmentData.real_example.funding_received)}</span> received
                   </p>
                   <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
-                    {enrichmentData.real_example.outcome}
+                    {sanitizeText(enrichmentData.real_example.outcome)}
                   </p>
                 </div>
                 {enrichmentData.real_example.is_simulated && (
@@ -1296,7 +1302,7 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
                   <div className="flex flex-wrap gap-1.5 sm:gap-2">
                     {enrichmentData.help_contacts.incubators.map((inc: string, idx: number) => (
                       <Badge key={idx} variant="outline" className="text-xs sm:text-sm">
-                        {inc}
+                        {sanitizeText(inc)}
                       </Badge>
                     ))}
                   </div>
@@ -1306,7 +1312,7 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
               {enrichmentData.help_contacts.state_nodal_officer && (
                 <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
                   <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
-                  <span className="text-xs sm:text-sm">Contact: <strong>{enrichmentData.help_contacts.state_nodal_officer}</strong></span>
+                  <span className="text-xs sm:text-sm">Contact: <strong>{sanitizeText(enrichmentData.help_contacts.state_nodal_officer)}</strong></span>
                 </div>
               )}
             </CardContent>

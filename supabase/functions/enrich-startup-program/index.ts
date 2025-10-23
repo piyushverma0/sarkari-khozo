@@ -190,6 +190,27 @@ Be realistic and practical. Avoid overly optimistic language.`;
     // Parse the response content as JSON
     const enrichedData = JSON.parse(cleanContent);
     
+    // Helper function to strip cite tags from text
+    const stripCiteTags = (text: string | string[] | any): any => {
+      if (typeof text === 'string') {
+        return text.replace(/<cite[^>]*>/g, '').replace(/<\/cite>/g, '');
+      }
+      if (Array.isArray(text)) {
+        return text.map(item => stripCiteTags(item));
+      }
+      if (typeof text === 'object' && text !== null) {
+        const cleaned: any = {};
+        for (const key in text) {
+          cleaned[key] = stripCiteTags(text[key]);
+        }
+        return cleaned;
+      }
+      return text;
+    };
+    
+    // Strip cite tags from all enriched data
+    const cleanedData = stripCiteTags(enrichedData);
+    
     // Build complete enrichment object
     const enrichment = {
       summary_bar: {
@@ -198,12 +219,12 @@ Be realistic and practical. Avoid overly optimistic language.`;
         funding_range: program.funding_amount || 'Check website',
         deadline_status: program.important_dates?.application_end || 'Rolling'
       },
-      founder_insights: enrichedData.founder_insights,
-      preparation_checklist: enrichedData.preparation_checklist,
-      success_metrics: enrichedData.success_metrics,
-      apply_assistance: enrichedData.apply_assistance,
-      real_example: enrichedData.real_example,
-      help_contacts: enrichedData.help_contacts,
+      founder_insights: cleanedData.founder_insights,
+      preparation_checklist: cleanedData.preparation_checklist,
+      success_metrics: cleanedData.success_metrics,
+      apply_assistance: cleanedData.apply_assistance,
+      real_example: cleanedData.real_example,
+      help_contacts: cleanedData.help_contacts,
       enriched_at: new Date().toISOString(),
       version: '1.0'
     };
