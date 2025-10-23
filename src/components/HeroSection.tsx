@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { OpportunitySelectionDialog } from "@/components/OpportunitySelectionDialog";
 import { SearchAutocomplete } from "@/components/SearchAutocomplete";
 import { useRotatingPlaceholder } from "@/hooks/useRotatingPlaceholder";
+import { ApplicationLoadingDialog } from "@/components/ApplicationLoadingDialog";
 interface Opportunity {
   title: string;
   description: string;
@@ -34,11 +35,94 @@ const HeroSection = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showDisambiguation, setShowDisambiguation] = useState(false);
   const [disambiguationData, setDisambiguationData] = useState<DisambiguationData | null>(null);
+  
+  // Loading dialog state
+  const [showLoadingDialog, setShowLoadingDialog] = useState(false);
+  const [loadingStage, setLoadingStage] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState("");
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  
   const {
     toast
   } = useToast();
   const navigate = useNavigate();
   const placeholder = useRotatingPlaceholder();
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Stage configuration
+  const STAGE_CONFIG = [
+    { progress: 25, message: "🔍 Searching for official notification...", duration: 1000 },
+    { progress: 50, message: "📄 Fetching document details...", duration: 2000 },
+    { progress: 75, message: "📅 Extracting important dates...", duration: 2000 },
+    { progress: 90, message: "✨ Generating your trackable card...", duration: 1500 },
+  ];
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) {
+        clearTimeout(progressIntervalRef.current);
+      }
+    };
+  }, []);
+
+  const startProgressSimulation = () => {
+    let currentStageIndex = 0;
+    setLoadingProgress(0);
+    setLoadingStage(1);
+    setLoadingMessage(STAGE_CONFIG[0].message);
+
+    const runStage = () => {
+      if (currentStageIndex >= STAGE_CONFIG.length) return;
+
+      const stage = STAGE_CONFIG[currentStageIndex];
+      const startProgress = currentStageIndex === 0 ? 0 : STAGE_CONFIG[currentStageIndex - 1].progress;
+      const endProgress = stage.progress;
+      const steps = 20;
+      const stepDuration = stage.duration / steps;
+      const progressIncrement = (endProgress - startProgress) / steps;
+
+      let currentStep = 0;
+
+      const stepInterval = setInterval(() => {
+        currentStep++;
+        const newProgress = startProgress + (progressIncrement * currentStep);
+        setLoadingProgress(Math.min(newProgress, endProgress));
+
+        if (currentStep >= steps) {
+          clearInterval(stepInterval);
+          currentStageIndex++;
+          setLoadingStage(currentStageIndex + 1);
+          
+          if (currentStageIndex < STAGE_CONFIG.length) {
+            setLoadingMessage(STAGE_CONFIG[currentStageIndex].message);
+            progressIntervalRef.current = setTimeout(runStage, 100);
+          }
+        }
+      }, stepDuration);
+
+      progressIntervalRef.current = stepInterval as any;
+    };
+
+    runStage();
+  };
+
+  const stopProgressSimulation = () => {
+    if (progressIntervalRef.current) {
+      clearTimeout(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+  };
+
+  const completeProgress = async () => {
+    stopProgressSimulation();
+    setLoadingStage(5);
+    setLoadingMessage("✅ Success! Your card is ready!");
+    setLoadingProgress(100);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  };
   const handleTrackApplication = async () => {
     if (!user) {
       toast({
@@ -56,7 +140,14 @@ const HeroSection = ({
       });
       return;
     }
+
+    // Show loading dialog and start progress
     setIsLoading(true);
+    setShowLoadingDialog(true);
+    setHasError(false);
+    setErrorMessage("");
+    startProgressSimulation();
+
     try {
       const {
         data,
@@ -74,11 +165,19 @@ const HeroSection = ({
       // Check if response indicates ambiguous query
       if (data.is_ambiguous) {
         console.log('Ambiguous query detected, showing disambiguation dialog');
+        stopProgressSimulation();
+        setShowLoadingDialog(false);
         setDisambiguationData(data as DisambiguationData);
         setShowDisambiguation(true);
         setIsLoading(false);
         return;
       }
+
+      // Jump to saving stage
+      stopProgressSimulation();
+      setLoadingStage(4);
+      setLoadingMessage("💾 Saving your card...");
+      setLoadingProgress(95);
 
       // Save to database
       const {
@@ -99,24 +198,40 @@ const HeroSection = ({
         application_guidance: data.application_guidance || null
       }).select().single();
       if (saveError) throw saveError;
+
+      // Complete progress and show success
+      await completeProgress();
+      
       toast({
         title: "Application Tracked!",
         description: "Your application has been saved successfully."
       });
 
-      // Navigate to category-aware application detail page
+      // Close dialog and navigate
+      setShowLoadingDialog(false);
       const categoryPath = (savedApp.category || 'general').toLowerCase();
       navigate(`/category/${categoryPath}/application/${savedApp.id}`);
     } catch (error: any) {
       console.error("Error tracking application:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to track application. Please try again."
-      });
+      stopProgressSimulation();
+      setHasError(true);
+      setErrorMessage(error.message || "Failed to track application. Please try again.");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleRetryTracking = () => {
+    setShowLoadingDialog(false);
+    setHasError(false);
+    setTimeout(() => handleTrackApplication(), 100);
+  };
+
+  const handleCancelLoading = () => {
+    stopProgressSimulation();
+    setShowLoadingDialog(false);
+    setIsLoading(false);
+    setHasError(false);
   };
   const handleOpportunitySelected = async (opportunity: Opportunity) => {
     setShowDisambiguation(false);
@@ -175,6 +290,16 @@ const HeroSection = ({
     }
   };
   return <>
+      <ApplicationLoadingDialog
+        isOpen={showLoadingDialog}
+        stage={loadingStage}
+        message={loadingMessage}
+        progress={loadingProgress}
+        onCancel={handleCancelLoading}
+        hasError={hasError}
+        errorMessage={errorMessage}
+        onRetry={handleRetryTracking}
+      />
       <OpportunitySelectionDialog isOpen={showDisambiguation} organizationName={disambiguationData?.organization_name || ""} activeOpportunities={disambiguationData?.active_opportunities || []} expiredOpportunities={disambiguationData?.expired_opportunities || []} onSelect={handleOpportunitySelected} onClose={() => setShowDisambiguation(false)} />
     <section className="pt-20 sm:pt-24 md:pt-32 pb-16 px-2 sm:px-4">
       <div className="container mx-auto max-w-4xl text-center">
