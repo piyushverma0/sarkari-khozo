@@ -16,7 +16,7 @@ export const MobileFilters = ({ filters, onFilterChange }: MobileFiltersProps) =
   ] as const;
 
   return (
-    <div className="w-full overflow-x-auto scrollbar-hide bg-background border-b">
+    <div className="w-full overflow-x-auto bg-background border-b [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <div className="flex gap-2 px-4 py-3 min-w-max">
         {categories.map((cat) => (
           <Button

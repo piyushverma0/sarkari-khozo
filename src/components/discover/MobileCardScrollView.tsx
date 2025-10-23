@@ -47,7 +47,7 @@ export const MobileCardScrollView = ({
   }
 
   return (
-    <div className="overflow-y-auto snap-y snap-mandatory h-[calc(100vh-140px)]">
+    <div className="overflow-y-auto snap-y snap-mandatory h-[calc(100vh-140px)] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <div className="space-y-4 p-4">
         {stories.map((story, index) => (
           <MobileStoryCard
