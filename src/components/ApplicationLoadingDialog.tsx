@@ -38,7 +38,7 @@ export const ApplicationLoadingDialog = ({
   return (
     <Dialog open={isOpen} onOpenChange={onCancel}>
       <DialogContent 
-        className="w-[calc(100%-2rem)] sm:w-full max-w-2xl p-6 sm:p-8 glass-card border-2 border-primary/20"
+        className="max-w-2xl mx-4 p-6 sm:p-8 glass-card border-2 border-primary/20 rounded-xl"
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => {
           if (progress > 50 && !hasError) {
