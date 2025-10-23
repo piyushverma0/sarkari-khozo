@@ -301,11 +301,12 @@ export default function Discover() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 pt-16">
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       {/* Header */}
-      <div className="sticky top-16 z-40 bg-background/95 backdrop-blur-sm border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between mb-4">
+      <div className="sticky top-0 z-40 bg-background/98 backdrop-blur-md border-b shadow-sm">
+        <div className="container mx-auto px-4">
+          {/* Top Row: Title + Actions */}
+          <div className="flex items-center justify-between py-4">
             <div>
               <h1 className="text-2xl font-bold">Discover</h1>
               <p className="text-sm text-muted-foreground">
@@ -367,17 +368,19 @@ export default function Discover() {
             </div>
           </div>
 
-          {/* Filters */}
-          <DiscoverFilters
-            filters={filters}
-            onFilterChange={(newFilters) => setFilters({ ...filters, ...newFilters })}
-            userState={userState}
-          />
+          {/* Bottom Row: Filters Only */}
+          <div className="pb-4">
+            <DiscoverFilters
+              filters={filters}
+              onFilterChange={(newFilters) => setFilters({ ...filters, ...newFilters })}
+              userState={userState}
+            />
+          </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 py-8">
         {isLoading && stories.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-6">
             <div className="flex items-center gap-2">

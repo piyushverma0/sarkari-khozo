@@ -37,14 +37,14 @@ export const StoryGridView = ({
   }, [inView, hasMore, isLoading, onLoadMore]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Featured Story (First Story - 2x height) */}
       {stories.length > 0 && (
-        <div className="mb-6">
-          <div className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
-            <span className="text-lg">⭐</span>
+        <div className="mb-8">
+          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <span className="text-xl">⭐</span>
             Featured Story
-          </div>
+          </h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="lg:col-span-1">
               <StoryCard

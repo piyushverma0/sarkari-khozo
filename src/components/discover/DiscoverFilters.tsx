@@ -43,32 +43,32 @@ export const DiscoverFilters = ({
         onValueChange={(value) => onFilterChange({ category: value as any })}
         className="w-full"
       >
-        <TabsList className="w-full grid grid-cols-5 h-auto">
+        <TabsList className="w-full grid grid-cols-5 gap-1">
           {categories.map((cat) => (
             <TabsTrigger 
               key={cat.value} 
               value={cat.value}
-              className="flex flex-col sm:flex-row items-center gap-1 py-2"
+              className="flex items-center justify-center gap-1.5 px-2 py-2.5 text-xs"
             >
               {typeof cat.icon === 'string' ? (
-                <span className="text-lg">{cat.icon}</span>
+                <span className="text-base">{cat.icon}</span>
               ) : (
                 <cat.icon className="w-4 h-4" />
               )}
-              <span className="text-xs sm:text-sm">{cat.label}</span>
+              <span className="hidden sm:inline">{cat.label}</span>
             </TabsTrigger>
           ))}
         </TabsList>
       </Tabs>
 
       {/* Region and Sort Filters */}
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center justify-between gap-3">
         {/* Region Filter */}
         <Select 
           value={filters.region || 'National'} 
           onValueChange={(value) => onFilterChange({ region: value })}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[160px]">
             <MapPin className="w-4 h-4 mr-2" />
             <SelectValue placeholder="Region" />
           </SelectTrigger>
@@ -94,17 +94,17 @@ export const DiscoverFilters = ({
         </Select>
 
         {/* Sort Filter */}
-        <div className="flex items-center gap-2 ml-auto">
+        <div className="flex items-center gap-1">
           {sortOptions.map((opt) => (
             <Button
               key={opt.value}
-              variant={filters.sort === opt.value ? 'default' : 'outline'}
+              variant={filters.sort === opt.value ? 'default' : 'ghost'}
               size="sm"
               onClick={() => onFilterChange({ sort: opt.value as any })}
-              className="flex items-center gap-1"
+              className="flex items-center gap-1.5 text-xs"
             >
-              <opt.icon className="w-3 h-3" />
-              <span className="hidden sm:inline">{opt.label}</span>
+              <opt.icon className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">{opt.label}</span>
             </Button>
           ))}
         </div>
