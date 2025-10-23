@@ -47,7 +47,7 @@ const Index = () => {
         <CategoriesSection user={user} onAuthRequired={handleAuthRequired} />
         {user && <SavedApplicationsSection userId={user.id} />}
       </main>
-      <footer className="py-8">
+      <footer className="py-8 bg-transparent">
         <div className="container mx-auto text-center space-y-2">
           <p className="text-sm text-foreground">
             © 2025 All rights reserved.
