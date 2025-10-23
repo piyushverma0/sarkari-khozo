@@ -185,7 +185,7 @@ const HeroSection = ({
         </div>
         
         <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
-          Track <span className="font-playfair italic">Exams, Jobs</span> & <span className="font-playfair italic">Government Schemes</span> — All in One Place
+          Track <span className="font-playfair italic text-orange-500">Exams</span>, <span className="font-playfair italic">Jobs</span> & <span className="font-playfair italic text-green-600">Government Schemes</span> — All in One Place
         </h1>
         
         <p className="text-base sm:text-lg md:text-xl text-muted-foreground mb-8 md:mb-12 max-w-2xl mx-auto">
