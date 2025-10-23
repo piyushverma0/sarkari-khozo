@@ -176,37 +176,44 @@ const HeroSection = ({
   };
   return <>
       <OpportunitySelectionDialog isOpen={showDisambiguation} organizationName={disambiguationData?.organization_name || ""} activeOpportunities={disambiguationData?.active_opportunities || []} expiredOpportunities={disambiguationData?.expired_opportunities || []} onSelect={handleOpportunitySelected} onClose={() => setShowDisambiguation(false)} />
-    <section className="pt-20 sm:pt-24 md:pt-32 pb-16 px-2 sm:px-4">
-      <div className="container mx-auto max-w-4xl text-center">
-        <div className="inline-flex items-center px-4 py-2 mb-4 sm:mb-6 rounded-full glass-card border border-primary/30 bg-primary/10 backdrop-blur-md">
-          <span className="text-xs sm:text-sm font-semibold text-primary">
-            AI Powered
-          </span>
-        </div>
-        
-        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
-          Track <span className="font-playfair italic text-orange-500">Exams</span>, <span className="font-playfair italic">Jobs</span> & <span className="font-playfair italic text-green-600">Government Schemes</span> — All in One Place
-        </h1>
-        
-        <p className="text-base sm:text-lg md:text-xl text-muted-foreground mb-8 md:mb-12 max-w-2xl mx-auto">
-          Just tell our AI what you're applying for. It will find the form, extract the details, and create a trackable card for you. Never miss a deadline again.
-        </p>
-
-        <div className="glass-card rounded-2xl p-3 sm:p-6 md:p-8 w-full max-w-full sm:max-w-3xl mx-auto shadow-[var(--shadow-card)] border-2 border-primary/20 bg-neutral-900">
-          <div className="relative mb-4">
-            <SearchAutocomplete value={query} onChange={setQuery} onSelect={value => {
-              setQuery(value);
-              // Trigger tracking after brief delay to show selection
-              setTimeout(() => handleTrackApplication(), 100);
-            }} placeholder={placeholder} disabled={!user || isLoading} />
+    <section className="pt-20 sm:pt-24 md:pt-32 pb-16 px-4 sm:px-6">
+      <div className="container mx-auto">
+        <div className="max-w-5xl mx-auto text-center space-y-10 relative z-10">
+          <div className="space-y-4">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-playfair font-bold tracking-tight leading-tight bg-gradient-to-r from-foreground via-primary to-foreground/80 bg-clip-text text-transparent animate-fade-in">
+              Track Your Applications
+            </h1>
+            
+            <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground/90 max-w-3xl mx-auto leading-relaxed">
+              Never miss a deadline. Get personalized reminders for exams, jobs, and schemes.
+            </p>
           </div>
-          
-          <Button size="lg" className="w-full h-10 sm:h-11 md:h-12 rounded-full text-sm sm:text-base font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02]" onClick={handleTrackApplication} disabled={!user || isLoading}>
-            {isLoading ? <>
-                <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
-                <span className="text-xs sm:text-sm md:text-base">Analyzing Your Request...</span>
-              </> : user ? <><span className="text-sm sm:text-base">Track <span className="hidden sm:inline">My </span>Application</span></> : <span className="text-sm sm:text-base">Sign In to Track</span>}
-          </Button>
+
+          <div className="flex flex-col sm:flex-row gap-4 items-center justify-center max-w-4xl mx-auto">
+            <div className="flex-1 w-full">
+              <SearchAutocomplete
+                value={query}
+                onChange={setQuery}
+                onSelect={setQuery}
+                placeholder={placeholder}
+                disabled={isLoading}
+                className="w-full"
+              />
+            </div>
+            <Button 
+              onClick={handleTrackApplication} 
+              disabled={isLoading || !query.trim()}
+              size="lg"
+              className="h-14 sm:h-16 md:h-[64px] px-8 sm:px-10 text-base sm:text-lg font-semibold whitespace-nowrap rounded-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-primary/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Processing...</span>
+                </span>
+              ) : user ? "Track Application" : "Sign In to Track"}
+            </Button>
+          </div>
         </div>
       </div>
     </section>
