@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
-import { Search, FileText, Briefcase, Target, Rocket } from "lucide-react";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 
 interface Suggestion {
   title: string;
@@ -36,32 +35,6 @@ const SUGGESTIONS: Suggestion[] = [
   { title: "PMEGP Loan Scheme", category: "Scheme" },
   { title: "Mudra Loan Yojana", category: "Scheme" },
 ];
-
-const getCategoryIcon = (category: Suggestion["category"]) => {
-  switch (category) {
-    case "Exam":
-      return FileText;
-    case "Job":
-      return Briefcase;
-    case "Scheme":
-      return Target;
-    case "Startup":
-      return Rocket;
-  }
-};
-
-const getCategoryColor = (category: Suggestion["category"]) => {
-  switch (category) {
-    case "Exam":
-      return "bg-[hsl(var(--primary))] text-primary-foreground";
-    case "Job":
-      return "bg-blue-500 text-white";
-    case "Scheme":
-      return "bg-[hsl(var(--chart-2))] text-white";
-    case "Startup":
-      return "bg-purple-500 text-white";
-  }
-};
 
 
 export const SearchAutocomplete = ({
@@ -99,7 +72,7 @@ export const SearchAutocomplete = ({
       <Input
         placeholder={placeholder}
         className={cn(
-          "pl-10 sm:pl-12 h-12 sm:h-14 md:h-16 rounded-full text-sm sm:text-base bg-background/80 border-0 focus-visible:ring-2 focus-visible:ring-primary shadow-sm transition-all duration-200",
+          "pl-10 sm:pl-12 h-12 sm:h-14 md:h-16 rounded-full text-sm sm:text-base bg-background/80 border-0 focus-visible:ring-2 focus-visible:ring-primary transition-all duration-200",
           className
         )}
         value={value}
@@ -110,41 +83,20 @@ export const SearchAutocomplete = ({
       />
       
       {showSuggestions && (
-        <div className="absolute top-full left-0 right-0 mt-3 z-50">
-          <Command className="rounded-xl border border-border/50 shadow-lg bg-popover/95 backdrop-blur-sm">
-            <CommandList className="max-h-[300px]">
-              <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
-                No suggestions found.
-              </CommandEmpty>
-              <CommandGroup heading="Suggestions" className="p-2">
-                {filteredSuggestions.map((suggestion, index) => {
-                  const Icon = getCategoryIcon(suggestion.category);
-                  return (
-                    <CommandItem
-                      key={index}
-                      onSelect={() => handleSelect(suggestion.title)}
-                      className="cursor-pointer flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-accent/50 transition-colors duration-150 group"
-                    >
-                      <div className="flex items-center justify-center w-8 h-8 rounded-md bg-accent/30 group-hover:bg-accent/50 transition-colors">
-                        <Icon className="w-4 h-4 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {suggestion.title}
-                        </p>
-                      </div>
-                      <Badge 
-                        className={cn(
-                          "text-xs font-medium px-2 py-0.5 rounded-md",
-                          getCategoryColor(suggestion.category)
-                        )}
-                        variant="secondary"
-                      >
-                        {suggestion.category}
-                      </Badge>
-                    </CommandItem>
-                  );
-                })}
+        <div className="absolute top-full left-0 right-0 mt-2 z-50">
+          <Command className="rounded-lg border shadow-md bg-popover">
+            <CommandList>
+              <CommandEmpty>No suggestions found.</CommandEmpty>
+              <CommandGroup heading="Suggestions">
+                {filteredSuggestions.map((suggestion, index) => (
+                  <CommandItem
+                    key={index}
+                    onSelect={() => handleSelect(suggestion.title)}
+                    className="cursor-pointer text-left justify-start"
+                  >
+                    {suggestion.title}
+                  </CommandItem>
+                ))}
               </CommandGroup>
             </CommandList>
           </Command>
