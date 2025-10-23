@@ -1,4 +1,6 @@
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { 
   Select, 
   SelectContent, 
@@ -6,8 +8,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MapPin, TrendingUp, Clock, Sparkles } from 'lucide-react';
+import { MapPin, TrendingUp, Clock, Sparkles, Briefcase, GraduationCap, Landmark, ScrollText } from 'lucide-react';
 import { FeedFilters } from '@/types/discovery';
 
 interface DiscoverFiltersProps {
@@ -23,10 +24,10 @@ export const DiscoverFilters = ({
 }: DiscoverFiltersProps) => {
   const categories = [
     { value: 'all', label: 'For You', icon: Sparkles },
-    { value: 'exams', label: 'Exams', icon: '🎓' },
-    { value: 'jobs', label: 'Jobs', icon: '💼' },
-    { value: 'schemes', label: 'Schemes', icon: '🏛️' },
-    { value: 'policies', label: 'Policies', icon: '📜' }
+    { value: 'exams', label: 'Exams', icon: GraduationCap },
+    { value: 'jobs', label: 'Jobs', icon: Briefcase },
+    { value: 'schemes', label: 'Schemes', icon: Landmark },
+    { value: 'policies', label: 'Policies', icon: ScrollText }
   ];
 
   const sortOptions = [
@@ -36,41 +37,43 @@ export const DiscoverFilters = ({
   ];
 
   return (
-    <div className="space-y-4">
-      {/* Category Tabs */}
-      <Tabs 
-        value={filters.category} 
-        onValueChange={(value) => onFilterChange({ category: value as any })}
-        className="w-full"
-      >
-        <TabsList className="w-full grid grid-cols-5 gap-1">
-          {categories.map((cat) => (
-            <TabsTrigger 
-              key={cat.value} 
-              value={cat.value}
-              className="flex items-center justify-center gap-1.5 px-2 py-2.5 text-xs"
-            >
-              {typeof cat.icon === 'string' ? (
-                <span className="text-base">{cat.icon}</span>
-              ) : (
-                <cat.icon className="w-4 h-4" />
-              )}
-              <span className="hidden sm:inline">{cat.label}</span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+    <Card className="p-6 space-y-6 bg-card/50 backdrop-blur-sm">
+      {/* Header */}
+      <div>
+        <h2 className="text-xl font-bold mb-2">Make it yours</h2>
+        <p className="text-sm text-muted-foreground">
+          Select topics and interests to customize your Discover experience
+        </p>
+      </div>
 
-      {/* Region and Sort Filters */}
-      <div className="flex items-center justify-between gap-3">
-        {/* Region Filter */}
+      {/* Category Filters */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-muted-foreground">Topics</h3>
+        <div className="flex flex-col gap-2">
+          {categories.map((cat) => (
+            <Button
+              key={cat.value}
+              variant={filters.category === cat.value ? 'default' : 'outline'}
+              className="w-full justify-start gap-3 h-auto py-3"
+              onClick={() => onFilterChange({ category: cat.value as any })}
+            >
+              <cat.icon className="w-5 h-5" />
+              <span>{cat.label}</span>
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {/* Region Filter */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-muted-foreground">Region</h3>
         <Select 
           value={filters.region || 'National'} 
           onValueChange={(value) => onFilterChange({ region: value })}
         >
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-full">
             <MapPin className="w-4 h-4 mr-2" />
-            <SelectValue placeholder="Region" />
+            <SelectValue placeholder="Select Region" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="National">National</SelectItem>
@@ -92,23 +95,25 @@ export const DiscoverFilters = ({
             <SelectItem value="West Bengal">West Bengal</SelectItem>
           </SelectContent>
         </Select>
+      </div>
 
-        {/* Sort Filter */}
-        <div className="flex items-center gap-1">
+      {/* Sort Options */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-muted-foreground">Sort By</h3>
+        <div className="flex flex-col gap-2">
           {sortOptions.map((opt) => (
             <Button
               key={opt.value}
-              variant={filters.sort === opt.value ? 'default' : 'ghost'}
-              size="sm"
+              variant={filters.sort === opt.value ? 'default' : 'outline'}
+              className="w-full justify-start gap-3"
               onClick={() => onFilterChange({ sort: opt.value as any })}
-              className="flex items-center gap-1.5 text-xs"
             >
-              <opt.icon className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">{opt.label}</span>
+              <opt.icon className="w-4 h-4" />
+              <span>{opt.label}</span>
             </Button>
           ))}
         </div>
       </div>
-    </div>
+    </Card>
   );
 };

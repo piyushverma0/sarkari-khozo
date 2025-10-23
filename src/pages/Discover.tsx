@@ -297,7 +297,7 @@ export default function Discover() {
       {/* Header */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
@@ -351,81 +351,90 @@ export default function Discover() {
               </Sheet>
             )}
           </div>
-
-          {/* Filters */}
-          <DiscoverFilters
-            filters={filters}
-            onFilterChange={(newFilters) => setFilters({ ...filters, ...newFilters })}
-            userState={userState}
-          />
         </div>
       </div>
 
-      {/* Content */}
+      {/* Content - Two Column Layout */}
       <div className="container mx-auto px-4 py-6">
-        {isLoading && stories.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <div className="w-3 h-3 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-3 h-3 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-            </div>
-            <p className="text-muted-foreground">Loading stories...</p>
+        <div className="flex gap-6">
+          {/* Main Content - Articles on Left */}
+          <div className="flex-1 min-w-0">
+            {isLoading && stories.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-3 h-3 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-3 h-3 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+                <p className="text-muted-foreground">Loading stories...</p>
+              </div>
+            ) : stories.length === 0 ? (
+              <div className="text-center py-20 space-y-6">
+                <div className="space-y-2">
+                  <h3 className="text-xl font-semibold">No Stories Available Yet</h3>
+                  <p className="text-muted-foreground">
+                    Stories are being loaded for the first time. You can load sample stories or fetch fresh news.
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                  <Button
+                    onClick={handleSeedStories}
+                    disabled={isSeeding}
+                    variant="default"
+                  >
+                    {isSeeding ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin mr-2" />
+                        Loading Sample Stories...
+                      </>
+                    ) : (
+                      'Load Sample Stories'
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleScrapeNews}
+                    disabled={isScraping}
+                    variant="outline"
+                  >
+                    {isScraping ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
+                        Fetching News...
+                      </>
+                    ) : (
+                      'Fetch Fresh News'
+                    )}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <StoryGridView
+                stories={stories}
+                onSave={handleSave}
+                onShare={handleShare}
+                onStoryClick={(story) => {
+                  handleView(story.id);
+                  window.open(story.source_url, '_blank');
+                }}
+                savedStoryIds={savedStoryIds}
+                onLoadMore={() => fetchStories(false)}
+                hasMore={pagination.hasMore}
+                isLoading={isLoading}
+              />
+            )}
           </div>
-        ) : stories.length === 0 ? (
-          <div className="text-center py-20 space-y-6">
-            <div className="space-y-2">
-              <h3 className="text-xl font-semibold">No Stories Available Yet</h3>
-              <p className="text-muted-foreground">
-                Stories are being loaded for the first time. You can load sample stories or fetch fresh news.
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
-              <Button
-                onClick={handleSeedStories}
-                disabled={isSeeding}
-                variant="default"
-              >
-                {isSeeding ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin mr-2" />
-                    Loading Sample Stories...
-                  </>
-                ) : (
-                  'Load Sample Stories'
-                )}
-              </Button>
-              <Button
-                onClick={handleScrapeNews}
-                disabled={isScraping}
-                variant="outline"
-              >
-                {isScraping ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
-                    Fetching News...
-                  </>
-                ) : (
-                  'Fetch Fresh News'
-                )}
-              </Button>
+
+          {/* Filters Sidebar - Right */}
+          <div className="hidden lg:block w-80 flex-shrink-0">
+            <div className="sticky top-24">
+              <DiscoverFilters
+                filters={filters}
+                onFilterChange={(newFilters) => setFilters({ ...filters, ...newFilters })}
+                userState={userState}
+              />
             </div>
           </div>
-        ) : (
-          <StoryGridView
-            stories={stories}
-            onSave={handleSave}
-            onShare={handleShare}
-            onStoryClick={(story) => {
-              handleView(story.id);
-              window.open(story.source_url, '_blank');
-            }}
-            savedStoryIds={savedStoryIds}
-            onLoadMore={() => fetchStories(false)}
-            hasMore={pagination.hasMore}
-            isLoading={isLoading}
-          />
-        )}
+        </div>
       </div>
     </div>
   );
