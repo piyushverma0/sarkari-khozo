@@ -81,8 +81,8 @@ Please analyze this article and provide a JSON response with the following field
    - Start with action or benefit
    - Example: "New scheme provides ₹6000/year to farmers nationwide"
 9. **key_takeaways**: Array of 3-5 bullet points, each max 100 chars
-    - Focus on most important/actionable information
-    - Include dates, amounts, eligibility in simple terms
+   - Focus on most important/actionable information
+   - Include dates, amounts, eligibility in simple terms
 10. **relevance_score**: Rate 0-10 based on:
     - **Recency**: Within 7 days = +3, 7-14 days = +2, 14-30 days = +1
     - **Clarity**: Clear dates/deadlines = +2
@@ -91,15 +91,7 @@ Please analyze this article and provide a JSON response with the following field
     - **Impact**: High monetary benefit or major opportunity = +1
 11. **published_date**: Extract publication date in ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ)
     - If not found, use current date
-12. **image_url**: Extract featured image URL (IMPORTANT - Follow these steps):
-    - First, look for Open Graph meta tag: <meta property="og:image" content="...">
-    - Second, look for Twitter card: <meta name="twitter:image" content="...">
-    - Third, find the largest/featured image in article content (min 400px width)
-    - Fourth, look for images in <article>, <figure>, or main content area
-    - MUST be absolute URL starting with http:// or https://
-    - If only relative URL found (e.g., /images/photo.jpg), convert to absolute by prepending the source domain
-    - If no suitable image found, return null
-    - Example conversion: /images/x.jpg on pib.gov.in -> https://pib.gov.in/images/x.jpg
+12. **image_url**: Extract featured image URL if available, else null
 13. **excerpt**: First 200 characters of the article for previews
 
 **Important Guidelines**:
@@ -245,23 +237,6 @@ Do not include markdown code blocks, do not include any text before or after the
       );
     }
 
-    // Validate and convert image URL if needed
-    let finalImageUrl = cleanedData.image_url || null;
-    if (finalImageUrl) {
-      // Check if URL is absolute
-      if (!finalImageUrl.startsWith('http://') && !finalImageUrl.startsWith('https://')) {
-        // Convert relative URL to absolute
-        try {
-          const sourceUrl = new URL(url);
-          finalImageUrl = `${sourceUrl.protocol}//${sourceUrl.host}${finalImageUrl.startsWith('/') ? '' : '/'}${finalImageUrl}`;
-          console.log('Converted relative image URL to absolute:', finalImageUrl);
-        } catch (e) {
-          console.warn('Failed to convert relative image URL:', e);
-          finalImageUrl = null;
-        }
-      }
-    }
-
     // Prepare story record
     const storyRecord = {
       headline: cleanedData.headline.substring(0, 200),
@@ -275,7 +250,7 @@ Do not include markdown code blocks, do not include any text before or after the
       tags: cleanedData.tags || [],
       region: cleanedData.region || 'National',
       states: cleanedData.states || [],
-      image_url: finalImageUrl,
+      image_url: cleanedData.image_url || null,
       image_alt: cleanedData.headline,
       relevance_score: cleanedData.relevance_score || 5,
       impact_statement: cleanedData.impact_statement || null,

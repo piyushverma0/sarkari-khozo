@@ -32,7 +32,6 @@ serve(async (req) => {
         tags: ["UPSC", "Civil Services", "IAS", "IPS", "Government Exam"],
         region: "National",
         states: ["All India"],
-        image_url: "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800&q=80",
         relevance_score: 95,
         key_takeaways: [
           "Applications open from today",
@@ -54,7 +53,6 @@ serve(async (req) => {
         tags: ["SSC", "CGL", "Government Jobs", "Graduate Level"],
         region: "National",
         states: ["All India"],
-        image_url: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800&q=80",
         relevance_score: 92,
         key_takeaways: [
           "15,000+ vacancies announced",
@@ -76,7 +74,6 @@ serve(async (req) => {
         tags: ["PM Kisan", "Farmer Scheme", "DBT", "Agriculture"],
         region: "National",
         states: ["All India"],
-        image_url: "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=800&q=80",
         relevance_score: 88,
         key_takeaways: [
           "₹2000 payment released",
@@ -98,7 +95,6 @@ serve(async (req) => {
         tags: ["Railway Jobs", "Group D", "RRB", "Government Recruitment"],
         region: "National",
         states: ["All India"],
-        image_url: "https://images.unsplash.com/photo-1474487548417-781cb71495f3?w=800&q=80",
         relevance_score: 90,
         key_takeaways: [
           "50,000 Group D vacancies",
@@ -162,7 +158,6 @@ serve(async (req) => {
         tags: ["Ayushman Bharat", "Health Insurance", "PMJAY", "Healthcare"],
         region: "National",
         states: ["All India"],
-        image_url: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=800&q=80",
         relevance_score: 91,
         key_takeaways: [
           "5 crore new families covered",

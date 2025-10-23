@@ -34,31 +34,7 @@ export const StoryCard = ({
     policies: { icon: '📜', color: 'bg-orange-500', label: 'Policies' }
   };
 
-  // Category-specific fallback images
-  const getCategoryFallback = (category: string) => {
-    const fallbacks = {
-      exams: {
-        emoji: '📚',
-        gradient: 'linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(217 91% 60% / 0.7) 100%)',
-      },
-      jobs: {
-        emoji: '💼',
-        gradient: 'linear-gradient(135deg, hsl(142 76% 36%) 0%, hsl(142 76% 36% / 0.7) 100%)',
-      },
-      schemes: {
-        emoji: '🎯',
-        gradient: 'linear-gradient(135deg, hsl(262 83% 58%) 0%, hsl(262 83% 58% / 0.7) 100%)',
-      },
-      policies: {
-        emoji: '📋',
-        gradient: 'linear-gradient(135deg, hsl(24 95% 53%) 0%, hsl(24 95% 53% / 0.7) 100%)',
-      }
-    };
-    return fallbacks[category as keyof typeof fallbacks] || fallbacks.policies;
-  };
-
   const config = categoryConfig[story.category];
-  const fallback = getCategoryFallback(story.category);
   const timeAgo = formatDistanceToNow(new Date(story.published_date), { addSuffix: true });
 
   if (viewMode === 'compact') {
@@ -66,23 +42,16 @@ export const StoryCard = ({
       <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer"
             onClick={onView}>
         <div className="flex gap-3 p-4">
-          <div className="w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden">
-            {story.image_url ? (
+          {story.image_url && (
+            <div className="w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-muted">
               <img 
                 src={story.image_url} 
                 alt={story.image_alt}
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
-            ) : (
-              <div
-                className="w-full h-full flex items-center justify-center text-4xl"
-                style={{ background: fallback.gradient }}
-              >
-                {fallback.emoji}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <Badge variant="secondary" className="text-xs">
@@ -118,29 +87,20 @@ export const StoryCard = ({
   return (
     <Card className="overflow-hidden h-full flex flex-col glass-card">
       {/* Image Section */}
-      <div className="relative w-full aspect-video">
-        {story.image_url ? (
-          <>
-            {!imageLoaded && (
-              <div className="absolute inset-0 animate-pulse bg-muted" />
-            )}
-            <img 
-              src={story.image_url} 
-              alt={story.image_alt}
-              className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
-              onLoad={() => setImageLoaded(true)}
-              loading="lazy"
-            />
-          </>
-        ) : (
-          <div
-            className="w-full h-full flex items-center justify-center"
-            style={{ background: fallback.gradient }}
-          >
-            <span className="text-8xl">{fallback.emoji}</span>
-          </div>
-        )}
-      </div>
+      {story.image_url && (
+        <div className="relative w-full aspect-video bg-muted">
+          {!imageLoaded && (
+            <div className="absolute inset-0 animate-pulse bg-muted" />
+          )}
+          <img 
+            src={story.image_url} 
+            alt={story.image_alt}
+            className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+            onLoad={() => setImageLoaded(true)}
+            loading="lazy"
+          />
+        </div>
+      )}
 
       {/* Content Section */}
       <div className="flex-1 flex flex-col p-6 overflow-y-auto">
