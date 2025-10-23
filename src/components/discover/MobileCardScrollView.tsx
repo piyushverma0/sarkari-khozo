@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { MobileStoryCard } from './MobileStoryCard';
 import { DiscoveryStory } from '@/types/discovery';
@@ -30,6 +30,8 @@ export const MobileCardScrollView = ({
     triggerOnce: false,
   });
 
+  const [activeCardId, setActiveCardId] = useState<string | null>(stories[0]?.id || null);
+
   useEffect(() => {
     if (inView && hasMore && !isLoading && onLoadMore) {
       onLoadMore();
@@ -48,20 +50,41 @@ export const MobileCardScrollView = ({
 
   return (
     <div className="overflow-y-scroll snap-y snap-mandatory h-[calc(100vh-140px)] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {stories.map((story, index) => (
-        <div 
-          key={story.id} 
-          className="snap-start snap-always h-[calc(100vh-220px)] flex-shrink-0 px-4 pt-4 pb-2"
-        >
-          <MobileStoryCard
-            story={story}
-            isSaved={savedStoryIds.has(story.id)}
-            onSave={onSave}
-            onShare={onShare}
-            onClick={onStoryClick}
-          />
-        </div>
-      ))}
+      {stories.map((story, index) => {
+        const CardWrapper = ({ children }: { children: React.ReactNode }) => {
+          const { ref, inView } = useInView({
+            threshold: 0.6,
+            onChange: (inView) => {
+              if (inView) {
+                setActiveCardId(story.id);
+              }
+            }
+          });
+
+          return (
+            <div 
+              ref={ref}
+              className={`snap-start snap-always h-[calc(100vh-220px)] flex-shrink-0 px-4 pt-4 pb-2 transition-opacity duration-300 ${
+                activeCardId === story.id ? 'opacity-100' : 'opacity-40'
+              }`}
+            >
+              {children}
+            </div>
+          );
+        };
+
+        return (
+          <CardWrapper key={story.id}>
+            <MobileStoryCard
+              story={story}
+              isSaved={savedStoryIds.has(story.id)}
+              onSave={onSave}
+              onShare={onShare}
+              onClick={onStoryClick}
+            />
+          </CardWrapper>
+        );
+      })}
 
       {/* Load More Trigger */}
       {hasMore && (
