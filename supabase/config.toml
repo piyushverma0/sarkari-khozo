@@ -165,3 +165,6 @@ verify_jwt = true
 
 [functions.get-saved-stories]
 verify_jwt = true
+
+[functions.seed-sample-stories]
+verify_jwt = false

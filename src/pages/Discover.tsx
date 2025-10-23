@@ -21,6 +21,8 @@ export default function Discover() {
   const [savedStories, setSavedStories] = useState<DiscoveryStory[]>([]);
   const [savedStoryIds, setSavedStoryIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
+  const [isSeeding, setIsSeeding] = useState(false);
+  const [isScraping, setIsScraping] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [pagination, setPagination] = useState({
     total: 0,
@@ -226,6 +228,67 @@ export default function Discover() {
     });
   };
 
+  // Handle seed sample stories
+  const handleSeedStories = async () => {
+    setIsSeeding(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('seed-sample-stories');
+      
+      if (error) throw error;
+      
+      if (data.success) {
+        toast({
+          title: 'Sample Stories Loaded!',
+          description: `${data.count} stories have been added to the feed.`
+        });
+        // Refresh stories
+        await fetchStories(true);
+      }
+    } catch (error) {
+      console.error('Error seeding stories:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load sample stories',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
+  // Handle manual scraping
+  const handleScrapeNews = async () => {
+    setIsScraping(true);
+    toast({
+      title: 'Scraping Started',
+      description: 'Fetching latest news from sources. This may take a few minutes...'
+    });
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('scrape-news-sources');
+      
+      if (error) throw error;
+      
+      if (data.success) {
+        toast({
+          title: 'Scraping Complete!',
+          description: `Found ${data.results.found_articles} articles, processed ${data.results.processed} stories.`
+        });
+        // Refresh stories
+        await fetchStories(true);
+      }
+    } catch (error) {
+      console.error('Error scraping news:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to scrape news sources',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsScraping(false);
+    }
+  };
+
   // Fetch saved stories
   const fetchSavedStories = async () => {
     if (!user) return;
@@ -316,18 +379,52 @@ export default function Discover() {
       {/* Content */}
       <div className="container mx-auto px-4 py-6">
         {isLoading && stories.length === 0 ? (
-          <div className="flex items-center justify-center py-20">
+          <div className="flex flex-col items-center justify-center py-20 gap-6">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
               <div className="w-3 h-3 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
               <div className="w-3 h-3 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
+            <p className="text-muted-foreground">Loading stories...</p>
           </div>
         ) : stories.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-muted-foreground">
-              No stories found. Try adjusting your filters.
-            </p>
+          <div className="text-center py-20 space-y-6">
+            <div className="space-y-2">
+              <h3 className="text-xl font-semibold">No Stories Available Yet</h3>
+              <p className="text-muted-foreground">
+                Stories are being loaded for the first time. You can load sample stories or fetch fresh news.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+              <Button
+                onClick={handleSeedStories}
+                disabled={isSeeding}
+                variant="default"
+              >
+                {isSeeding ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin mr-2" />
+                    Loading Sample Stories...
+                  </>
+                ) : (
+                  'Load Sample Stories'
+                )}
+              </Button>
+              <Button
+                onClick={handleScrapeNews}
+                disabled={isScraping}
+                variant="outline"
+              >
+                {isScraping ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
+                    Fetching News...
+                  </>
+                ) : (
+                  'Fetch Fresh News'
+                )}
+              </Button>
+            </div>
           </div>
         ) : viewMode === 'swipe' ? (
           <SwipeableStoryView
