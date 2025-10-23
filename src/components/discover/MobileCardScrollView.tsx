@@ -51,7 +51,7 @@ export const MobileCardScrollView = ({
       {stories.map((story, index) => (
         <div 
           key={story.id} 
-          className="snap-start snap-always h-[85vh] flex-shrink-0 p-4"
+          className="snap-start snap-always h-[calc(100vh-220px)] flex-shrink-0 px-4 pt-4 pb-2"
         >
           <MobileStoryCard
             story={story}
