@@ -178,6 +178,13 @@ const HeroSection = ({
       <OpportunitySelectionDialog isOpen={showDisambiguation} organizationName={disambiguationData?.organization_name || ""} activeOpportunities={disambiguationData?.active_opportunities || []} expiredOpportunities={disambiguationData?.expired_opportunities || []} onSelect={handleOpportunitySelected} onClose={() => setShowDisambiguation(false)} />
     <section className="pt-20 sm:pt-24 md:pt-32 pb-16 px-2 sm:px-4">
       <div className="container mx-auto max-w-4xl text-center">
+        <div className="inline-flex items-center gap-2 px-4 py-2 mb-4 sm:mb-6 rounded-full glass-card border border-primary/30 bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 shadow-[0_0_20px_hsl(var(--primary)/0.4)] backdrop-blur-md">
+          <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+          <span className="text-xs sm:text-sm font-semibold bg-gradient-to-r from-primary via-primary-foreground to-primary bg-clip-text text-transparent">
+            AI Powered
+          </span>
+        </div>
+        
         <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
           Track <span className="font-playfair italic">Exams, Jobs</span> & <span className="font-playfair italic">Government Schemes</span> — All in One Place
         </h1>
