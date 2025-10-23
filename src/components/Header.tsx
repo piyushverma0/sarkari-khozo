@@ -58,15 +58,15 @@ const Header = () => {
         </div>
 
         {user ? (
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigate("/discover")}
-              className="hidden sm:inline-flex"
+              className="text-sm"
             >
-              <Compass className="w-4 h-4 mr-2" />
-              Discover
+              <Compass className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Discover</span>
             </Button>
             <Button
               variant="ghost"
@@ -88,13 +88,6 @@ const Header = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem 
-                  className="sm:hidden"
-                  onClick={() => navigate("/discover")}
-                >
-                  <Compass className="w-4 h-4 mr-2" />
-                  <span>Discover</span>
-                </DropdownMenuItem>
                 <DropdownMenuItem 
                   className="sm:hidden"
                   onClick={() => navigate("/dashboard")}
