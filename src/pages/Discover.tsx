@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { DiscoverFilters } from '@/components/discover/DiscoverFilters';
 import { StoryGridView } from '@/components/discover/StoryGridView';
+import { MobileReelsView } from '@/components/discover/MobileReelsView';
 import { StoryCard } from '@/components/discover/StoryCard';
 import { useToast } from '@/hooks/use-toast';
-import { Bookmark, ArrowLeft } from 'lucide-react';
+import { Bookmark, ArrowLeft, Smartphone, Grid3x3 } from 'lucide-react';
 import { DiscoveryStory, FeedFilters } from '@/types/discovery';
+import { useMediaQuery } from '@/hooks/use-mobile';
 
 export default function Discover() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -21,6 +23,9 @@ export default function Discover() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSeeding, setIsSeeding] = useState(false);
   const [isScraping, setIsScraping] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'reels'>('grid');
+  const [currentReelsIndex, setCurrentReelsIndex] = useState(0);
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const [pagination, setPagination] = useState({
     total: 0,
     offset: 0,
@@ -294,148 +299,189 @@ export default function Discover() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/')}
-                className="gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Home
-              </Button>
-              <div className="h-6 w-px bg-border" />
-              <h1 className="text-2xl font-bold">Discover</h1>
-            </div>
+      {/* Header - Hide in mobile reels mode */}
+      {!(isMobile && viewMode === 'reels') && (
+        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/')}
+                  className="gap-2"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Home
+                </Button>
+                <div className="h-6 w-px bg-border" />
+                <h1 className="text-2xl font-bold">Discover</h1>
+              </div>
 
-            {/* Saved Stories Sheet */}
-            {user && (
-              <Sheet>
-                <SheetTrigger asChild>
+              <div className="flex items-center gap-2">
+                {/* View Mode Toggle - Mobile only */}
+                {isMobile && stories.length > 0 && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={fetchSavedStories}
+                    onClick={() => setViewMode(viewMode === 'grid' ? 'reels' : 'grid')}
                   >
-                    <Bookmark className="w-4 h-4 mr-2" />
-                    Saved ({savedStoryIds.size})
-                  </Button>
-                </SheetTrigger>
-                <SheetContent className="w-full sm:max-w-md overflow-y-auto">
-                  <SheetHeader>
-                    <SheetTitle>Saved Stories</SheetTitle>
-                  </SheetHeader>
-                  <div className="mt-6 space-y-4">
-                    {savedStories.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-8">
-                        No saved stories yet
-                      </p>
-                    ) : (
-                      savedStories.map((story) => (
-                        <StoryCard
-                          key={story.id}
-                          story={story}
-                          viewMode="compact"
-                          onSave={() => handleSave(story.id)}
-                          onShare={() => handleShare(story)}
-                          isSaved={true}
-                        />
-                      ))
-                    )}
-                  </div>
-                </SheetContent>
-              </Sheet>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Content - Two Column Layout */}
-      <div className="container mx-auto px-4 py-6">
-        <div className="flex gap-6">
-          {/* Main Content - Articles on Left */}
-          <div className="flex-1 min-w-0">
-            {isLoading && stories.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 gap-6">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-3 h-3 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-3 h-3 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
-                <p className="text-muted-foreground">Loading stories...</p>
-              </div>
-            ) : stories.length === 0 ? (
-              <div className="text-center py-20 space-y-6">
-                <div className="space-y-2">
-                  <h3 className="text-xl font-semibold">No Stories Available Yet</h3>
-                  <p className="text-muted-foreground">
-                    Stories are being loaded for the first time. You can load sample stories or fetch fresh news.
-                  </p>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
-                  <Button
-                    onClick={handleSeedStories}
-                    disabled={isSeeding}
-                    variant="default"
-                  >
-                    {isSeeding ? (
+                    {viewMode === 'grid' ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin mr-2" />
-                        Loading Sample Stories...
+                        <Smartphone className="w-4 h-4 mr-2" />
+                        Reels
                       </>
                     ) : (
-                      'Load Sample Stories'
-                    )}
-                  </Button>
-                  <Button
-                    onClick={handleScrapeNews}
-                    disabled={isScraping}
-                    variant="outline"
-                  >
-                    {isScraping ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
-                        Fetching News...
+                        <Grid3x3 className="w-4 h-4 mr-2" />
+                        Grid
                       </>
-                    ) : (
-                      'Fetch Fresh News'
                     )}
                   </Button>
-                </div>
-              </div>
-            ) : (
-              <StoryGridView
-                stories={stories}
-                onSave={handleSave}
-                onShare={handleShare}
-                onStoryClick={(story) => {
-                  handleView(story.id);
-                  window.open(story.source_url, '_blank');
-                }}
-                savedStoryIds={savedStoryIds}
-                onLoadMore={() => fetchStories(false)}
-                hasMore={pagination.hasMore}
-                isLoading={isLoading}
-              />
-            )}
-          </div>
+                )}
 
-          {/* Filters Sidebar - Right */}
-          <div className="hidden lg:block w-80 flex-shrink-0">
-            <div className="sticky top-24">
-              <DiscoverFilters
-                filters={filters}
-                onFilterChange={(newFilters) => setFilters({ ...filters, ...newFilters })}
-                userState={userState}
-              />
+                {/* Saved Stories Sheet */}
+                {user && (
+                  <Sheet>
+                    <SheetTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={fetchSavedStories}
+                      >
+                        <Bookmark className="w-4 h-4 mr-2" />
+                        Saved ({savedStoryIds.size})
+                      </Button>
+                    </SheetTrigger>
+                    <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+                      <SheetHeader>
+                        <SheetTitle>Saved Stories</SheetTitle>
+                      </SheetHeader>
+                      <div className="mt-6 space-y-4">
+                        {savedStories.length === 0 ? (
+                          <p className="text-center text-muted-foreground py-8">
+                            No saved stories yet
+                          </p>
+                        ) : (
+                          savedStories.map((story) => (
+                            <StoryCard
+                              key={story.id}
+                              story={story}
+                              viewMode="compact"
+                              onSave={() => handleSave(story.id)}
+                              onShare={() => handleShare(story)}
+                              isSaved={true}
+                            />
+                          ))
+                        )}
+                      </div>
+                    </SheetContent>
+                  </Sheet>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Content */}
+      {isMobile && viewMode === 'reels' && stories.length > 0 ? (
+        /* Mobile Reels View - Full Screen */
+        <MobileReelsView
+          stories={stories}
+          currentIndex={currentReelsIndex}
+          onIndexChange={setCurrentReelsIndex}
+          onSave={handleSave}
+          onShare={handleShare}
+          onView={handleView}
+          savedStoryIds={savedStoryIds}
+          onLoadMore={() => fetchStories(false)}
+          hasMore={pagination.hasMore}
+        />
+      ) : (
+        /* Grid View - Two Column Layout */
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex gap-6">
+            {/* Main Content - Articles on Left */}
+            <div className="flex-1 min-w-0">
+              {isLoading && stories.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-6">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-3 h-3 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-3 h-3 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                  <p className="text-muted-foreground">Loading stories...</p>
+                </div>
+              ) : stories.length === 0 ? (
+                <div className="text-center py-20 space-y-6">
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-semibold">No Stories Available Yet</h3>
+                    <p className="text-muted-foreground">
+                      Stories are being loaded for the first time. You can load sample stories or fetch fresh news.
+                    </p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                    <Button
+                      onClick={handleSeedStories}
+                      disabled={isSeeding}
+                      variant="default"
+                    >
+                      {isSeeding ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin mr-2" />
+                          Loading Sample Stories...
+                        </>
+                      ) : (
+                        'Load Sample Stories'
+                      )}
+                    </Button>
+                    <Button
+                      onClick={handleScrapeNews}
+                      disabled={isScraping}
+                      variant="outline"
+                    >
+                      {isScraping ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
+                          Fetching News...
+                        </>
+                      ) : (
+                        'Fetch Fresh News'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <StoryGridView
+                  stories={stories}
+                  onSave={handleSave}
+                  onShare={handleShare}
+                  onStoryClick={(story) => {
+                    handleView(story.id);
+                    window.open(story.source_url, '_blank');
+                  }}
+                  savedStoryIds={savedStoryIds}
+                  onLoadMore={() => fetchStories(false)}
+                  hasMore={pagination.hasMore}
+                  isLoading={isLoading}
+                />
+              )}
+            </div>
+
+            {/* Filters Sidebar - Right */}
+            <div className="hidden lg:block w-80 flex-shrink-0">
+              <div className="sticky top-24">
+                <DiscoverFilters
+                  filters={filters}
+                  onFilterChange={(newFilters) => setFilters({ ...filters, ...newFilters })}
+                  userState={userState}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
