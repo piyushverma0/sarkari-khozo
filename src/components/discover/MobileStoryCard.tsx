@@ -31,7 +31,7 @@ export const MobileStoryCard = ({
   const categoryColor = categoryColors[story.category] || 'bg-gray-500/10 text-gray-500';
 
   return (
-    <Card className="min-h-[calc(100vh-180px)] flex flex-col p-6 snap-start scroll-mt-4">
+    <Card className="h-full flex flex-col p-6">
       {/* Header Row */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <Badge 

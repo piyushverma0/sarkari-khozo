@@ -47,26 +47,28 @@ export const MobileCardScrollView = ({
   }
 
   return (
-    <div className="overflow-y-auto snap-y snap-mandatory h-[calc(100vh-140px)] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <div className="space-y-4 p-4">
-        {stories.map((story, index) => (
+    <div className="overflow-y-scroll snap-y snap-mandatory h-[calc(100vh-140px)] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {stories.map((story, index) => (
+        <div 
+          key={story.id} 
+          className="snap-start snap-always h-[calc(100vh-140px)] flex-shrink-0 p-4"
+        >
           <MobileStoryCard
-            key={story.id}
             story={story}
             isSaved={savedStoryIds.has(story.id)}
             onSave={onSave}
             onShare={onShare}
             onClick={onStoryClick}
           />
-        ))}
+        </div>
+      ))}
 
-        {/* Load More Trigger */}
-        {hasMore && (
-          <div ref={loadMoreRef} className="flex justify-center py-8">
-            {isLoading && <Loader2 className="w-6 h-6 animate-spin text-primary" />}
-          </div>
-        )}
-      </div>
+      {/* Load More Trigger */}
+      {hasMore && (
+        <div ref={loadMoreRef} className="flex justify-center py-8">
+          {isLoading && <Loader2 className="w-6 h-6 animate-spin text-primary" />}
+        </div>
+      )}
     </div>
   );
 };
