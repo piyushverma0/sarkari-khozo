@@ -68,11 +68,11 @@ export const SearchAutocomplete = ({
 
   return (
     <div className="relative">
-      <Search className="absolute left-4 sm:left-4 top-1/2 -translate-y-1/2 w-5 h-5 sm:w-5 sm:h-5 text-muted-foreground z-10" />
+      <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground z-10" />
       <Input
         placeholder={placeholder}
         className={cn(
-          "pl-12 sm:pl-12 h-16 sm:h-14 md:h-16 rounded-full text-base sm:text-base font-semibold bg-background/80 border-0 focus-visible:ring-2 focus-visible:ring-primary transition-all duration-200 cursor-pointer",
+          "pl-10 sm:pl-12 h-12 sm:h-14 md:h-16 rounded-full text-sm sm:text-base bg-background/80 border-0 focus-visible:ring-2 focus-visible:ring-primary transition-all duration-200",
           className
         )}
         value={value}
