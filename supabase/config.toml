@@ -63,6 +63,12 @@ inspector_port = 8083
 "0 6 * * *" = "check-application-updates"
 # Cleanup old notifications weekly on Sunday at midnight
 "0 0 * * 0" = "cleanup-old-notifications"
+# Scrape news sources at 10 AM IST (4:30 AM UTC)
+"30 4 * * *" = "scrape-news-sources"
+# Scrape news sources at 3 PM IST (9:30 AM UTC)
+"30 9 * * *" = "scrape-news-sources"
+# Scrape news sources at 8 PM IST (2:30 PM UTC)
+"30 14 * * *" = "scrape-news-sources"
 
 [analytics]
 enabled = false
@@ -143,4 +149,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.find-active-applications]
+verify_jwt = false
+
+[functions.process-story-with-ai]
+verify_jwt = false
+
+[functions.scrape-news-sources]
 verify_jwt = false
