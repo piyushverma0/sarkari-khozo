@@ -1,21 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { DiscoverFilters } from '@/components/discover/DiscoverFilters';
-import { SwipeableStoryView } from '@/components/discover/SwipeableStoryView';
 import { StoryGridView } from '@/components/discover/StoryGridView';
 import { StoryCard } from '@/components/discover/StoryCard';
 import { useToast } from '@/hooks/use-toast';
-import { Bookmark, Monitor, Smartphone } from 'lucide-react';
+import { Bookmark, ArrowLeft } from 'lucide-react';
 import { DiscoveryStory, FeedFilters } from '@/types/discovery';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function Discover() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
-  const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   const [stories, setStories] = useState<DiscoveryStory[]>([]);
   const [savedStories, setSavedStories] = useState<DiscoveryStory[]>([]);
@@ -23,7 +21,6 @@ export default function Discover() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSeeding, setIsSeeding] = useState(false);
   const [isScraping, setIsScraping] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [pagination, setPagination] = useState({
     total: 0,
     offset: 0,
@@ -36,10 +33,6 @@ export default function Discover() {
     region: searchParams.get('region') || undefined,
     sort: (searchParams.get('sort') as any) || 'relevance'
   });
-
-  const [viewMode, setViewMode] = useState<'swipe' | 'grid'>(
-    isMobile ? 'swipe' : 'grid'
-  );
 
   const [user, setUser] = useState<any>(null);
   const [userState, setUserState] = useState<string>();
@@ -105,7 +98,6 @@ export default function Discover() {
       if (data.success) {
         if (reset) {
           setStories(data.stories);
-          setCurrentIndex(0);
         } else {
           setStories(prev => [...prev, ...data.stories]);
         }
@@ -301,86 +293,76 @@ export default function Discover() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-background/98 backdrop-blur-md border-b shadow-sm">
-        <div className="container mx-auto px-4">
-          {/* Top Row: Title + Actions */}
-          <div className="flex items-center justify-between py-4">
-            <div>
-              <h1 className="text-2xl font-bold">Discover</h1>
-              <p className="text-sm text-muted-foreground">
-                Latest updates on schemes, exams, and jobs
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {/* View Mode Toggle */}
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                onClick={() => setViewMode(viewMode === 'swipe' ? 'grid' : 'swipe')}
+                onClick={() => navigate('/')}
+                className="gap-2"
               >
-                {viewMode === 'swipe' ? (
-                  <><Monitor className="w-4 h-4 mr-2" /> Grid</>
-                ) : (
-                  <><Smartphone className="w-4 h-4 mr-2" /> Swipe</>
-                )}
+                <ArrowLeft className="w-4 h-4" />
+                Home
               </Button>
-
-              {/* Saved Stories Sheet */}
-              {user && (
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={fetchSavedStories}
-                    >
-                      <Bookmark className="w-4 h-4 mr-2" />
-                      Saved ({savedStoryIds.size})
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent className="w-full sm:max-w-md overflow-y-auto">
-                    <SheetHeader>
-                      <SheetTitle>Saved Stories</SheetTitle>
-                    </SheetHeader>
-                    <div className="mt-6 space-y-4">
-                      {savedStories.length === 0 ? (
-                        <p className="text-center text-muted-foreground py-8">
-                          No saved stories yet
-                        </p>
-                      ) : (
-                        savedStories.map((story) => (
-                          <StoryCard
-                            key={story.id}
-                            story={story}
-                            viewMode="compact"
-                            onSave={() => handleSave(story.id)}
-                            onShare={() => handleShare(story)}
-                            isSaved={true}
-                          />
-                        ))
-                      )}
-                    </div>
-                  </SheetContent>
-                </Sheet>
-              )}
+              <div className="h-6 w-px bg-border" />
+              <h1 className="text-2xl font-bold">Discover</h1>
             </div>
+
+            {/* Saved Stories Sheet */}
+            {user && (
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={fetchSavedStories}
+                  >
+                    <Bookmark className="w-4 h-4 mr-2" />
+                    Saved ({savedStoryIds.size})
+                  </Button>
+                </SheetTrigger>
+                <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+                  <SheetHeader>
+                    <SheetTitle>Saved Stories</SheetTitle>
+                  </SheetHeader>
+                  <div className="mt-6 space-y-4">
+                    {savedStories.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8">
+                        No saved stories yet
+                      </p>
+                    ) : (
+                      savedStories.map((story) => (
+                        <StoryCard
+                          key={story.id}
+                          story={story}
+                          viewMode="compact"
+                          onSave={() => handleSave(story.id)}
+                          onShare={() => handleShare(story)}
+                          isSaved={true}
+                        />
+                      ))
+                    )}
+                  </div>
+                </SheetContent>
+              </Sheet>
+            )}
           </div>
 
-          {/* Bottom Row: Filters Only */}
-          <div className="pb-4">
-            <DiscoverFilters
-              filters={filters}
-              onFilterChange={(newFilters) => setFilters({ ...filters, ...newFilters })}
-              userState={userState}
-            />
-          </div>
+          {/* Filters */}
+          <DiscoverFilters
+            filters={filters}
+            onFilterChange={(newFilters) => setFilters({ ...filters, ...newFilters })}
+            userState={userState}
+          />
         </div>
       </div>
 
       {/* Content */}
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6">
         {isLoading && stories.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-6">
             <div className="flex items-center gap-2">
@@ -429,18 +411,6 @@ export default function Discover() {
               </Button>
             </div>
           </div>
-        ) : viewMode === 'swipe' ? (
-          <SwipeableStoryView
-            stories={stories}
-            currentIndex={currentIndex}
-            onIndexChange={setCurrentIndex}
-            onSave={handleSave}
-            onShare={handleShare}
-            onView={handleView}
-            savedStoryIds={savedStoryIds}
-            onLoadMore={() => fetchStories(false)}
-            hasMore={pagination.hasMore}
-          />
         ) : (
           <StoryGridView
             stories={stories}

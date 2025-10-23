@@ -37,56 +37,37 @@ export const StoryGridView = ({
   }, [inView, hasMore, isLoading, onLoadMore]);
 
   return (
-    <div className="space-y-8">
-      {/* Featured Story (First Story - 2x height) */}
+    <div className="space-y-6">
+      {/* Featured Story */}
       {stories.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <span className="text-xl">⭐</span>
-            Featured Story
-          </h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="lg:col-span-1">
-              <StoryCard
-                story={stories[0]}
-                viewMode="full"
-                onSave={() => onSave(stories[0].id)}
-                onShare={() => onShare(stories[0])}
-                onView={() => onStoryClick(stories[0])}
-                isSaved={savedStoryIds.has(stories[0].id)}
-              />
-            </div>
-            <div className="lg:col-span-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {stories.slice(1, 5).map((story) => (
-                <StoryCard
-                  key={story.id}
-                  story={story}
-                  viewMode="compact"
-                  onSave={() => onSave(story.id)}
-                  onShare={() => onShare(story)}
-                  onView={() => onStoryClick(story)}
-                  isSaved={savedStoryIds.has(story.id)}
-                />
-              ))}
-            </div>
-          </div>
+        <div className="max-w-4xl">
+          <StoryCard
+            story={stories[0]}
+            viewMode="full"
+            onSave={() => onSave(stories[0].id)}
+            onShare={() => onShare(stories[0])}
+            onView={() => onStoryClick(stories[0])}
+            isSaved={savedStoryIds.has(stories[0].id)}
+          />
         </div>
       )}
 
       {/* Grid of Stories */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {stories.slice(5).map((story) => (
-          <StoryCard
-            key={story.id}
-            story={story}
-            viewMode="compact"
-            onSave={() => onSave(story.id)}
-            onShare={() => onShare(story)}
-            onView={() => onStoryClick(story)}
-            isSaved={savedStoryIds.has(story.id)}
-          />
-        ))}
-      </div>
+      {stories.length > 1 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {stories.slice(1).map((story) => (
+            <StoryCard
+              key={story.id}
+              story={story}
+              viewMode="compact"
+              onSave={() => onSave(story.id)}
+              onShare={() => onShare(story)}
+              onView={() => onStoryClick(story)}
+              isSaved={savedStoryIds.has(story.id)}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Load More Trigger */}
       {hasMore && (
