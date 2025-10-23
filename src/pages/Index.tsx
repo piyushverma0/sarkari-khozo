@@ -47,6 +47,16 @@ const Index = () => {
         <CategoriesSection user={user} onAuthRequired={handleAuthRequired} />
         {user && <SavedApplicationsSection userId={user.id} />}
       </main>
+      <footer className="py-8 border-t border-border/50">
+        <div className="container mx-auto text-center space-y-2">
+          <p className="text-sm text-foreground">
+            © 2025 All rights reserved.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Built with ❤️ by Piyush
+          </p>
+        </div>
+      </footer>
     </div>
   );
 };
