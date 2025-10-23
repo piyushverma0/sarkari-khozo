@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSwipeable } from 'react-swipeable';
 import { ReelsStoryCard } from './ReelsStoryCard';
 import { DiscoveryStory } from '@/types/discovery';
-import { ChevronUp, ChevronDown } from 'lucide-react';
 
 interface MobileReelsViewProps {
   stories: DiscoveryStory[];
@@ -99,22 +98,6 @@ export const MobileReelsView = ({
           onShare={() => onShare(stories[currentIndex])}
           isSaved={savedStoryIds.has(stories[currentIndex].id)}
         />
-      </div>
-
-      {/* Swipe Hints */}
-      <div className="absolute inset-x-0 bottom-32 flex flex-col items-center gap-3 pointer-events-none z-10">
-        {currentIndex < stories.length - 1 && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-background/80 backdrop-blur-sm px-4 py-2 rounded-full animate-fade-in">
-            <ChevronUp className="w-4 h-4 animate-bounce" />
-            <span>Swipe up for next</span>
-          </div>
-        )}
-        {currentIndex > 0 && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-background/80 backdrop-blur-sm px-4 py-2 rounded-full animate-fade-in">
-            <ChevronDown className="w-4 h-4 animate-bounce" />
-            <span>Swipe down for previous</span>
-          </div>
-        )}
       </div>
 
       {/* Progress Indicator */}

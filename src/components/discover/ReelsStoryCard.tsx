@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bookmark, Share2, ExternalLink, Clock, Volume2 } from 'lucide-react';
+import { Bookmark, Share2, ExternalLink, Clock } from 'lucide-react';
 import { DiscoveryStory } from '@/types/discovery';
 import { formatDistanceToNow } from 'date-fns';
 import { GraduationCap, Briefcase, Landmark, ScrollText } from 'lucide-react';
@@ -146,20 +146,6 @@ export const ReelsStoryCard = ({
             <Share2 className="w-4 h-4" />
           </Button>
         </div>
-
-        {/* Optional: Audio Listen Button */}
-        <Button 
-          variant="ghost" 
-          size="sm"
-          className="w-full"
-          onClick={(e) => {
-            e.stopPropagation();
-            // TODO: Implement TTS functionality
-          }}
-        >
-          <Volume2 className="w-4 h-4 mr-2" />
-          Tap to listen
-        </Button>
       </div>
     </div>
   );
