@@ -5,10 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { DiscoverFilters } from '@/components/discover/DiscoverFilters';
 import { StoryGridView } from '@/components/discover/StoryGridView';
-import { MobileReelsView } from '@/components/discover/MobileReelsView';
+import { MobileCardScrollView } from '@/components/discover/MobileCardScrollView';
+import { MobileFilters } from '@/components/discover/MobileFilters';
 import { StoryCard } from '@/components/discover/StoryCard';
 import { useToast } from '@/hooks/use-toast';
-import { Bookmark, ArrowLeft, Smartphone, Grid3x3 } from 'lucide-react';
+import { Bookmark, ArrowLeft } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { SheetDescription } from '@/components/ui/sheet';
 import { DiscoveryStory, FeedFilters } from '@/types/discovery';
 import { useMediaQuery } from '@/hooks/use-mobile';
 
@@ -23,8 +26,6 @@ export default function Discover() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSeeding, setIsSeeding] = useState(false);
   const [isScraping, setIsScraping] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'reels'>('grid');
-  const [currentReelsIndex, setCurrentReelsIndex] = useState(0);
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [pagination, setPagination] = useState({
     total: 0,
@@ -213,17 +214,28 @@ export default function Discover() {
     }
   };
 
-  // Handle view tracking
-  const handleView = async (storyId: string) => {
-    if (!user) return;
-
-    await supabase.functions.invoke('track-story-interaction', {
-      body: {
-        story_id: storyId,
-        interaction_type: 'view'
-      }
-    });
+  // Handle view tracking and open story
+  const handleView = async (story: DiscoveryStory) => {
+    if (user) {
+      await supabase.functions.invoke('track-story-interaction', {
+        body: {
+          story_id: story.id,
+          interaction_type: 'view'
+        }
+      });
+    }
+    window.open(story.source_url, '_blank');
   };
+
+  // Load more stories
+  const loadMore = () => {
+    if (!isLoading && pagination.hasMore) {
+      fetchStories(false);
+    }
+  };
+
+  // Show saved stories state
+  const [showSaved, setShowSaved] = useState(false);
 
   // Handle seed sample stories
   const handleSeedStories = async () => {
@@ -299,111 +311,83 @@ export default function Discover() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header - Hide in mobile reels mode */}
-      {!(isMobile && viewMode === 'reels') && (
-        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate('/')}
-                  className="gap-2"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Home
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-16 items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(-1)}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-2xl font-bold">Discover</h1>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Sheet open={showSaved} onOpenChange={setShowSaved}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" onClick={fetchSavedStories}>
+                  <Bookmark className="h-5 w-5" />
                 </Button>
-                <div className="h-6 w-px bg-border" />
-                <h1 className="text-2xl font-bold">Discover</h1>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {/* View Mode Toggle - Mobile only */}
-                {isMobile && stories.length > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setViewMode(viewMode === 'grid' ? 'reels' : 'grid')}
-                  >
-                    {viewMode === 'grid' ? (
-                      <>
-                        <Smartphone className="w-4 h-4 mr-2" />
-                        Reels
-                      </>
-                    ) : (
-                      <>
-                        <Grid3x3 className="w-4 h-4 mr-2" />
-                        Grid
-                      </>
-                    )}
-                  </Button>
-                )}
-
-                {/* Saved Stories Sheet */}
-                {user && (
-                  <Sheet>
-                    <SheetTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={fetchSavedStories}
-                      >
-                        <Bookmark className="w-4 h-4 mr-2" />
-                        Saved ({savedStoryIds.size})
-                      </Button>
-                    </SheetTrigger>
-                    <SheetContent className="w-full sm:max-w-md overflow-y-auto">
-                      <SheetHeader>
-                        <SheetTitle>Saved Stories</SheetTitle>
-                      </SheetHeader>
-                      <div className="mt-6 space-y-4">
-                        {savedStories.length === 0 ? (
-                          <p className="text-center text-muted-foreground py-8">
-                            No saved stories yet
-                          </p>
-                        ) : (
-                          savedStories.map((story) => (
-                            <StoryCard
-                              key={story.id}
-                              story={story}
-                              viewMode="compact"
-                              onSave={() => handleSave(story.id)}
-                              onShare={() => handleShare(story)}
-                              isSaved={true}
-                            />
-                          ))
-                        )}
-                      </div>
-                    </SheetContent>
-                  </Sheet>
-                )}
-              </div>
-            </div>
+              </SheetTrigger>
+              <SheetContent>
+                <SheetHeader>
+                  <SheetTitle>Saved Stories</SheetTitle>
+                  <SheetDescription>
+                    Your bookmarked stories
+                  </SheetDescription>
+                </SheetHeader>
+                <ScrollArea className="h-[calc(100vh-8rem)] mt-4">
+                  {savedStories.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      No saved stories yet
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {savedStories.map((story) => (
+                        <StoryCard
+                          key={story.id}
+                          story={story}
+                          viewMode="compact"
+                          isSaved={true}
+                          onSave={() => handleSave(story.id)}
+                          onShare={() => handleShare(story)}
+                          onView={() => handleView(story)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
+      </header>
+
+      {/* Mobile Filters */}
+      {isMobile && (
+        <MobileFilters filters={filters} onFilterChange={setFilters} />
       )}
 
       {/* Content */}
-      {isMobile && viewMode === 'reels' && stories.length > 0 ? (
-        /* Mobile Reels View - Full Screen */
-        <MobileReelsView
+      {isMobile ? (
+        <MobileCardScrollView
           stories={stories}
-          currentIndex={currentReelsIndex}
-          onIndexChange={setCurrentReelsIndex}
+          savedStoryIds={savedStoryIds}
           onSave={handleSave}
           onShare={handleShare}
-          onView={handleView}
-          savedStoryIds={savedStoryIds}
-          onLoadMore={() => fetchStories(false)}
+          onStoryClick={handleView}
+          onLoadMore={loadMore}
           hasMore={pagination.hasMore}
+          isLoading={isLoading}
         />
       ) : (
-        /* Grid View - Two Column Layout */
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex gap-6">
-            {/* Main Content - Articles on Left */}
-            <div className="flex-1 min-w-0">
+        <div className="container py-6">
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* Main Content */}
+            <div className="flex-1">
               {isLoading && stories.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-6">
                   <div className="flex items-center gap-2">
@@ -422,11 +406,7 @@ export default function Discover() {
                     </p>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
-                    <Button
-                      onClick={handleSeedStories}
-                      disabled={isSeeding}
-                      variant="default"
-                    >
+                    <Button onClick={handleSeedStories} disabled={isSeeding} variant="default">
                       {isSeeding ? (
                         <>
                           <div className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin mr-2" />
@@ -436,11 +416,7 @@ export default function Discover() {
                         'Load Sample Stories'
                       )}
                     </Button>
-                    <Button
-                      onClick={handleScrapeNews}
-                      disabled={isScraping}
-                      variant="outline"
-                    >
+                    <Button onClick={handleScrapeNews} disabled={isScraping} variant="outline">
                       {isScraping ? (
                         <>
                           <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
@@ -457,28 +433,24 @@ export default function Discover() {
                   stories={stories}
                   onSave={handleSave}
                   onShare={handleShare}
-                  onStoryClick={(story) => {
-                    handleView(story.id);
-                    window.open(story.source_url, '_blank');
-                  }}
+                  onStoryClick={handleView}
                   savedStoryIds={savedStoryIds}
-                  onLoadMore={() => fetchStories(false)}
+                  onLoadMore={loadMore}
                   hasMore={pagination.hasMore}
                   isLoading={isLoading}
                 />
               )}
             </div>
 
-            {/* Filters Sidebar - Right */}
-            <div className="hidden lg:block w-80 flex-shrink-0">
+            {/* Filters Sidebar - Desktop Only */}
+            <aside className="lg:w-80">
               <div className="sticky top-24">
                 <DiscoverFilters
                   filters={filters}
                   onFilterChange={(newFilters) => setFilters({ ...filters, ...newFilters })}
-                  userState={userState}
                 />
               </div>
-            </div>
+            </aside>
           </div>
         </div>
       )}
