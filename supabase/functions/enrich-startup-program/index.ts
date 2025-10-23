@@ -179,8 +179,16 @@ Be realistic and practical. Avoid overly optimistic language.`;
     logClaudeUsage('enrich-startup-program', aiResponse.tokensUsed, aiResponse.webSearchUsed || false);
     console.log('AI response received');
 
+    // Sanitize Claude response - remove markdown code fences if present
+    let cleanContent = aiResponse.content.trim();
+    if (cleanContent.startsWith('```json')) {
+      cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (cleanContent.startsWith('```')) {
+      cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+
     // Parse the response content as JSON
-    const enrichedData = JSON.parse(aiResponse.content);
+    const enrichedData = JSON.parse(cleanContent);
     
     // Build complete enrichment object
     const enrichment = {

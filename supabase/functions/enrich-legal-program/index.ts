@@ -108,7 +108,16 @@ Return JSON with founder_insights, preparation_checklist (law_student, practicin
     });
 
     logClaudeUsage('enrich-legal-program', aiResponse.tokensUsed, aiResponse.webSearchUsed || false);
-    const enrichedData = JSON.parse(aiResponse.content);
+    
+    // Sanitize Claude response - remove markdown code fences if present
+    let cleanContent = aiResponse.content.trim();
+    if (cleanContent.startsWith('```json')) {
+      cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (cleanContent.startsWith('```')) {
+      cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+    
+    const enrichedData = JSON.parse(cleanContent);
     
     // Build complete enrichment object
     const enrichment = {

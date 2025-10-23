@@ -58,7 +58,7 @@ const Application = () => {
         const {
           data,
           error
-        } = await supabase.from('applications').select('*').eq('id', id).single();
+        } = await supabase.from('applications').select('*, ai_enrichment').eq('id', id).single();
         if (error) throw error;
         if (!data) {
           throw new Error("Program not found in your saved applications");

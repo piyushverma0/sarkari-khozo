@@ -157,6 +157,30 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
         return;
       }
 
+      // Check localStorage cache
+      const cacheKey = `enrichment_${application.id}_${application.category}`;
+      const cached = localStorage.getItem(cacheKey);
+      
+      if (cached) {
+        try {
+          const { data, timestamp } = JSON.parse(cached);
+          const age = (Date.now() - timestamp) / (1000 * 60 * 60 * 24);
+          
+          // Use cache if less than 30 days old
+          if (age < 30) {
+            console.log('Loading enrichment from localStorage cache');
+            setEnrichmentData(data);
+            return;
+          } else {
+            // Clear stale cache
+            localStorage.removeItem(cacheKey);
+          }
+        } catch (e) {
+          console.error('Failed to parse cached enrichment:', e);
+          localStorage.removeItem(cacheKey);
+        }
+      }
+
       // Otherwise fetch/generate enrichment
       setIsLoadingEnrichment(true);
       try {
@@ -187,6 +211,16 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
         if (error) throw error;
         
         setEnrichmentData(data.enrichment);
+        
+        // Save to localStorage for future loads
+        if (application.id) {
+          const cacheKey = `enrichment_${application.id}_${application.category}`;
+          localStorage.setItem(cacheKey, JSON.stringify({
+            data: data.enrichment,
+            timestamp: Date.now()
+          }));
+          console.log('Saved enrichment to localStorage cache');
+        }
       } catch (error) {
         console.error('Enrichment failed:', error);
       } finally {
