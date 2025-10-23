@@ -61,10 +61,12 @@ For each article found, return a JSON array with:
 - headline: Article headline
 - published_date: Publication date (ISO format if possible)
 
-Return ONLY the JSON array, no extra text.`;
+CRITICAL: Return ONLY the JSON array itself, no explanatory text before or after.
+Example: [{"url": "...", "headline": "...", "published_date": "..."}]
+Do not include markdown, do not include any commentary.`;
 
         const response = await callClaude({
-          systemPrompt: 'You are a web scraping assistant. Find recent news articles from the provided source.',
+          systemPrompt: 'You are a web scraping assistant. CRITICAL: Return ONLY a JSON array, no explanatory text, no markdown, no commentary.',
           userPrompt: scrapePrompt,
           enableWebSearch: true,
           forceWebSearch: true,
@@ -72,14 +74,51 @@ Return ONLY the JSON array, no extra text.`;
           temperature: 0.1
         });
 
-        // Parse articles from response
+        // Parse articles from response with robust extraction
         let articles = [];
         try {
           let cleanContent = response.content.trim();
-          cleanContent = cleanContent.replace(/^```json\s*/i, '').replace(/\s*```$/, '');
-          articles = JSON.parse(cleanContent);
+
+          // Strategy 1: Find JSON array between ```json and ```
+          const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/);
+          if (jsonBlockMatch) {
+            try {
+              articles = JSON.parse(jsonBlockMatch[1]);
+              console.log('Parsed articles (Strategy 1: markdown block)');
+            } catch (e) {
+              console.log('Strategy 1 failed, trying next...');
+            }
+          }
+
+          // Strategy 2: Find JSON array pattern [...]
+          if (!articles || articles.length === 0) {
+            const arrayMatch = cleanContent.match(/\[[\s\S]*\]/);
+            if (arrayMatch) {
+              try {
+                articles = JSON.parse(arrayMatch[0]);
+                console.log('Parsed articles (Strategy 2: array pattern)');
+              } catch (e) {
+                console.log('Strategy 2 failed, trying next...');
+              }
+            }
+          }
+
+          // Strategy 3: Remove everything before first [ and after last ]
+          if (!articles || articles.length === 0) {
+            const firstBracket = cleanContent.indexOf('[');
+            const lastBracket = cleanContent.lastIndexOf(']');
+            if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+              try {
+                articles = JSON.parse(cleanContent.substring(firstBracket, lastBracket + 1));
+                console.log('Parsed articles (Strategy 3: bracket extraction)');
+              } catch (e) {
+                console.log('Strategy 3 failed');
+              }
+            }
+          }
           
           if (!Array.isArray(articles)) {
+            console.warn('Parsed result is not an array, defaulting to empty array');
             articles = [];
           }
         } catch (parseError) {
@@ -87,7 +126,7 @@ Return ONLY the JSON array, no extra text.`;
           console.error('Raw content:', response.content);
           results.errors.push({
             source: source.source_name,
-            error: 'JSON parse error'
+            error: 'JSON parse error after all strategies'
           });
           continue;
         }

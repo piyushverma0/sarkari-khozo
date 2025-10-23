@@ -44,6 +44,10 @@ serve(async (req) => {
 
     // Claude Prompt
     const systemPrompt = `You are an expert Indian news analyst specializing in government schemes, competitive exams, and public sector jobs.
+
+CRITICAL: Your response MUST be ONLY valid JSON with no explanatory text, no markdown formatting, no commentary before or after.
+Return ONLY the JSON object itself, nothing else.
+
 Your task is to analyze news articles and extract key information for Indian citizens looking to benefit from government opportunities.
 
 Focus on:
@@ -97,36 +101,95 @@ Please analyze this article and provide a JSON response with the following field
 - For dates, always specify the year (e.g., "March 15, 2025" not just "March 15")
 - For monetary amounts, use ₹ symbol and lakhs/crores (Indian numbering)
 
-Return ONLY valid JSON, no markdown formatting, no extra text.`;
+CRITICAL: Return ONLY valid JSON with no explanatory text.
+Format: {"headline": "...", "summary": "...", ...}
+Do not include markdown code blocks, do not include any text before or after the JSON.`;
 
-    // Call Claude with web search
-    console.log('Calling Claude API with web search...');
-    const response = await callClaude({
-      systemPrompt,
-      userPrompt,
-      enableWebSearch: true,
-      forceWebSearch: true,
-      maxTokens: 2500,
-      temperature: 0.3
-    });
-
-    console.log('Claude response received, tokens used:', response.tokensUsed);
-
-    // Log Claude usage
-    await logClaudeUsage('process-story-with-ai', response.tokensUsed, response.webSearchUsed || false);
-
-    // Parse JSON response
+    // Call Claude with web search (with retry logic)
+    const MAX_RETRIES = 3;
+    let response;
     let storyData;
-    try {
-      // Remove markdown code blocks if present
-      let cleanContent = response.content.trim();
-      cleanContent = cleanContent.replace(/^```json\s*/i, '').replace(/\s*```$/, '');
-      
-      storyData = JSON.parse(cleanContent);
-    } catch (parseError) {
-      console.error('Failed to parse Claude response:', parseError);
-      console.error('Raw content:', response.content);
-      throw new Error('Invalid JSON response from AI');
+    
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        console.log(`Calling Claude API with web search (attempt ${attempt}/${MAX_RETRIES})...`);
+        response = await callClaude({
+          systemPrompt,
+          userPrompt,
+          enableWebSearch: true,
+          forceWebSearch: true,
+          maxTokens: 2500,
+          temperature: 0.3
+        });
+
+        console.log('Claude response received, tokens used:', response.tokensUsed);
+
+        // Log Claude usage
+        await logClaudeUsage('process-story-with-ai', response.tokensUsed, response.webSearchUsed || false);
+
+        // Parse JSON response with multiple extraction strategies
+        let cleanContent = response.content.trim();
+
+        // Strategy 1: Find JSON between ```json and ```
+        const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/);
+        if (jsonBlockMatch) {
+          try {
+            storyData = JSON.parse(jsonBlockMatch[1]);
+            console.log('Successfully parsed JSON (Strategy 1: markdown block)');
+            break;
+          } catch (e) {
+            console.log('Strategy 1 failed, trying next...');
+          }
+        }
+
+        // Strategy 2: Find JSON object pattern (starts with { and ends with })
+        if (!storyData) {
+          const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            try {
+              storyData = JSON.parse(jsonMatch[0]);
+              console.log('Successfully parsed JSON (Strategy 2: object pattern)');
+              break;
+            } catch (e) {
+              console.log('Strategy 2 failed, trying next...');
+            }
+          }
+        }
+
+        // Strategy 3: Remove everything before first { and after last }
+        if (!storyData) {
+          const firstBrace = cleanContent.indexOf('{');
+          const lastBrace = cleanContent.lastIndexOf('}');
+          if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            try {
+              storyData = JSON.parse(cleanContent.substring(firstBrace, lastBrace + 1));
+              console.log('Successfully parsed JSON (Strategy 3: brace extraction)');
+              break;
+            } catch (e) {
+              console.log('Strategy 3 failed');
+            }
+          }
+        }
+
+        if (!storyData) {
+          throw new Error('All JSON extraction strategies failed');
+        }
+
+        break; // Success, exit retry loop
+
+      } catch (error) {
+        console.error(`Attempt ${attempt} failed:`, error);
+        
+        if (attempt < MAX_RETRIES) {
+          const delayMs = 1000 * attempt;
+          console.log(`Retry attempt ${attempt}/${MAX_RETRIES} after ${delayMs}ms`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        } else {
+          console.error('All retry attempts failed');
+          console.error('Raw content:', response?.content);
+          throw new Error('Invalid JSON response from AI after all retries');
+        }
+      }
     }
 
     // Strip cite tags from all text fields
