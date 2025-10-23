@@ -1,4 +1,4 @@
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,6 +62,15 @@ const Header = () => {
             <Button
               variant="ghost"
               size="sm"
+              onClick={() => navigate("/discover")}
+              className="hidden sm:inline-flex"
+            >
+              <Compass className="w-4 h-4 mr-2" />
+              Discover
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => navigate("/dashboard")}
               className="hidden sm:inline-flex"
             >
@@ -79,6 +88,13 @@ const Header = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem 
+                  className="sm:hidden"
+                  onClick={() => navigate("/discover")}
+                >
+                  <Compass className="w-4 h-4 mr-2" />
+                  <span>Discover</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem 
                   className="sm:hidden"
                   onClick={() => navigate("/dashboard")}
