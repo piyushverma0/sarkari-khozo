@@ -25,56 +25,20 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Step 1: Fetch top 10 stories from last 48 hours
+    // Step 1: Fetch top 10 most recent active stories (any category)
     console.log(`[${new Date().toISOString()}] 📰 Fetching recent stories...`);
     
-    const twoDaysAgo = new Date();
-    twoDaysAgo.setHours(twoDaysAgo.getHours() - 48);
-
-    // Fetch stories by category to ensure proper mix
-    const { data: examsData } = await supabase
+    const { data: stories, error: storiesError } = await supabase
       .from("discovery_stories")
       .select("*")
       .eq("is_active", true)
-      .eq("category", "exams")
-      .gte("published_date", twoDaysAgo.toISOString())
       .order("published_date", { ascending: false })
-      .limit(4);
+      .limit(10);
 
-    const { data: jobsData } = await supabase
-      .from("discovery_stories")
-      .select("*")
-      .eq("is_active", true)
-      .eq("category", "jobs")
-      .gte("published_date", twoDaysAgo.toISOString())
-      .order("published_date", { ascending: false })
-      .limit(3);
-
-    const { data: schemesData } = await supabase
-      .from("discovery_stories")
-      .select("*")
-      .eq("is_active", true)
-      .eq("category", "schemes")
-      .gte("published_date", twoDaysAgo.toISOString())
-      .order("published_date", { ascending: false })
-      .limit(2);
-
-    const { data: policiesData } = await supabase
-      .from("discovery_stories")
-      .select("*")
-      .eq("is_active", true)
-      .eq("category", "policies")
-      .gte("published_date", twoDaysAgo.toISOString())
-      .order("published_date", { ascending: false })
-      .limit(1);
-
-    // Combine stories
-    const stories = [
-      ...(examsData || []),
-      ...(jobsData || []),
-      ...(schemesData || []),
-      ...(policiesData || [])
-    ].slice(0, 10);
+    if (storiesError) {
+      console.error(`[${new Date().toISOString()}] ✗ Database error:`, storiesError);
+      throw storiesError;
+    }
 
     if (stories.length === 0) {
       console.log(`[${new Date().toISOString()}] ⚠️ No recent stories found`);
@@ -86,60 +50,46 @@ serve(async (req) => {
 
     console.log(`[${new Date().toISOString()}] ✅ Found ${stories.length} stories to process`);
 
-    // Step 2: Generate Hindi scripts using Claude
-    console.log(`[${new Date().toISOString()}] 🤖 Generating Hindi scripts with Claude...`);
+    // Step 2: Generate ONE cohesive Hindi bulletin script using Claude
+    console.log(`[${new Date().toISOString()}] 🤖 Generating Hindi bulletin script with Claude...`);
     
+    // Prepare stories text for Claude
+    const storiesText = stories.map((story, i) => 
+      `${i + 1}. ${story.headline}\n   ${story.summary}`
+    ).join('\n\n');
+
     const systemPrompt = `आप गायत्री हैं, एक हिंदी समाचार रिपोर्टर जो लाखों लोगों को खबरें सुनाती हैं।
 आपकी आवाज़ दोस्ताना, स्पष्ट, और आत्मविश्वास से भरी है।
-आप हर खबर को रोचक और महत्वपूर्ण बनाती हैं।`;
+आप समाचारों को रोचक और प्रवाहपूर्ण तरीके से प्रस्तुत करती हैं।`;
 
-    const scripts: Array<{ story_id: string; order: number; script: string }> = [];
+    const userPrompt = `इन ${stories.length} खबरों का एक 60-90 सेकंड का हिंदी समाचार बुलेटिन बनाएं।
 
-    for (let i = 0; i < stories.length; i++) {
-      const story = stories[i];
-      const userPrompt = `इस खबर का 6 सेकंड का हिंदी समाचार सारांश बनाएं।
+खबरें:
+${storiesText}
 
 निर्देश:
-- केवल सबसे महत्वपूर्ण जानकारी शामिल करें
-- एक रिपोर्टर की तरह बोलें
-- तारीखें और संख्याएं स्पष्ट रूप से बताएं
-- 15-20 शब्दों में सीमित रखें
+- एक प्राकृतिक, प्रवाहपूर्ण समाचार बुलेटिन बनाएं
+- शुरुआत में संक्षिप्त अभिवादन दें: "नमस्कार! मैं गायत्री हूं। आज की बड़ी खबरें।"
+- हर खबर को 8-10 शब्दों में संक्षेप में बताएं
+- खबरों को प्राकृतिक रूप से जोड़ें (जैसे "इसके अलावा", "और", "साथ ही")
+- अंत में कहें: "यह थीं आज की मुख्य खबरें। अधिक जानकारी के लिए नीचे स्क्रॉल करें।"
+- पूरा बुलेटिन 200-250 शब्दों में रखें
+- केवल हिंदी स्क्रिप्ट दें, कोई अतिरिक्त टिप्पणी नहीं`;
 
-खबर: ${story.headline}
-विवरण: ${story.summary}`;
+    const response = await callClaude({
+      systemPrompt,
+      userPrompt,
+      maxTokens: 500,
+    });
 
-      try {
-        const response = await callClaude({
-          systemPrompt,
-          userPrompt,
-          maxTokens: 150,
-        });
-
-        scripts.push({
-          story_id: story.id,
-          order: i + 1,
-          script: response.content.trim(),
-        });
-
-        console.log(`[${new Date().toISOString()}] ✓ Generated script ${i + 1}/${stories.length}`);
-      } catch (error) {
-        console.error(`[${new Date().toISOString()}] ✗ Error generating script ${i + 1}:`, error);
-        throw error;
-      }
-    }
-
-    // Step 3: Compile complete bulletin script
-    console.log(`[${new Date().toISOString()}] 📝 Compiling bulletin script...`);
+    const fullScript = response.content.trim();
     
-    const opening = "नमस्कार! मैं गायत्री हूं। आज की बड़ी खबरें।";
-    const closing = "यह थीं आज की मुख्य खबरें। अधिक जानकारी के लिए नीचे स्क्रॉल करें।";
-    
-    // Build full script safely in chunks to avoid stack overflow
-    let fullScript = opening;
-    for (const script of scripts) {
-      fullScript += " " + script.script;
-    }
-    fullScript += " " + closing;
+    // Create scripts array for database storage (one entry per story)
+    const scripts = stories.map((story, i) => ({
+      story_id: story.id,
+      order: i + 1,
+      script: `${story.headline} - ${story.summary}`.substring(0, 200), // Store simplified version
+    }));
 
     console.log(`[${new Date().toISOString()}] 📊 Full script length: ${fullScript.length} characters`);
 

@@ -250,21 +250,6 @@ Example correct response:
 
     console.log(`[${new Date().toISOString()}] Scraping complete:`, results);
 
-    // Auto-generate audio news bulletin if stories were processed
-    if (results.processed > 0) {
-      console.log(`[${new Date().toISOString()}] 🎙️ Auto-generating audio news bulletin...`);
-      try {
-        const bulletinResponse = await supabase.functions.invoke('generate-audio-news-bulletin');
-        if (bulletinResponse.data?.success) {
-          console.log(`[${new Date().toISOString()}] ✅ Audio bulletin generated successfully`);
-        } else {
-          console.log(`[${new Date().toISOString()}] ⚠️ Audio bulletin generation failed:`, bulletinResponse.error);
-        }
-      } catch (bulletinError) {
-        console.error(`[${new Date().toISOString()}] ❌ Failed to auto-generate bulletin:`, bulletinError);
-      }
-    }
-
     return new Response(
       JSON.stringify({ 
         success: true,

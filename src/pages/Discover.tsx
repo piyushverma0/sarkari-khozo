@@ -300,10 +300,18 @@ export default function Discover() {
   };
 
   const handleGenerateBulletin = async () => {
+    // First, check story count
+    const { count } = await supabase
+      .from('discovery_stories')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true);
+
+    const storyCount = count || 0;
+    
     setIsGeneratingBulletin(true);
     toast({
       title: 'Generating Audio Bulletin',
-      description: 'Creating Hindi audio news bulletin from recent stories...'
+      description: `Creating Hindi news bulletin from ${storyCount} available stories...`
     });
 
     try {
@@ -313,15 +321,15 @@ export default function Discover() {
 
       if (data.success) {
         toast({
-          title: 'Audio Bulletin Generated!',
-          description: `Duration: ${data.duration}s, Stories: ${data.stories_count}. Check the home page to listen.`
+          title: 'Audio Bulletin Ready! 🎙️',
+          description: `${data.stories_count} stories • ${data.duration}s duration. Visit home page to listen.`
         });
       }
     } catch (error) {
       console.error('Error generating bulletin:', error);
       toast({
         title: 'Error',
-        description: 'Failed to generate audio bulletin. Make sure there are recent stories available.',
+        description: error.message || 'Failed to generate audio bulletin. Make sure there are stories available.',
         variant: 'destructive'
       });
     } finally {

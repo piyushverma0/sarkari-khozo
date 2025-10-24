@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Play, Pause, Volume2, Download, Share2, ChevronDown, ChevronUp, SkipBack, SkipForward, RefreshCw } from "lucide-react";
+import { Play, Pause, Volume2, Download, Share2, ChevronDown, ChevronUp, SkipBack, SkipForward, RefreshCw, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
@@ -193,25 +193,33 @@ export const AudioNewsBanner = () => {
                 <Badge 
                   variant="secondary" 
                   className="absolute top-3 right-3 text-xs px-2 py-0.5"
-                  aria-label="Coming soon"
+                  aria-label="No bulletin available"
                 >
-                  जल्द आ रहा है
+                  अभी उपलब्ध नहीं
                 </Badge>
               </div>
 
               {/* Content Section */}
-              <div className="w-full md:w-3/5 p-5 md:p-7 space-y-3 flex flex-col justify-center">
-              <div>
-                <h2 className="text-xl md:text-2xl font-bold text-foreground mb-1 font-devanagari">
-                  आज की मुख्य खबरें
-                </h2>
-                <p className="text-xs text-muted-foreground font-devanagari">
-                  ऑडियो समाचार बुलेटिन जल्द ही उपलब्ध होगा
+              <div className="w-full md:w-3/5 p-5 md:p-7 space-y-4 flex flex-col justify-center">
+                <div>
+                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-1 font-devanagari">
+                    आज की मुख्य खबरें
+                  </h2>
+                  <p className="text-sm text-muted-foreground font-devanagari">
+                    आज का ऑडियो बुलेटिन अभी तक नहीं बना है
+                  </p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Discover section में जाकर "Generate Audio Bulletin" बटन पर क्लिक करें और ताज़ा खबरों का हिंदी ऑडियो बुलेटिन बनाएं।
                 </p>
-              </div>
-                <p className="text-muted-foreground">
-                  सरकारी योजनाओं और अवसरों की नवीनतम जानकारी पाने के लिए रोज़ाना सुनें
-                </p>
+                <Button 
+                  onClick={() => window.location.href = '/discover'}
+                  className="w-fit"
+                  size="sm"
+                >
+                  <Radio className="w-4 h-4 mr-2" />
+                  Discover Section में जाएं
+                </Button>
               </div>
             </div>
           </div>
