@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
+import { AudioNewsBanner } from "@/components/AudioNewsBanner";
 import CategoriesSection from "@/components/CategoriesSection";
 import SavedApplicationsSection from "@/components/SavedApplicationsSection";
 
@@ -44,6 +45,7 @@ const Index = () => {
       <Header />
       <main>
         <HeroSection user={user} onAuthRequired={handleAuthRequired} />
+        <AudioNewsBanner />
         <CategoriesSection user={user} onAuthRequired={handleAuthRequired} />
 
         {user && <SavedApplicationsSection userId={user.id} />}
