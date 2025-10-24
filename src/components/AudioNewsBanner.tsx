@@ -154,14 +154,14 @@ export const AudioNewsBanner = () => {
   if (isLoading) {
     return (
       <section 
-        className="w-full py-8 px-4 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 animate-fade-in"
+        className="w-full py-8 px-4 animate-fade-in"
         role="region"
         aria-label="Audio news bulletin loading"
       >
         <div className="container max-w-6xl">
-          <div className="flex flex-col md:flex-row gap-6 items-center">
-            <Skeleton className="w-full md:w-2/5 h-80 rounded-lg" />
-            <div className="w-full md:w-3/5 space-y-4">
+          <div className="flex flex-col md:flex-row gap-6 items-center bg-background rounded-2xl overflow-hidden shadow-lg">
+            <Skeleton className="w-full md:w-2/5 h-80" />
+            <div className="w-full md:w-3/5 p-6 space-y-4">
               <Skeleton className="h-8 w-3/4" />
               <Skeleton className="h-4 w-1/2" />
               <Skeleton className="h-20 w-full" />
@@ -173,19 +173,7 @@ export const AudioNewsBanner = () => {
   }
 
   if (error || !bulletin) {
-    return (
-      <section 
-        className="w-full py-8 px-4 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10"
-        role="region"
-        aria-label="Audio news bulletin error"
-      >
-        <div className="container max-w-6xl">
-          <div className="text-center py-12">
-            <p className="text-muted-foreground font-devanagari">{error || "अभी कोई बुलेटिन उपलब्ध नहीं है"}</p>
-          </div>
-        </div>
-      </section>
-    );
+    return null;
   }
 
   const sortedScripts = [...(bulletin.audio_news_scripts || [])].sort(
@@ -194,13 +182,13 @@ export const AudioNewsBanner = () => {
 
   return (
     <section 
-      className="w-full py-8 px-4 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 animate-fade-in"
+      className="w-full py-8 px-4 animate-fade-in"
       role="region"
       aria-label="Audio news bulletin"
     >
       <div className="container max-w-6xl">
         {/* Main Banner */}
-        <div className="bg-background/95 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden border border-border transition-all hover:shadow-2xl">
+        <div className="bg-background rounded-2xl shadow-xl overflow-hidden border border-border transition-all hover:shadow-2xl">
           <div className="flex flex-col md:flex-row">
             {/* Reporter Image Section */}
             <div className="relative w-full md:w-2/5 min-h-[300px] md:min-h-[400px]">
@@ -222,7 +210,7 @@ export const AudioNewsBanner = () => {
             <div className="w-full md:w-3/5 p-6 md:p-8 space-y-6">
               <div>
                 <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2 font-devanagari">
-                  आज की 10 खबरें - 1 मिनट में
+                  {bulletin.title}
                 </h2>
                 <p className="text-sm text-muted-foreground font-devanagari">{getCurrentDateInHindi()}</p>
               </div>

@@ -84,7 +84,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[${new Date().toISOString()}] ✅ Found ${stories.length} stories`);
+    console.log(`[${new Date().toISOString()}] ✅ Found ${stories.length} stories to process`);
 
     // Step 2: Generate Hindi scripts using Claude
     console.log(`[${new Date().toISOString()}] 🤖 Generating Hindi scripts with Claude...`);
@@ -121,7 +121,7 @@ serve(async (req) => {
           script: response.content.trim(),
         });
 
-        console.log(`[${new Date().toISOString()}] ✓ Generated script ${i + 1}/10`);
+        console.log(`[${new Date().toISOString()}] ✓ Generated script ${i + 1}/${stories.length}`);
       } catch (error) {
         console.error(`[${new Date().toISOString()}] ✗ Error generating script ${i + 1}:`, error);
         throw error;
@@ -131,14 +131,14 @@ serve(async (req) => {
     // Step 3: Compile complete bulletin script
     console.log(`[${new Date().toISOString()}] 📝 Compiling bulletin script...`);
     
-    const opening = "नमस्कार! मैं गायत्री हूं। आज की 10 बड़ी खबरें एक मिनट में।";
+    const opening = "नमस्कार! मैं गायत्री हूं। आज की बड़ी खबरें।";
     const closing = "यह थीं आज की मुख्य खबरें। अधिक जानकारी के लिए नीचे स्क्रॉल करें।";
     
-    const fullScript = [
-      opening,
-      ...scripts.map((s) => s.script),
-      closing,
-    ].join(" ");
+    const scriptTexts = scripts.map((s) => s.script);
+    const parts = [opening];
+    parts.push(...scriptTexts);
+    parts.push(closing);
+    const fullScript = parts.join(" ");
 
     console.log(`[${new Date().toISOString()}] 📊 Full script length: ${fullScript.length} characters`);
 
@@ -197,10 +197,11 @@ serve(async (req) => {
     });
 
     // Insert bulletin
+    const bulletinTitle = "आज की खबरें - " + hindiDate;
     const { data: bulletin, error: bulletinError } = await supabase
       .from("audio_news_bulletins")
       .insert({
-        title: `आज की 10 खबरें - ${hindiDate}`,
+        title: bulletinTitle,
         duration_seconds: estimatedDuration,
         audio_base64: audioBase64,
         story_ids: stories.map((s) => s.id),
