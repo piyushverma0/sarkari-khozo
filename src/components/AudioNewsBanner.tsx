@@ -184,7 +184,7 @@ export const AudioNewsBanner = () => {
           <div className="rounded-2xl shadow-xl overflow-hidden border border-border transition-all hover:shadow-2xl">
             <div className="flex flex-col md:flex-row">
               {/* Reporter Image Section */}
-              <div className="relative w-full md:w-2/5 h-[180px] md:h-[200px]">
+              <div className="relative w-full md:w-2/5 h-[220px] md:h-[260px]">
                 <img
                   src={reporterImage}
                   alt="Hindi News Reporter"
@@ -200,7 +200,7 @@ export const AudioNewsBanner = () => {
               </div>
 
               {/* Content Section */}
-              <div className="w-full md:w-3/5 p-4 md:p-6 space-y-3 flex flex-col justify-center">
+              <div className="w-full md:w-3/5 p-5 md:p-7 space-y-3 flex flex-col justify-center">
               <div>
                 <h2 className="text-xl md:text-2xl font-bold text-foreground mb-1 font-devanagari">
                   आज की मुख्य खबरें
@@ -235,7 +235,7 @@ export const AudioNewsBanner = () => {
         <div className="bg-background rounded-2xl shadow-xl overflow-hidden border border-border transition-all hover:shadow-2xl">
           <div className="flex flex-col md:flex-row">
             {/* Reporter Image Section */}
-            <div className="relative w-full md:w-2/5 h-[180px] md:h-[200px]">
+            <div className="relative w-full md:w-2/5 h-[220px] md:h-[260px]">
               <img
                 src={reporterImage}
                 alt="Hindi News Reporter"
@@ -251,7 +251,7 @@ export const AudioNewsBanner = () => {
             </div>
 
             {/* Audio Player Section */}
-            <div className="w-full md:w-3/5 p-4 md:p-6 space-y-3">
+            <div className="w-full md:w-3/5 p-5 md:p-7 space-y-3">
               <div>
                 <h2 className="text-xl md:text-2xl font-bold text-foreground mb-1 font-devanagari">
                   {bulletin.title}
