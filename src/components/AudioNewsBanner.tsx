@@ -36,16 +36,29 @@ export const AudioNewsBanner = () => {
   // Set up audio element
   useEffect(() => {
     if (audioRef.current && bulletin?.audio_base64) {
+      console.log('Setting up audio element with base64 data');
       const audio = audioRef.current;
-      const audioBlob = new Blob(
-        [Uint8Array.from(atob(bulletin.audio_base64), c => c.charCodeAt(0))],
-        { type: "audio/mpeg" }
-      );
-      audio.src = URL.createObjectURL(audioBlob);
+      try {
+        const audioBlob = new Blob(
+          [Uint8Array.from(atob(bulletin.audio_base64), c => c.charCodeAt(0))],
+          { type: "audio/mpeg" }
+        );
+        audio.src = URL.createObjectURL(audioBlob);
+        console.log('Audio source set successfully');
+      } catch (error) {
+        console.error('Error setting up audio:', error);
+      }
       
       return () => {
-        URL.revokeObjectURL(audio.src);
+        if (audio.src) {
+          URL.revokeObjectURL(audio.src);
+        }
       };
+    } else {
+      console.log('Audio setup skipped:', { 
+        hasAudioRef: !!audioRef.current, 
+        hasAudioBase64: !!bulletin?.audio_base64 
+      });
     }
   }, [bulletin]);
 
@@ -214,25 +227,8 @@ export const AudioNewsBanner = () => {
     );
   }
 
-  // Show banner even without bulletin - for branding
-  if (isLoading) {
-    return (
-      <section className="w-full py-8 px-4 animate-fade-in">
-        <div className="container max-w-6xl">
-          <div className="rounded-2xl shadow-xl overflow-hidden border border-border">
-            <div className="flex flex-col md:flex-row p-8">
-              <div className="animate-pulse space-y-4 w-full">
-                <div className="h-8 bg-muted rounded w-3/4"></div>
-                <div className="h-4 bg-muted rounded w-1/2"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
   if (!bulletin) {
+    console.log('AudioNewsBanner: No bulletin data available');
     return (
       <section 
         className="w-full py-8 px-4 animate-fade-in"
@@ -296,6 +292,12 @@ export const AudioNewsBanner = () => {
       </section>
     );
   }
+
+  console.log('AudioNewsBanner: Bulletin available', { 
+    id: bulletin.id, 
+    hasAudioBase64: !!bulletin.audio_base64,
+    audioBase64Length: bulletin.audio_base64?.length 
+  });
 
   const sortedScripts = [...(bulletin.audio_news_scripts || [])].sort(
     (a, b) => a.story_order - b.story_order
