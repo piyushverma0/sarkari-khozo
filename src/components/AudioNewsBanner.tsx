@@ -184,7 +184,7 @@ export const AudioNewsBanner = () => {
           <div className="rounded-2xl shadow-xl overflow-hidden border border-border transition-all hover:shadow-2xl">
             <div className="flex flex-col md:flex-row">
               {/* Reporter Image Section */}
-              <div className="relative w-full md:w-2/5 min-h-[300px] md:min-h-[400px]">
+              <div className="relative w-full md:w-2/5 min-h-[200px] md:min-h-[250px]">
                 <img
                   src={reporterImage}
                   alt="Hindi News Reporter"
@@ -200,7 +200,7 @@ export const AudioNewsBanner = () => {
               </div>
 
               {/* Content Section */}
-              <div className="w-full md:w-3/5 p-6 md:p-8 space-y-6 flex flex-col justify-center">
+              <div className="w-full md:w-3/5 p-6 md:p-8 space-y-4 flex flex-col justify-center">
                 <div>
                   <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2 font-devanagari">
                     आज की मुख्य खबरें
@@ -235,7 +235,7 @@ export const AudioNewsBanner = () => {
         <div className="bg-background rounded-2xl shadow-xl overflow-hidden border border-border transition-all hover:shadow-2xl">
           <div className="flex flex-col md:flex-row">
             {/* Reporter Image Section */}
-            <div className="relative w-full md:w-2/5 min-h-[300px] md:min-h-[400px]">
+            <div className="relative w-full md:w-2/5 min-h-[200px] md:min-h-[250px]">
               <img
                 src={reporterImage}
                 alt="Hindi News Reporter"
@@ -251,7 +251,7 @@ export const AudioNewsBanner = () => {
             </div>
 
             {/* Audio Player Section */}
-            <div className="w-full md:w-3/5 p-6 md:p-8 space-y-6">
+            <div className="w-full md:w-3/5 p-6 md:p-8 space-y-4">
               <div>
                 <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2 font-devanagari">
                   {bulletin.title}
@@ -268,18 +268,10 @@ export const AudioNewsBanner = () => {
                 aria-label="Audio news bulletin player"
               />
 
-              {/* Play/Pause Controls */}
-              <div className="flex items-center gap-4">
-                <Button
-                  size="lg"
-                  onClick={togglePlayPause}
-                  className="h-16 w-16 rounded-full transition-transform hover:scale-105"
-                  aria-label={isPlaying ? "Pause audio" : "Play audio"}
-                >
-                  {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6 ml-1" />}
-                </Button>
-
-                <div className="flex-1">
+              {/* Main Player Controls */}
+              <div className="space-y-3">
+                {/* Progress Bar */}
+                <div className="space-y-1">
                   <Slider
                     value={[currentTime]}
                     max={duration || 100}
@@ -288,65 +280,78 @@ export const AudioNewsBanner = () => {
                     className="w-full"
                     aria-label="Audio progress"
                   />
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                    <span aria-label={`Current time ${formatTime(currentTime)}`}>{formatTime(currentTime)}</span>
-                    <span aria-label={`Total duration ${formatTime(duration)}`}>{formatTime(duration)}</span>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{formatTime(currentTime)}</span>
+                    <span>{formatTime(duration)}</span>
                   </div>
                 </div>
-              </div>
 
-              {/* Secondary Controls */}
-              <div className="flex flex-wrap items-center gap-4">
-                {/* Volume Control */}
-                <div className="flex items-center gap-2 min-w-[150px]">
-                  <Volume2 className="h-4 w-4" aria-hidden="true" />
-                  <Slider
-                    value={[volume]}
-                    max={1}
-                    step={0.1}
-                    onValueChange={handleVolumeChange}
-                    className="w-20"
-                    aria-label="Volume control"
-                  />
-                </div>
+                {/* Control Buttons */}
+                <div className="flex items-center justify-between gap-4">
+                  {/* Play/Pause Button */}
+                  <Button
+                    size="lg"
+                    onClick={togglePlayPause}
+                    className="h-12 w-12 rounded-full"
+                    aria-label={isPlaying ? "Pause audio" : "Play audio"}
+                  >
+                    {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
+                  </Button>
 
-                {/* Speed Control */}
-                <div className="flex gap-1" role="group" aria-label="Playback speed controls">
-                  {[1, 1.25, 1.5].map((rate) => (
-                    <Button
-                      key={rate}
-                      size="sm"
-                      variant={playbackRate === rate ? "default" : "outline"}
-                      onClick={() => handleSpeedChange(rate)}
-                      className="text-xs transition-all"
-                      aria-label={`Playback speed ${rate}x`}
-                      aria-pressed={playbackRate === rate}
+                  {/* Speed Control */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">गति:</span>
+                    <div className="flex gap-1" role="group" aria-label="Playback speed controls">
+                      {[0.75, 1, 1.25, 1.5].map((rate) => (
+                        <Button
+                          key={rate}
+                          size="sm"
+                          variant={playbackRate === rate ? "default" : "outline"}
+                          onClick={() => handleSpeedChange(rate)}
+                          className="h-8 px-3 text-xs"
+                          aria-label={`Playback speed ${rate}x`}
+                          aria-pressed={playbackRate === rate}
+                        >
+                          {rate}x
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Volume Control */}
+                  <div className="flex items-center gap-2 min-w-[120px]">
+                    <Volume2 className="h-4 w-4 text-muted-foreground" />
+                    <Slider
+                      value={[volume]}
+                      max={1}
+                      step={0.1}
+                      onValueChange={handleVolumeChange}
+                      className="w-20"
+                      aria-label="Volume control"
+                    />
+                  </div>
+
+                  {/* Download & Share */}
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={handleDownload}
+                      aria-label="Download audio"
+                      className="h-8 w-8 p-0"
                     >
-                      {rate}x
+                      <Download className="h-4 w-4" />
                     </Button>
-                  ))}
-                </div>
-
-                {/* Download & Share */}
-                <div className="flex gap-2 ml-auto">
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={handleDownload}
-                    aria-label="Download audio"
-                    className="transition-all hover:scale-105"
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={handleShare}
-                    aria-label="Share audio"
-                    className="transition-all hover:scale-105"
-                  >
-                    <Share2 className="h-4 w-4" />
-                  </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={handleShare}
+                      aria-label="Share audio"
+                      className="h-8 w-8 p-0"
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -354,7 +359,7 @@ export const AudioNewsBanner = () => {
               <Button
                 variant="outline"
                 onClick={() => setShowStoryList(!showStoryList)}
-                className="w-full transition-all font-devanagari"
+                className="w-full transition-all font-devanagari text-sm"
                 aria-expanded={showStoryList}
                 aria-controls="story-list"
               >
