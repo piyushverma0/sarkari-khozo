@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Play, Pause, Volume2, Download, Share2, ChevronDown, ChevronUp, SkipBack, SkipForward, RefreshCw, Radio, Loader2 } from "lucide-react";
+import { Play, Pause, Download, Share2, ChevronDown, ChevronUp, RefreshCw, Radio, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,6 @@ export const AudioNewsBanner = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showStoryList, setShowStoryList] = useState(false);
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
@@ -89,13 +88,6 @@ export const AudioNewsBanner = () => {
     if (audioRef.current) {
       audioRef.current.currentTime = value[0];
       setCurrentTime(value[0]);
-    }
-  };
-
-  const handleVolumeChange = (value: number[]) => {
-    if (audioRef.current) {
-      audioRef.current.volume = value[0];
-      setVolume(value[0]);
     }
   };
 
@@ -314,7 +306,7 @@ export const AudioNewsBanner = () => {
         <div className="bg-background rounded-2xl shadow-xl overflow-hidden border border-border transition-all hover:shadow-2xl">
           <div className="flex flex-col md:flex-row">
             {/* Reporter Image Section */}
-            <div className="relative w-full md:w-2/5 h-[220px] md:h-[260px]">
+            <div className="relative w-full md:w-2/5 h-[180px] sm:h-[220px] md:h-[260px]">
               <img
                 src={reporterImage}
                 alt="Hindi News Reporter"
@@ -322,7 +314,7 @@ export const AudioNewsBanner = () => {
               />
               <Badge 
                 variant="destructive" 
-                className="absolute top-3 right-3 text-xs px-2 py-0.5 animate-pulse"
+                className="absolute top-2 right-2 sm:top-3 sm:right-3 text-xs px-2 py-0.5 animate-pulse"
                 aria-label="Live broadcast"
               >
                 🔴 LIVE
@@ -330,7 +322,7 @@ export const AudioNewsBanner = () => {
             </div>
 
             {/* Audio Player Section */}
-            <div className="w-full md:w-3/5 p-5 md:p-7 space-y-3">
+            <div className="w-full md:w-3/5 p-4 sm:p-5 md:p-7 space-y-3">
               <div>
                 <h2 className="text-xl md:text-2xl font-bold text-foreground mb-1 font-devanagari">
                   {bulletin.title}
@@ -366,20 +358,20 @@ export const AudioNewsBanner = () => {
                 </div>
 
                 {/* Control Buttons */}
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
                   {/* Play/Pause Button */}
                   <Button
                     size="lg"
                     onClick={togglePlayPause}
-                    className="h-10 w-10 rounded-full"
+                    className="h-12 w-12 rounded-full flex-shrink-0"
                     aria-label={isPlaying ? "Pause audio" : "Play audio"}
                   >
-                    {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
+                    {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
                   </Button>
 
                   {/* Speed Control */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">गति:</span>
+                  <div className="flex items-center gap-2 flex-wrap justify-center">
+                    <span className="text-sm text-muted-foreground font-devanagari">गति:</span>
                     <div className="flex gap-1" role="group" aria-label="Playback speed controls">
                       {[0.75, 1, 1.25, 1.5].map((rate) => (
                         <Button
@@ -387,7 +379,7 @@ export const AudioNewsBanner = () => {
                           size="sm"
                           variant={playbackRate === rate ? "default" : "outline"}
                           onClick={() => handleSpeedChange(rate)}
-                          className="h-8 px-3 text-xs"
+                          className="h-9 px-3 text-xs"
                           aria-label={`Playback speed ${rate}x`}
                           aria-pressed={playbackRate === rate}
                         >
@@ -397,27 +389,14 @@ export const AudioNewsBanner = () => {
                     </div>
                   </div>
 
-                  {/* Volume Control */}
-                  <div className="flex items-center gap-2 min-w-[120px]">
-                    <Volume2 className="h-4 w-4 text-muted-foreground" />
-                    <Slider
-                      value={[volume]}
-                      max={1}
-                      step={0.1}
-                      onValueChange={handleVolumeChange}
-                      className="w-20"
-                      aria-label="Volume control"
-                    />
-                  </div>
-
-                  {/* Download & Share */}
-                  <div className="flex gap-2">
+                  {/* Download, Share & Refresh */}
+                  <div className="flex gap-2 justify-center sm:justify-end">
                     <Button 
                       size="sm" 
                       variant="outline" 
                       onClick={handleDownload}
                       aria-label="Download audio"
-                      className="h-8 w-8 p-0"
+                      className="h-9 w-9 p-0"
                     >
                       <Download className="h-4 w-4" />
                     </Button>
@@ -426,7 +405,7 @@ export const AudioNewsBanner = () => {
                       variant="outline" 
                       onClick={handleShare}
                       aria-label="Share audio"
-                      className="h-8 w-8 p-0"
+                      className="h-9 w-9 p-0"
                     >
                       <Share2 className="h-4 w-4" />
                     </Button>
@@ -436,7 +415,7 @@ export const AudioNewsBanner = () => {
                       onClick={refetch}
                       aria-label="Refresh bulletin"
                       title="Check for new bulletin"
-                      className="h-8 w-8 p-0"
+                      className="h-9 w-9 p-0"
                     >
                       <RefreshCw className="h-4 w-4" />
                     </Button>
