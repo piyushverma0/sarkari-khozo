@@ -213,6 +213,93 @@ export type Database = {
         }
         Relationships: []
       }
+      audio_news_bulletins: {
+        Row: {
+          audio_base64: string | null
+          audio_url: string | null
+          created_at: string | null
+          duration_seconds: number
+          expires_at: string | null
+          generated_at: string | null
+          id: string
+          is_active: boolean | null
+          language: string | null
+          story_ids: string[]
+          title: string
+          view_count: number | null
+        }
+        Insert: {
+          audio_base64?: string | null
+          audio_url?: string | null
+          created_at?: string | null
+          duration_seconds: number
+          expires_at?: string | null
+          generated_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          language?: string | null
+          story_ids: string[]
+          title: string
+          view_count?: number | null
+        }
+        Update: {
+          audio_base64?: string | null
+          audio_url?: string | null
+          created_at?: string | null
+          duration_seconds?: number
+          expires_at?: string | null
+          generated_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          language?: string | null
+          story_ids?: string[]
+          title?: string
+          view_count?: number | null
+        }
+        Relationships: []
+      }
+      audio_news_scripts: {
+        Row: {
+          bulletin_id: string | null
+          created_at: string | null
+          hindi_script: string
+          id: string
+          story_id: string | null
+          story_order: number
+        }
+        Insert: {
+          bulletin_id?: string | null
+          created_at?: string | null
+          hindi_script: string
+          id?: string
+          story_id?: string | null
+          story_order: number
+        }
+        Update: {
+          bulletin_id?: string | null
+          created_at?: string | null
+          hindi_script?: string
+          id?: string
+          story_id?: string | null
+          story_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audio_news_scripts_bulletin_id_fkey"
+            columns: ["bulletin_id"]
+            isOneToOne: false
+            referencedRelation: "audio_news_bulletins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audio_news_scripts_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "discovery_stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discovery_stories: {
         Row: {
           category: string
