@@ -32,6 +32,27 @@ export const useAudioNewsBulletin = () => {
 
   useEffect(() => {
     fetchLatestBulletin();
+
+    // Subscribe to realtime updates for new bulletins
+    const channel = supabase
+      .channel('audio-bulletins')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'audio_news_bulletins'
+        },
+        () => {
+          console.log('New bulletin detected, refreshing...');
+          fetchLatestBulletin();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchLatestBulletin = async () => {

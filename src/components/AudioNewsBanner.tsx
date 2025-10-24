@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Play, Pause, Volume2, Download, Share2, ChevronDown, ChevronUp, SkipBack, SkipForward } from "lucide-react";
+import { Play, Pause, Volume2, Download, Share2, ChevronDown, ChevronUp, SkipBack, SkipForward, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
@@ -9,7 +9,7 @@ import { useAudioNewsBulletin } from "@/hooks/useAudioNewsBulletin";
 import reporterImage from "@/assets/reporter-on-air.jpg";
 
 export const AudioNewsBanner = () => {
-  const { bulletin, isLoading, error, trackView } = useAudioNewsBulletin();
+  const { bulletin, isLoading, error, trackView, refetch } = useAudioNewsBulletin();
   const { toast } = useToast();
   
   const [isPlaying, setIsPlaying] = useState(false);
@@ -350,6 +350,16 @@ export const AudioNewsBanner = () => {
                       className="h-8 w-8 p-0"
                     >
                       <Share2 className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={refetch}
+                      aria-label="Refresh bulletin"
+                      title="Check for new bulletin"
+                      className="h-8 w-8 p-0"
+                    >
+                      <RefreshCw className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>

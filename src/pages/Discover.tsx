@@ -26,6 +26,7 @@ export default function Discover() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSeeding, setIsSeeding] = useState(false);
   const [isScraping, setIsScraping] = useState(false);
+  const [isGeneratingBulletin, setIsGeneratingBulletin] = useState(false);
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [pagination, setPagination] = useState({
     total: 0,
@@ -298,6 +299,36 @@ export default function Discover() {
     }
   };
 
+  const handleGenerateBulletin = async () => {
+    setIsGeneratingBulletin(true);
+    toast({
+      title: 'Generating Audio Bulletin',
+      description: 'Creating Hindi audio news bulletin from recent stories...'
+    });
+
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-audio-news-bulletin');
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast({
+          title: 'Audio Bulletin Generated!',
+          description: `Duration: ${data.duration}s, Stories: ${data.stories_count}. Check the home page to listen.`
+        });
+      }
+    } catch (error) {
+      console.error('Error generating bulletin:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to generate audio bulletin. Make sure there are recent stories available.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsGeneratingBulletin(false);
+    }
+  };
+
   // Fetch saved stories
   const fetchSavedStories = async () => {
     if (!user) return;
@@ -424,6 +455,16 @@ export default function Discover() {
                         </>
                       ) : (
                         'Fetch Fresh News'
+                      )}
+                    </Button>
+                    <Button onClick={handleGenerateBulletin} disabled={isGeneratingBulletin} variant="outline">
+                      {isGeneratingBulletin ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
+                          Generating Audio...
+                        </>
+                      ) : (
+                        'Generate Audio Bulletin'
                       )}
                     </Button>
                   </div>

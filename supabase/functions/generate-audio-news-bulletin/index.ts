@@ -134,11 +134,12 @@ serve(async (req) => {
     const opening = "नमस्कार! मैं गायत्री हूं। आज की बड़ी खबरें।";
     const closing = "यह थीं आज की मुख्य खबरें। अधिक जानकारी के लिए नीचे स्क्रॉल करें।";
     
-    const scriptTexts = scripts.map((s) => s.script);
-    const parts = [opening];
-    parts.push(...scriptTexts);
-    parts.push(closing);
-    const fullScript = parts.join(" ");
+    // Build full script safely in chunks to avoid stack overflow
+    let fullScript = opening;
+    for (const script of scripts) {
+      fullScript += " " + script.script;
+    }
+    fullScript += " " + closing;
 
     console.log(`[${new Date().toISOString()}] 📊 Full script length: ${fullScript.length} characters`);
 
