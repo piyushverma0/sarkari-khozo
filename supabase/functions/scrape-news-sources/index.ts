@@ -42,15 +42,25 @@ serve(async (req) => {
     // Process each source
     for (const source of sources) {
       try {
-        console.log(`Scraping source: ${source.source_name} (${source.url})`);
+        const startTime = Date.now();
+        console.log(`[${new Date().toISOString()}] Starting scrape for ${source.source_name} (${source.url})`);
+
+        // Get current date for explicit date filtering
+        const currentDate = new Date();
+        const twoDaysAgo = new Date(currentDate.getTime() - (2 * 24 * 60 * 60 * 1000));
+        const currentDateStr = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD
+        const twoDaysAgoStr = twoDaysAgo.toISOString().split('T')[0];
 
         // Use Claude with web search to find recent articles
-        const scrapePrompt = `Search for recent news articles (last 7 days) from this source: ${source.url}
+        const scrapePrompt = `Search the website ${source.url} for news articles published in the last 24-48 hours.
+
+CURRENT DATE: ${currentDateStr}
+CRITICAL: Only return articles published between ${twoDaysAgoStr} and ${currentDateStr}
 
 Category focus: ${source.category}
 ${source.region !== 'National' ? `Region focus: ${source.region}` : ''}
 
-Find 3-5 most recent and relevant articles about:
+Find 3-5 MOST RECENT articles about:
 - Government exams (SSC, UPSC, Railway, Banking, State PSCs)
 - Government job recruitments and vacancies
 - Government schemes and welfare programs (PM schemes, State schemes)
@@ -59,14 +69,25 @@ Find 3-5 most recent and relevant articles about:
 For each article found, return a JSON array with:
 - url: Direct link to article
 - headline: Article headline
-- published_date: Publication date (ISO format if possible)
+- published_date: Publication date in ISO format (YYYY-MM-DDTHH:mm:ssZ)
+
+If you cannot find articles from the last 48 hours, return an empty array: []
 
 CRITICAL: Return ONLY the JSON array itself, no explanatory text before or after.
-Example: [{"url": "...", "headline": "...", "published_date": "..."}]
-Do not include markdown, do not include any commentary.`;
+Example: [{"url": "...", "headline": "...", "published_date": "2025-10-24T10:30:00Z"}]
+Do not include markdown code blocks, do not include any commentary.`;
 
         const response = await callClaude({
-          systemPrompt: 'You are a web scraping assistant. CRITICAL: Return ONLY a JSON array, no explanatory text, no markdown, no commentary.',
+          systemPrompt: `You are a web scraping assistant specialized in finding VERY RECENT news articles.
+
+CRITICAL RULES:
+1. Return ONLY a JSON array, no text before or after, no markdown code blocks
+2. Only include articles from the last 48 hours (${twoDaysAgoStr} to ${currentDateStr})
+3. Each article MUST have a valid published_date in ISO format
+4. If you cannot find recent articles, return an empty array []
+
+Example correct response:
+[{"url": "https://ssc.gov.in/article", "headline": "SSC Exam 2025", "published_date": "2025-10-24T10:30:00Z"}]`,
           userPrompt: scrapePrompt,
           enableWebSearch: true,
           forceWebSearch: true,
@@ -78,6 +99,7 @@ Do not include markdown, do not include any commentary.`;
         let articles = [];
         try {
           let cleanContent = response.content.trim();
+          console.log(`[${new Date().toISOString()}] Claude response preview: ${cleanContent.substring(0, 300)}...`);
 
           // Strategy 1: Find JSON array between ```json and ```
           const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/);
@@ -131,12 +153,36 @@ Do not include markdown, do not include any commentary.`;
           continue;
         }
 
-        console.log(`Found ${articles.length} articles from ${source.source_name}`);
+        // Filter out old articles (only keep articles from last 7 days)
+        const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+        const recentArticles = articles.filter(article => {
+          if (!article.published_date) {
+            console.log(`Article missing published_date: ${article.headline}`);
+            return false;
+          }
+          try {
+            const articleDate = new Date(article.published_date);
+            const daysOld = (Date.now() - articleDate.getTime()) / (1000 * 60 * 60 * 24);
+            if (daysOld > 7) {
+              console.log(`Filtering out old article (${daysOld.toFixed(1)} days old): ${article.headline}`);
+              return false;
+            }
+            return true;
+          } catch (e) {
+            console.log(`Invalid date format for article: ${article.headline}`);
+            return false;
+          }
+        });
+
+        console.log(`[${new Date().toISOString()}] Found ${articles.length} articles, ${recentArticles.length} are recent (last 7 days)`);
+        articles = recentArticles;
         results.found_articles += articles.length;
 
         // Process each article with AI
         for (const article of articles) {
           try {
+            console.log(`[${new Date().toISOString()}] Processing article: ${article.headline.substring(0, 80)}...`);
+            
             // Call process-story-with-ai function
             const processResponse = await supabase.functions.invoke('process-story-with-ai', {
               body: {
@@ -149,16 +195,22 @@ Do not include markdown, do not include any commentary.`;
 
             if (processResponse.data?.success) {
               results.processed++;
+              console.log(`[${new Date().toISOString()}] Successfully processed article`);
+            } else {
+              console.log(`[${new Date().toISOString()}] Failed to process: ${processResponse.error?.message || 'Unknown error'}`);
             }
           } catch (processError) {
             console.error(`Failed to process article ${article.url}:`, processError);
           }
 
-          // Small delay to avoid rate limits
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // Reduced delay to avoid rate limits (200ms instead of 500ms)
+          await new Promise(resolve => setTimeout(resolve, 200));
         }
 
         // Update source metrics
+        const elapsed = Date.now() - startTime;
+        console.log(`[${new Date().toISOString()}] Completed ${source.source_name} in ${elapsed}ms`);
+        
         await supabase
           .from('story_scraping_sources')
           .update({
@@ -173,7 +225,7 @@ Do not include markdown, do not include any commentary.`;
         results.scraped++;
 
       } catch (sourceError) {
-        console.error(`Error scraping ${source.source_name}:`, sourceError);
+        console.error(`[${new Date().toISOString()}] Error scraping ${source.source_name}:`, sourceError);
         const errorMessage = sourceError instanceof Error ? sourceError.message : 'Unknown error';
         results.errors.push({
           source: source.source_name,
@@ -192,16 +244,17 @@ Do not include markdown, do not include any commentary.`;
           .eq('id', source.id);
       }
 
-      // Delay between sources
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Reduced delay between sources (1000ms instead of 2000ms)
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
-    console.log('Scraping complete:', results);
+    console.log(`[${new Date().toISOString()}] Scraping complete:`, results);
 
     return new Response(
       JSON.stringify({ 
         success: true,
-        results
+        results,
+        timestamp: new Date().toISOString()
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
