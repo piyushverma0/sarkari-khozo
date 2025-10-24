@@ -69,6 +69,10 @@ inspector_port = 8083
 "30 9 * * *" = "scrape-news-sources"
 # Scrape news sources at 8 PM IST (2:30 PM UTC)
 "30 14 * * *" = "scrape-news-sources"
+# Generate morning audio bulletin at 5:30 AM IST (0:00 AM UTC)
+"0 0 * * *" = "generate-audio-news-bulletin"
+# Generate evening audio bulletin at 6:00 PM IST (12:30 PM UTC)
+"30 12 * * *" = "generate-audio-news-bulletin"
 
 [analytics]
 enabled = false
@@ -167,4 +171,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.seed-sample-stories]
+verify_jwt = false
+
+[functions.generate-audio-news-bulletin]
 verify_jwt = false
