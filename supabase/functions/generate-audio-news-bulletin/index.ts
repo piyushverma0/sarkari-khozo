@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callClaude } from "../_shared/claude-client.ts";
 
 const corsHeaders = {
@@ -112,7 +112,6 @@ serve(async (req) => {
         const response = await callClaude({
           systemPrompt,
           userPrompt,
-          model: "claude-sonnet-4-5",
           maxTokens: 150,
         });
 
@@ -250,8 +249,9 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error(`[${new Date().toISOString()}] ❌ Error in generate-audio-news-bulletin:`, error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
