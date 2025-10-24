@@ -322,7 +322,7 @@ export const AudioNewsBanner = () => {
             </div>
 
             {/* Audio Player Section */}
-            <div className="w-full md:w-3/5 p-4 sm:p-5 md:p-7 space-y-3">
+            <div className="w-full md:w-3/5 p-4 sm:p-5 md:p-7 space-y-3 bg-gradient-to-br from-amber-900/15 via-orange-950/20 to-stone-900/25 backdrop-blur-sm">
               <div>
                 <h2 className="text-xl md:text-2xl font-bold text-foreground mb-1 font-devanagari">
                   {bulletin.title}
