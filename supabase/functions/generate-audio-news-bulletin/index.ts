@@ -128,7 +128,18 @@ ${storiesText}
     }
 
     const audioBuffer = await audioResponse.arrayBuffer();
-    const audioBase64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+    
+    // Convert audio buffer to base64 in chunks to avoid stack overflow
+    const uint8Array = new Uint8Array(audioBuffer);
+    const chunkSize = 8192; // Process 8KB at a time
+    let binaryString = '';
+
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.slice(i, i + chunkSize);
+      binaryString += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+
+    const audioBase64 = btoa(binaryString);
     
     console.log(`[${new Date().toISOString()}] ✅ Audio generated (${audioBuffer.byteLength} bytes)`);
 
