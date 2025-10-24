@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { Play, Pause, Volume2, Download, Share2, ChevronDown, ChevronUp, SkipBack, SkipForward, RefreshCw, Radio } from "lucide-react";
+import { Play, Pause, Volume2, Download, Share2, ChevronDown, ChevronUp, SkipBack, SkipForward, RefreshCw, Radio, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
@@ -20,6 +21,7 @@ export const AudioNewsBanner = () => {
   const [showStoryList, setShowStoryList] = useState(false);
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
   const [hasTrackedView, setHasTrackedView] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -122,6 +124,46 @@ export const AudioNewsBanner = () => {
     }
   };
 
+  const handleGenerateBulletin = async () => {
+    try {
+      setIsGenerating(true);
+      
+      toast({
+        title: "बुलेटिन बन रहा है...",
+        description: "कृपया थोड़ा इंतज़ार करें। यह 30-60 सेकंड ले सकता है।",
+      });
+
+      const { data, error } = await supabase.functions.invoke(
+        'generate-audio-news-bulletin',
+        { body: {} }
+      );
+
+      if (error) throw error;
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      toast({
+        title: "✅ बुलेटिन तैयार है!",
+        description: "आपका ऑडियो न्यूज़ बुलेटिन सफलतापूर्वक बन गया है।",
+      });
+
+      // Automatically refresh to show new bulletin
+      await refetch();
+      
+    } catch (error) {
+      console.error('Error generating bulletin:', error);
+      toast({
+        title: "❌ त्रुटि",
+        description: error instanceof Error ? error.message : "बुलेटिन बनाने में समस्या आई। कृपया दोबारा कोशिश करें।",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const seekToStory = (index: number) => {
     // Estimate time based on story order (each story ~6 seconds, opening ~3 seconds)
     const estimatedTime = 3 + (index * 6);
@@ -209,16 +251,26 @@ export const AudioNewsBanner = () => {
                     आज का ऑडियो बुलेटिन अभी तक नहीं बना है
                   </p>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Discover section में जाकर "Generate Audio Bulletin" बटन पर क्लिक करें और ताज़ा खबरों का हिंदी ऑडियो बुलेटिन बनाएं।
+                <p className="text-sm text-muted-foreground font-devanagari">
+                  नीचे दिए गए बटन पर क्लिक करें और ताज़ा खबरों का हिंदी ऑडियो बुलेटिन बनाएं।
                 </p>
                 <Button 
-                  onClick={() => window.location.href = '/discover'}
+                  onClick={handleGenerateBulletin}
+                  disabled={isGenerating}
                   className="w-fit"
-                  size="sm"
+                  size="lg"
                 >
-                  <Radio className="w-4 h-4 mr-2" />
-                  Discover Section में जाएं
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      बुलेटिन बन रहा है...
+                    </>
+                  ) : (
+                    <>
+                      <Radio className="w-4 h-4 mr-2" />
+                      ऑडियो बुलेटिन बनाएं
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
