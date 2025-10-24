@@ -215,7 +215,24 @@ export const AudioNewsBanner = () => {
   }
 
   // Show banner even without bulletin - for branding
-  if (error || !bulletin) {
+  if (isLoading) {
+    return (
+      <section className="w-full py-8 px-4 animate-fade-in">
+        <div className="container max-w-6xl">
+          <div className="rounded-2xl shadow-xl overflow-hidden border border-border">
+            <div className="flex flex-col md:flex-row p-8">
+              <div className="animate-pulse space-y-4 w-full">
+                <div className="h-8 bg-muted rounded w-3/4"></div>
+                <div className="h-4 bg-muted rounded w-1/2"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (!bulletin) {
     return (
       <section 
         className="w-full py-8 px-4 animate-fade-in"
