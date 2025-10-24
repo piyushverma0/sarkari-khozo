@@ -184,7 +184,7 @@ export const AudioNewsBanner = () => {
           <div className="rounded-2xl shadow-xl overflow-hidden border border-border transition-all hover:shadow-2xl">
             <div className="flex flex-col md:flex-row">
               {/* Reporter Image Section */}
-              <div className="relative w-full md:w-2/5 min-h-[200px] md:min-h-[250px]">
+              <div className="relative w-full md:w-2/5 h-[180px] md:h-[200px]">
                 <img
                   src={reporterImage}
                   alt="Hindi News Reporter"
@@ -192,7 +192,7 @@ export const AudioNewsBanner = () => {
                 />
                 <Badge 
                   variant="secondary" 
-                  className="absolute top-4 right-4 text-sm px-3 py-1"
+                  className="absolute top-3 right-3 text-xs px-2 py-0.5"
                   aria-label="Coming soon"
                 >
                   जल्द आ रहा है
@@ -200,15 +200,15 @@ export const AudioNewsBanner = () => {
               </div>
 
               {/* Content Section */}
-              <div className="w-full md:w-3/5 p-6 md:p-8 space-y-4 flex flex-col justify-center">
-                <div>
-                  <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2 font-devanagari">
-                    आज की मुख्य खबरें
-                  </h2>
-                  <p className="text-sm text-muted-foreground font-devanagari">
-                    ऑडियो समाचार बुलेटिन जल्द ही उपलब्ध होगा
-                  </p>
-                </div>
+              <div className="w-full md:w-3/5 p-4 md:p-6 space-y-3 flex flex-col justify-center">
+              <div>
+                <h2 className="text-xl md:text-2xl font-bold text-foreground mb-1 font-devanagari">
+                  आज की मुख्य खबरें
+                </h2>
+                <p className="text-xs text-muted-foreground font-devanagari">
+                  ऑडियो समाचार बुलेटिन जल्द ही उपलब्ध होगा
+                </p>
+              </div>
                 <p className="text-muted-foreground">
                   सरकारी योजनाओं और अवसरों की नवीनतम जानकारी पाने के लिए रोज़ाना सुनें
                 </p>
@@ -235,7 +235,7 @@ export const AudioNewsBanner = () => {
         <div className="bg-background rounded-2xl shadow-xl overflow-hidden border border-border transition-all hover:shadow-2xl">
           <div className="flex flex-col md:flex-row">
             {/* Reporter Image Section */}
-            <div className="relative w-full md:w-2/5 min-h-[200px] md:min-h-[250px]">
+            <div className="relative w-full md:w-2/5 h-[180px] md:h-[200px]">
               <img
                 src={reporterImage}
                 alt="Hindi News Reporter"
@@ -243,7 +243,7 @@ export const AudioNewsBanner = () => {
               />
               <Badge 
                 variant="destructive" 
-                className="absolute top-4 right-4 text-sm px-3 py-1 animate-pulse"
+                className="absolute top-3 right-3 text-xs px-2 py-0.5 animate-pulse"
                 aria-label="Live broadcast"
               >
                 🔴 LIVE
@@ -251,12 +251,12 @@ export const AudioNewsBanner = () => {
             </div>
 
             {/* Audio Player Section */}
-            <div className="w-full md:w-3/5 p-6 md:p-8 space-y-4">
+            <div className="w-full md:w-3/5 p-4 md:p-6 space-y-3">
               <div>
-                <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2 font-devanagari">
+                <h2 className="text-xl md:text-2xl font-bold text-foreground mb-1 font-devanagari">
                   {bulletin.title}
                 </h2>
-                <p className="text-sm text-muted-foreground font-devanagari">{getCurrentDateInHindi()}</p>
+                <p className="text-xs text-muted-foreground font-devanagari">{getCurrentDateInHindi()}</p>
               </div>
 
               {/* Audio Element */}
@@ -292,10 +292,10 @@ export const AudioNewsBanner = () => {
                   <Button
                     size="lg"
                     onClick={togglePlayPause}
-                    className="h-12 w-12 rounded-full"
+                    className="h-10 w-10 rounded-full"
                     aria-label={isPlaying ? "Pause audio" : "Play audio"}
                   >
-                    {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
+                    {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
                   </Button>
 
                   {/* Speed Control */}
