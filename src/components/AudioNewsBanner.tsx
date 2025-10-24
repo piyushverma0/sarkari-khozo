@@ -451,25 +451,30 @@ export const AudioNewsBanner = () => {
                   <button
                     key={script.id}
                     onClick={() => seekToStory(index)}
-                    className={`w-full text-left p-4 rounded-lg transition-all hover:bg-accent/50 hover:scale-[1.02] ${
-                      currentStoryIndex === index ? "bg-accent border-2 border-primary" : "bg-background"
+                    className={`w-full text-left p-4 rounded-lg transition-all hover:scale-[1.02] ${
+                      currentStoryIndex === index 
+                        ? "bg-primary/15 border-2 border-primary shadow-lg hover:bg-primary/20" 
+                        : "bg-background hover:bg-accent/50 border border-transparent"
                     }`}
                     role="listitem"
                     aria-label={`Story ${script.story_order}: ${script.discovery_stories?.headline}`}
                     aria-current={currentStoryIndex === index ? "true" : "false"}
                   >
                     <div className="flex items-start gap-3">
-                      <Badge variant="outline" className="mt-0.5">
+                      <Badge 
+                        variant={currentStoryIndex === index ? "default" : "outline"} 
+                        className="mt-0.5"
+                      >
                         {script.story_order}
                       </Badge>
                       <div className="flex-1">
-                        <p className="font-medium text-sm">
+                        <p className={`font-medium text-sm ${currentStoryIndex === index ? "text-foreground" : ""}`}>
                           {script.discovery_stories?.headline || "Loading..."}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-1 font-devanagari">
+                        <p className={`text-xs mt-1 font-devanagari ${currentStoryIndex === index ? "text-foreground/80" : "text-muted-foreground"}`}>
                           {script.hindi_script}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-1 font-devanagari">
+                        <p className={`text-xs mt-1 font-devanagari ${currentStoryIndex === index ? "text-foreground/70" : "text-muted-foreground"}`}>
                           समय: ~{formatTime(3 + (index * 6))}
                         </p>
                       </div>
