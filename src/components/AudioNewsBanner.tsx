@@ -6,7 +6,7 @@ import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useAudioNewsBulletin } from "@/hooks/useAudioNewsBulletin";
-import reporterImage from "@/assets/reporter-gayatri.jpg";
+import reporterImage from "@/assets/reporter-on-air.jpg";
 
 export const AudioNewsBanner = () => {
   const { bulletin, isLoading, error, trackView } = useAudioNewsBulletin();
@@ -172,8 +172,52 @@ export const AudioNewsBanner = () => {
     );
   }
 
+  // Show banner even without bulletin - for branding
   if (error || !bulletin) {
-    return null;
+    return (
+      <section 
+        className="w-full py-8 px-4 animate-fade-in"
+        role="region"
+        aria-label="Audio news bulletin"
+      >
+        <div className="container max-w-6xl">
+          <div className="rounded-2xl shadow-xl overflow-hidden border border-border transition-all hover:shadow-2xl">
+            <div className="flex flex-col md:flex-row">
+              {/* Reporter Image Section */}
+              <div className="relative w-full md:w-2/5 min-h-[300px] md:min-h-[400px]">
+                <img
+                  src={reporterImage}
+                  alt="Hindi News Reporter"
+                  className="w-full h-full object-cover"
+                />
+                <Badge 
+                  variant="secondary" 
+                  className="absolute top-4 right-4 text-sm px-3 py-1"
+                  aria-label="Coming soon"
+                >
+                  जल्द आ रहा है
+                </Badge>
+              </div>
+
+              {/* Content Section */}
+              <div className="w-full md:w-3/5 p-6 md:p-8 space-y-6 flex flex-col justify-center">
+                <div>
+                  <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2 font-devanagari">
+                    आज की मुख्य खबरें
+                  </h2>
+                  <p className="text-sm text-muted-foreground font-devanagari">
+                    ऑडियो समाचार बुलेटिन जल्द ही उपलब्ध होगा
+                  </p>
+                </div>
+                <p className="text-muted-foreground">
+                  सरकारी योजनाओं और अवसरों की नवीनतम जानकारी पाने के लिए रोज़ाना सुनें
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
   }
 
   const sortedScripts = [...(bulletin.audio_news_scripts || [])].sort(
@@ -194,7 +238,7 @@ export const AudioNewsBanner = () => {
             <div className="relative w-full md:w-2/5 min-h-[300px] md:min-h-[400px]">
               <img
                 src={reporterImage}
-                alt="Gayatri - Hindi News Reporter"
+                alt="Hindi News Reporter"
                 className="w-full h-full object-cover"
               />
               <Badge 
