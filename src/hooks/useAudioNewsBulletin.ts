@@ -55,15 +55,12 @@ export const useAudioNewsBulletin = () => {
         .eq("is_active", true)
         .order("generated_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (error) {
-        if (error.code === "PGRST116") {
-          // No rows returned
-          setError("कोई नई बुलेटिन उपलब्ध नहीं है");
-        } else {
-          throw error;
-        }
+      if (error) throw error;
+      
+      if (!data) {
+        setError("कोई नई बुलेटिन उपलब्ध नहीं है");
       } else {
         setBulletin(data);
       }

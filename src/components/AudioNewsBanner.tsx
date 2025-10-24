@@ -153,7 +153,11 @@ export const AudioNewsBanner = () => {
 
   if (isLoading) {
     return (
-      <section className="w-full py-8 px-4 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10">
+      <section 
+        className="w-full py-8 px-4 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 animate-fade-in"
+        role="region"
+        aria-label="Audio news bulletin loading"
+      >
         <div className="container max-w-6xl">
           <div className="flex flex-col md:flex-row gap-6 items-center">
             <Skeleton className="w-full md:w-2/5 h-80 rounded-lg" />
@@ -170,10 +174,14 @@ export const AudioNewsBanner = () => {
 
   if (error || !bulletin) {
     return (
-      <section className="w-full py-8 px-4 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10">
+      <section 
+        className="w-full py-8 px-4 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10"
+        role="region"
+        aria-label="Audio news bulletin error"
+      >
         <div className="container max-w-6xl">
           <div className="text-center py-12">
-            <p className="text-muted-foreground">{error || "अभी कोई बुलेटिन उपलब्ध नहीं है"}</p>
+            <p className="text-muted-foreground font-devanagari">{error || "अभी कोई बुलेटिन उपलब्ध नहीं है"}</p>
           </div>
         </div>
       </section>
@@ -185,21 +193,26 @@ export const AudioNewsBanner = () => {
   );
 
   return (
-    <section className="w-full py-8 px-4 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10">
+    <section 
+      className="w-full py-8 px-4 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 animate-fade-in"
+      role="region"
+      aria-label="Audio news bulletin"
+    >
       <div className="container max-w-6xl">
         {/* Main Banner */}
-        <div className="bg-background/95 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden border border-border">
+        <div className="bg-background/95 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden border border-border transition-all hover:shadow-2xl">
           <div className="flex flex-col md:flex-row">
             {/* Reporter Image Section */}
             <div className="relative w-full md:w-2/5 min-h-[300px] md:min-h-[400px]">
               <img
                 src={reporterImage}
-                alt="Gayatri - News Reporter"
+                alt="Gayatri - Hindi News Reporter"
                 className="w-full h-full object-cover"
               />
               <Badge 
                 variant="destructive" 
                 className="absolute top-4 right-4 text-sm px-3 py-1 animate-pulse"
+                aria-label="Live broadcast"
               >
                 🔴 LIVE
               </Badge>
@@ -208,10 +221,10 @@ export const AudioNewsBanner = () => {
             {/* Audio Player Section */}
             <div className="w-full md:w-3/5 p-6 md:p-8 space-y-6">
               <div>
-                <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+                <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2 font-devanagari">
                   आज की 10 खबरें - 1 मिनट में
                 </h2>
-                <p className="text-sm text-muted-foreground">{getCurrentDateInHindi()}</p>
+                <p className="text-sm text-muted-foreground font-devanagari">{getCurrentDateInHindi()}</p>
               </div>
 
               {/* Audio Element */}
@@ -220,6 +233,7 @@ export const AudioNewsBanner = () => {
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
                 onEnded={() => setIsPlaying(false)}
+                aria-label="Audio news bulletin player"
               />
 
               {/* Play/Pause Controls */}
@@ -227,7 +241,8 @@ export const AudioNewsBanner = () => {
                 <Button
                   size="lg"
                   onClick={togglePlayPause}
-                  className="h-16 w-16 rounded-full"
+                  className="h-16 w-16 rounded-full transition-transform hover:scale-105"
+                  aria-label={isPlaying ? "Pause audio" : "Play audio"}
                 >
                   {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6 ml-1" />}
                 </Button>
@@ -239,10 +254,11 @@ export const AudioNewsBanner = () => {
                     step={0.1}
                     onValueChange={handleSeek}
                     className="w-full"
+                    aria-label="Audio progress"
                   />
                   <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                    <span>{formatTime(currentTime)}</span>
-                    <span>{formatTime(duration)}</span>
+                    <span aria-label={`Current time ${formatTime(currentTime)}`}>{formatTime(currentTime)}</span>
+                    <span aria-label={`Total duration ${formatTime(duration)}`}>{formatTime(duration)}</span>
                   </div>
                 </div>
               </div>
@@ -251,25 +267,28 @@ export const AudioNewsBanner = () => {
               <div className="flex flex-wrap items-center gap-4">
                 {/* Volume Control */}
                 <div className="flex items-center gap-2 min-w-[150px]">
-                  <Volume2 className="h-4 w-4" />
+                  <Volume2 className="h-4 w-4" aria-hidden="true" />
                   <Slider
                     value={[volume]}
                     max={1}
                     step={0.1}
                     onValueChange={handleVolumeChange}
                     className="w-20"
+                    aria-label="Volume control"
                   />
                 </div>
 
                 {/* Speed Control */}
-                <div className="flex gap-1">
+                <div className="flex gap-1" role="group" aria-label="Playback speed controls">
                   {[1, 1.25, 1.5].map((rate) => (
                     <Button
                       key={rate}
                       size="sm"
                       variant={playbackRate === rate ? "default" : "outline"}
                       onClick={() => handleSpeedChange(rate)}
-                      className="text-xs"
+                      className="text-xs transition-all"
+                      aria-label={`Playback speed ${rate}x`}
+                      aria-pressed={playbackRate === rate}
                     >
                       {rate}x
                     </Button>
@@ -278,10 +297,22 @@ export const AudioNewsBanner = () => {
 
                 {/* Download & Share */}
                 <div className="flex gap-2 ml-auto">
-                  <Button size="sm" variant="outline" onClick={handleDownload}>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={handleDownload}
+                    aria-label="Download audio"
+                    className="transition-all hover:scale-105"
+                  >
                     <Download className="h-4 w-4" />
                   </Button>
-                  <Button size="sm" variant="outline" onClick={handleShare}>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={handleShare}
+                    aria-label="Share audio"
+                    className="transition-all hover:scale-105"
+                  >
                     <Share2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -291,7 +322,9 @@ export const AudioNewsBanner = () => {
               <Button
                 variant="outline"
                 onClick={() => setShowStoryList(!showStoryList)}
-                className="w-full"
+                className="w-full transition-all font-devanagari"
+                aria-expanded={showStoryList}
+                aria-controls="story-list"
               >
                 📋 सभी खबरें देखें
                 {showStoryList ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />}
@@ -301,16 +334,24 @@ export const AudioNewsBanner = () => {
 
           {/* Story List */}
           {showStoryList && (
-            <div className="border-t border-border p-6 bg-muted/30">
-              <h3 className="font-semibold text-lg mb-4">आज की खबरें:</h3>
-              <div className="space-y-2">
+            <div 
+              id="story-list" 
+              className="border-t border-border p-6 bg-muted/30 animate-fade-in"
+              role="region"
+              aria-label="News story list"
+            >
+              <h3 className="font-semibold text-lg mb-4 font-devanagari">आज की खबरें:</h3>
+              <div className="space-y-2" role="list">
                 {sortedScripts.map((script, index) => (
                   <button
                     key={script.id}
                     onClick={() => seekToStory(index)}
-                    className={`w-full text-left p-4 rounded-lg transition-all hover:bg-accent/50 ${
+                    className={`w-full text-left p-4 rounded-lg transition-all hover:bg-accent/50 hover:scale-[1.02] ${
                       currentStoryIndex === index ? "bg-accent border-2 border-primary" : "bg-background"
                     }`}
+                    role="listitem"
+                    aria-label={`Story ${script.story_order}: ${script.discovery_stories?.headline}`}
+                    aria-current={currentStoryIndex === index ? "true" : "false"}
                   >
                     <div className="flex items-start gap-3">
                       <Badge variant="outline" className="mt-0.5">
@@ -320,10 +361,10 @@ export const AudioNewsBanner = () => {
                         <p className="font-medium text-sm">
                           {script.discovery_stories?.headline || "Loading..."}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-xs text-muted-foreground mt-1 font-devanagari">
                           {script.hindi_script}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-xs text-muted-foreground mt-1 font-devanagari">
                           समय: ~{formatTime(3 + (index * 6))}
                         </p>
                       </div>
@@ -337,7 +378,12 @@ export const AudioNewsBanner = () => {
 
         {/* Waveform Animation (when playing) */}
         {isPlaying && (
-          <div className="flex justify-center gap-1 mt-4">
+          <div 
+            className="flex justify-center gap-1 mt-4" 
+            role="status" 
+            aria-label="Audio playing"
+            aria-live="polite"
+          >
             {[...Array(20)].map((_, i) => (
               <div
                 key={i}
@@ -346,6 +392,7 @@ export const AudioNewsBanner = () => {
                   height: `${Math.random() * 20 + 10}px`,
                   animationDelay: `${i * 0.1}s`,
                 }}
+                aria-hidden="true"
               />
             ))}
           </div>

@@ -15,6 +15,7 @@ export default {
     extend: {
       fontFamily: {
         'playfair': ['Playfair Display', 'serif'],
+        'devanagari': ['Noto Sans Devanagari', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
