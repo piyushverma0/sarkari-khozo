@@ -354,9 +354,10 @@ Example correct response:
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
-    // Intelligent Discovery Fallback - trigger when no articles found and not timed out
-    if (results.found_articles === 0 && !results.timed_out) {
-      console.log('No articles found from configured sources. Activating Claude discovery fallback...');
+    // Intelligent Discovery Fallback - trigger when no articles found
+    if (results.found_articles === 0) {
+      const timeoutStatus = results.timed_out ? ' (partial scan due to timeout)' : '';
+      console.log(`No articles found from configured sources${timeoutStatus}. Activating Claude discovery fallback...`);
       
       try {
         const currentDate = new Date();
@@ -406,10 +407,10 @@ Example correct response:
 
     console.log(`[${new Date().toISOString()}] Scraping complete:`, results);
 
-    const message = results.timed_out 
-      ? `Partial scrape completed due to time limit. Processed ${results.processed} articles from ${results.scraped}/${results.total_sources} sources. Try again to check more sources.`
-      : results.discovery_method === 'claude_fallback'
-        ? `Found ${results.found_articles} articles using AI discovery (no updates from configured sources)`
+    const message = results.discovery_method === 'claude_fallback'
+      ? `Found ${results.found_articles} articles using AI discovery${results.timed_out ? ' (configured sources timed out)' : ' (no updates from configured sources)'}`
+      : results.timed_out 
+        ? `Partial scrape completed due to time limit. Processed ${results.processed} articles from ${results.scraped}/${results.total_sources} sources. Try again to check more sources.`
         : results.found_articles > 0
           ? `Found ${results.found_articles} new articles from ${results.scraped} sources`
           : `Checked ${results.scraped} sources but no new articles were published recently.`;
