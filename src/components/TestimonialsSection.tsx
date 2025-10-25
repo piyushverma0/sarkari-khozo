@@ -1,5 +1,4 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 const testimonials = [
   {
@@ -136,17 +135,17 @@ export const TestimonialsSection = () => {
         </div>
 
         {/* Horizontal Scrollable Testimonials */}
-        <ScrollArea className="w-full whitespace-nowrap [&>div>div[style]]:!overflow-x-scroll [&>div>div[style]]:!scrollbar-none [&>div>div[style]]:!-ms-overflow-style-none [&>div>div[style]]:!scrollbar-width-none [&_div[data-radix-scroll-area-viewport]]:!scrollbar-none [&_*]:!scrollbar-none">
-          <div className="flex gap-6 pb-4">
+        <div className="w-full overflow-x-auto scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="flex gap-6 pb-4 min-w-min">
             {testimonials.map((testimonial, index) => (
               <Card 
                 key={index}
-                className="glass-card border border-white/10 backdrop-blur-xl bg-background/70 overflow-hidden inline-block w-[350px] md:w-[400px] flex-shrink-0"
+                className="glass-card border border-white/10 backdrop-blur-xl bg-background/70 overflow-hidden w-[350px] md:w-[400px] flex-shrink-0"
               >
                 {/* Gradient accent bar */}
                 <div className="h-1 w-full bg-gradient-to-r from-primary via-secondary to-primary opacity-70" />
                 
-                <CardContent className="p-6 space-y-4 whitespace-normal">
+                <CardContent className="p-6 space-y-4">
                   {/* Quote */}
                   <blockquote className="text-sm md:text-base text-muted-foreground italic leading-relaxed min-h-[180px]">
                     "{testimonial.quote}"
@@ -171,7 +170,7 @@ export const TestimonialsSection = () => {
               </Card>
             ))}
           </div>
-        </ScrollArea>
+        </div>
       </div>
     </section>
   );
