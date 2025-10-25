@@ -8,7 +8,7 @@ const testimonials = [
     institution: "Delhi University",
     location: "Delhi",
     emoji: "🎓",
-    quote: "Before Sarkari Khozo, I used to open so many websites just to find one government form. Half of them were full of pop-ups and broken links. Now I just type the exam name, and it shows everything in one neat card. No stress, no confusion. It honestly feels like my own study assistant."
+    quote: "Before Sarkari Khozo, I used to open so many websites just to find one government form. Half of them were full of pop-ups, ads and broken links. Now I just type the exam name, and it shows everything in one card."
   },
   {
     name: "Aman Tiwari",
@@ -16,7 +16,7 @@ const testimonials = [
     institution: "Banaras Hindu University (BHU)",
     location: "Varanasi",
     emoji: "🎓",
-    quote: "Every morning I used to scroll through Telegram, job blogs, and random sites just to check if any exam update came. Pure headache! Sarkari Khozo changed that. Now I get proper reminders — admit card, results, all sorted automatically. For BHU students like us, this app is a blessing."
+    quote: "Every morning I used to scroll through Telegram, job blogs, and random sites just to check if any exam update came. Pure sardard! Sarkari Khozo changed that. Now I get proper reminders - admit card, results, all sorted automatically."
   },
   {
     name: "Neha Verma",
@@ -24,7 +24,7 @@ const testimonials = [
     institution: "Allahabad University (AU)",
     location: "Allahabad",
     emoji: "🎓",
-    quote: "Other websites are just full of ads and fake links. Sarkari Khozo is clean and peaceful to use. Everything is written clearly — no need to jump between ten tabs. When I first used it, I actually said out loud: 'Yaar, this is how government updates should look!'"
+    quote: "Other websites like Sarkari result are just full of ads and fake links. Sarkari Khozo is clean and clear to use. Everything is written clearly — no need to jump between ten tabs & go to cafe. When I first used it, I actually said out loud: 'Yaar, this is how government updates should look!'"
   },
   {
     name: "Rohit Kumar",
@@ -40,7 +40,7 @@ const testimonials = [
     institution: "ISDC",
     location: "Delhi",
     emoji: "🎓",
-    quote: "Government sites confuse even tech people — so many PDFs and old pages. But Sarkari Khozo feels modern and simple. The AI summaries tell you everything in two lines — what it is, who's eligible, and how to apply. For the first time, I actually enjoy checking schemes!"
+    quote: "Government sites confuse even tech people 😂 — so many PDFs and old pages. But Sarkari Khozo feels modern and simple. The AI summaries tell you everything in two lines and scan gov 10-page notices— what it is, who's eligible, and how to apply. For the first time, I actually enjoy checking schemes!"
   },
   {
     name: "Ravi Patel",
@@ -48,7 +48,7 @@ const testimonials = [
     institution: "Agriculture",
     location: "Mehsana, Gujarat",
     emoji: "🌾",
-    quote: "My father could never understand those government scheme websites. I searched on Sarkari Khozo, it showed all Kisan Yojanas in our district, with what documents we need. It's in simple Hindi too. Now even my dad opens it himself!"
+    quote: "My father could never understand those government scheme websites and maybe yours too. I searched on Sarkari Khozo, it showed all Kisan Yojanas in our district, with what documents we need. It's in simple Hindi and audio too. Now even my dad opens it himself!"
   },
   {
     name: "Sneha Das",
@@ -56,13 +56,13 @@ const testimonials = [
     institution: "Government Jobs",
     location: "Kolkata",
     emoji: "👩‍💼",
-    quote: "Most job websites show fake alerts or outdated posts. Sarkari Khozo only gives genuine government updates from official sources. I've set reminders for SSC and UPSC forms — and every time, it alerts me before the deadline. I finally stopped worrying about missing updates."
+    quote: "বেশিরভাগ চাকরির ওয়েবসাইট ভুয়া সতর্কতা বা পুরনো পোস্ট দেখায়। সরকারী খোঁজো শুধুমাত্র সরকারী উৎস থেকে আসল সরকারি আপডেট দেয়। আমি SSC এবং UPSC ফর্মের জন্য রিমাইন্ডার সেট করেছি — এবং প্রতিবারই, এটি আমাকে সময়সীমার আগে সতর্ক করে। অবশেষে আমি আপডেট মিস করার বিষয়ে চিন্তা করা বন্ধ করে দিয়েছি।"
   },
   {
     name: "Deepak Yadav",
     role: "UPSC Aspirant",
     institution: "Civil Services",
-    location: "Varanasi",
+    location: "Bihar",
     emoji: "🧑‍🎓",
     quote: "For UPSC prep, I used to waste time reading long official notices. Now Sarkari Khozo gives me short, clear AI summaries with eligibility and important dates. It's simple and smart — just like how an aspirant's tool should be."
   },
@@ -120,7 +120,7 @@ const testimonials = [
     institution: "Youth Development",
     location: "Bengaluru",
     emoji: "🌍",
-    quote: "Our NGO works with youth from rural areas. Sarkari Khozo helps us guide them easily — we just open the app, select their state, and show active schemes and fellowships. It saves time and builds real awareness. Hats off to the team!"
+    quote: "Our NGO works with youth from rural areas. Sarkari Khozo helps us guide them easily — we just open the app, select their state, and show active schemes and fellowships. It saves time and builds real awareness. Hats off to you guys!"
   }
 ];
 
