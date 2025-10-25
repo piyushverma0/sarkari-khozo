@@ -1,4 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 const testimonials = [
   {
@@ -137,46 +138,44 @@ export const TestimonialsSection = () => {
           </p>
         </div>
 
-        {/* Testimonials Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-          {testimonials.map((testimonial, index) => (
-            <Card 
-              key={index}
-              className="glass-card border border-white/10 backdrop-blur-xl bg-background/70 hover:scale-[1.02] transition-all duration-300 hover:shadow-[0_0_30px_hsla(212,70%,68%,0.3)] hover:border-primary/30 group overflow-hidden"
-            >
-              {/* Gradient accent bar */}
-              <div className="h-1 w-full bg-gradient-to-r from-primary via-secondary to-primary opacity-70 group-hover:opacity-100 transition-opacity" />
-              
-              <CardContent className="p-6 space-y-4">
-                {/* Emoji Icon */}
-                <div className="text-5xl mb-2 text-center group-hover:scale-110 transition-transform">
-                  {testimonial.emoji}
-                </div>
+        {/* Horizontal Scrollable Testimonials */}
+        <ScrollArea className="w-full whitespace-nowrap">
+          <div className="flex gap-6 pb-4">
+            {testimonials.map((testimonial, index) => (
+              <Card 
+                key={index}
+                className="glass-card border border-white/10 backdrop-blur-xl bg-background/70 hover:scale-[1.02] transition-all duration-300 hover:shadow-[0_0_30px_hsla(212,70%,68%,0.3)] hover:border-primary/30 group overflow-hidden inline-block w-[350px] md:w-[400px] flex-shrink-0"
+              >
+                {/* Gradient accent bar */}
+                <div className="h-1 w-full bg-gradient-to-r from-primary via-secondary to-primary opacity-70 group-hover:opacity-100 transition-opacity" />
+                
+                <CardContent className="p-6 space-y-4 whitespace-normal">
+                  {/* Quote */}
+                  <blockquote className="text-sm md:text-base text-muted-foreground italic leading-relaxed min-h-[180px]">
+                    "{testimonial.quote}"
+                  </blockquote>
 
-                {/* Quote */}
-                <blockquote className="text-sm md:text-base text-muted-foreground italic leading-relaxed">
-                  "{testimonial.quote}"
-                </blockquote>
-
-                {/* Author Details */}
-                <div className="pt-4 border-t border-white/5 space-y-1">
-                  <p className="font-bold text-foreground text-base">
-                    — {testimonial.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {testimonial.role}
-                  </p>
-                  <p className="text-xs text-muted-foreground/80">
-                    {testimonial.institution}
-                  </p>
-                  <p className="text-xs text-muted-foreground/60">
-                    📍 {testimonial.location}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  {/* Author Details */}
+                  <div className="pt-4 border-t border-white/5 space-y-1">
+                    <p className="font-bold text-foreground text-base">
+                      — {testimonial.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {testimonial.role}
+                    </p>
+                    <p className="text-xs text-muted-foreground/80">
+                      {testimonial.institution}
+                    </p>
+                    <p className="text-xs text-muted-foreground/60">
+                      📍 {testimonial.location}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
       </div>
     </section>
   );
