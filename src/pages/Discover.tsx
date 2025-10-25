@@ -270,8 +270,8 @@ export default function Discover() {
   const handleScrapeNews = async () => {
     setIsScraping(true);
     toast({
-      title: 'Scraping Started',
-      description: 'Fetching latest news from sources. This may take a few minutes...'
+      title: 'Checking News Sources',
+      description: 'Scanning top 10 sources for new articles. This takes about 1-2 minutes...'
     });
     
     try {
@@ -281,17 +281,23 @@ export default function Discover() {
       
       if (data.success) {
         toast({
-          title: 'Scraping Complete!',
-          description: `Found ${data.results.found_articles} articles, processed ${data.results.processed} stories.`
+          title: data.partial ? 'Partial Scan Complete' : 'Scan Complete!',
+          description: data.message,
+          variant: data.results.found_articles > 0 ? 'default' : 'default'
         });
-        // Refresh stories
-        await fetchStories(true);
+        // Refresh stories only if new articles were found
+        if (data.results.found_articles > 0) {
+          await fetchStories(true);
+        }
       }
     } catch (error) {
       console.error('Error scraping news:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Network error';
       toast({
-        title: 'Error',
-        description: 'Failed to scrape news sources',
+        title: 'Scan Failed',
+        description: errorMsg.includes('fetch') 
+          ? 'Could not connect to news scanner. Please try again in a moment.'
+          : 'Failed to scan news sources. Please try again.',
         variant: 'destructive'
       });
     } finally {

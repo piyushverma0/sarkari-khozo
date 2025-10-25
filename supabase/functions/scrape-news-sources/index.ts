@@ -25,22 +25,33 @@ serve(async (req) => {
       .from('story_scraping_sources')
       .select('*')
       .eq('is_active', true)
-      .order('priority', { ascending: false });
+      .order('priority', { ascending: false })
+      .limit(10); // Limit to 10 sources to avoid timeout
 
     if (sourcesError) throw sourcesError;
 
-    console.log(`Found ${sources.length} active sources to scrape`);
+    console.log(`Found ${sources.length} active sources to scrape (limited to 10 for manual triggers)`);
 
     const results = {
       total_sources: sources.length,
       scraped: 0,
       found_articles: 0,
       processed: 0,
-      errors: [] as Array<{ source: string; error: string }>
+      errors: [] as Array<{ source: string; error: string }>,
+      timed_out: false
     };
+
+    const MAX_EXECUTION_TIME = 90000; // 90 seconds max (leave buffer before edge function timeout)
+    const startTime = Date.now();
 
     // Process each source
     for (const source of sources) {
+      // Check if we're approaching timeout
+      if (Date.now() - startTime > MAX_EXECUTION_TIME) {
+        console.log(`Stopping scrape - approaching timeout limit after ${results.scraped} sources`);
+        results.timed_out = true;
+        break;
+      }
       try {
         const startTime = Date.now();
         console.log(`[${new Date().toISOString()}] Starting scrape for ${source.source_name} (${source.url})`);
@@ -250,11 +261,19 @@ Example correct response:
 
     console.log(`[${new Date().toISOString()}] Scraping complete:`, results);
 
+    const message = results.timed_out 
+      ? `Partial scrape completed due to time limit. Processed ${results.processed} articles from ${results.scraped}/${results.total_sources} sources. Try again to check more sources.`
+      : results.found_articles > 0
+        ? `Found ${results.found_articles} new articles from ${results.scraped} sources`
+        : `Checked ${results.scraped} sources but no new articles were published recently. This is normal - government sources don't update daily.`;
+
     return new Response(
       JSON.stringify({ 
         success: true,
+        message,
         results,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        partial: results.timed_out
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
