@@ -21,6 +21,7 @@ export const AudioNewsBanner = () => {
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
   const [hasTrackedView, setHasTrackedView] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isFullRefreshing, setIsFullRefreshing] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -166,6 +167,58 @@ export const AudioNewsBanner = () => {
       });
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleFullRefresh = async () => {
+    try {
+      setIsFullRefreshing(true);
+      
+      toast({
+        title: "🔄 ताज़ा खबरें खोज रहे हैं...",
+        description: "नई खबरें खोजी जा रही हैं और बुलेटिन बनाया जा रहा है। कृपया 30-60 सेकंड प्रतीक्षा करें।",
+      });
+
+      // Step 1: Fetch latest news articles
+      const { error: scrapeError } = await supabase.functions.invoke(
+        'scrape-news-sources',
+        { body: {} }
+      );
+
+      if (scrapeError) {
+        console.error('Scraping error:', scrapeError);
+        // Don't throw - continue with existing articles
+      }
+
+      // Step 2: Wait for articles to be processed
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
+      // Step 3: Generate new bulletin with fresh articles
+      const { data, error: bulletinError } = await supabase.functions.invoke(
+        'generate-audio-news-bulletin',
+        { body: {} }
+      );
+
+      if (bulletinError) throw bulletinError;
+      if (data?.error) throw new Error(data.error);
+
+      // Step 4: Fetch the new bulletin
+      await refetch();
+
+      toast({
+        title: "✅ बुलेटिन अपडेट हो गया!",
+        description: "नवीनतम खबरों के साथ आपका ऑडियो बुलेटिन तैयार है।",
+      });
+
+    } catch (error) {
+      console.error('Full refresh error:', error);
+      toast({
+        title: "❌ अपडेट में समस्या",
+        description: "कुछ गड़बड़ हुई। कृपया कुछ देर बाद फिर से कोशिश करें।",
+        variant: "destructive",
+      });
+    } finally {
+      setIsFullRefreshing(false);
     }
   };
 
@@ -412,12 +465,13 @@ export const AudioNewsBanner = () => {
                     <Button 
                       size="sm" 
                       variant="outline" 
-                      onClick={refetch}
-                      aria-label="Refresh bulletin"
-                      title="Check for new bulletin"
+                      onClick={handleFullRefresh}
+                      disabled={isFullRefreshing}
+                      aria-label="Refresh with latest news"
+                      title="Check for new articles and generate fresh bulletin"
                       className="h-9 w-9 p-0"
                     >
-                      <RefreshCw className="h-4 w-4" />
+                      <RefreshCw className={`h-4 w-4 ${isFullRefreshing ? 'animate-spin' : ''}`} />
                     </Button>
                   </div>
                 </div>

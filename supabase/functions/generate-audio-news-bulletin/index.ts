@@ -27,6 +27,7 @@ serve(async (req) => {
 
     // Step 1: Fetch top 10 most recent active stories (any category)
     console.log(`[${new Date().toISOString()}] 📰 Fetching recent stories...`);
+    console.log(`[${new Date().toISOString()}] Query: is_active=true, order by published_date desc, limit 10`);
     
     const { data: stories, error: storiesError } = await supabase
       .from("discovery_stories")
@@ -49,6 +50,15 @@ serve(async (req) => {
     }
 
     console.log(`[${new Date().toISOString()}] ✅ Found ${stories.length} stories to process`);
+    
+    // Log each story's details for debugging
+    if (stories && stories.length > 0) {
+      console.log(`[${new Date().toISOString()}] 📋 Stories being used in bulletin:`);
+      stories.forEach((s, i) => {
+        const publishedDate = s.published_date ? new Date(s.published_date).toISOString() : 'No date';
+        console.log(`  ${i + 1}. [${publishedDate}] ${s.headline.substring(0, 60)}...`);
+      });
+    }
 
     // Step 2: Generate ONE cohesive Hindi bulletin script using Claude
     console.log(`[${new Date().toISOString()}] 🤖 Generating Hindi bulletin script with Claude...`);
