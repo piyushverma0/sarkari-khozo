@@ -270,8 +270,8 @@ export default function Discover() {
   const handleScrapeNews = async () => {
     setIsScraping(true);
     toast({
-      title: 'News Scraping Started',
-      description: 'Checking all sources and using AI discovery if needed. New stories will appear automatically as they are processed...'
+      title: '🤖 AI Discovery Starting',
+      description: 'Using AI to find the latest government news articles...'
     });
     
     try {
@@ -281,28 +281,24 @@ export default function Discover() {
       
       if (data.success) {
         toast({
-          title: 'Scraping in Progress',
-          description: 'Articles are being processed in the background. Refresh the page in a minute to see new stories.',
-          variant: 'default'
+          title: data.results.found_articles > 0 ? '✓ Articles Found!' : 'No New Content',
+          description: data.message,
+          variant: data.results.found_articles > 0 ? 'default' : 'default'
         });
         
-        // Auto-refresh after 60 seconds
-        setTimeout(async () => {
+        // Refresh stories if new articles were found
+        if (data.results.found_articles > 0) {
           await fetchStories(true);
-          toast({
-            title: 'Feed Updated',
-            description: 'Check out the latest articles!'
-          });
-        }, 60000);
+        }
       }
     } catch (error) {
       console.error('Error scraping news:', error);
       const errorMsg = error instanceof Error ? error.message : 'Network error';
       toast({
-        title: 'Scan Failed',
+        title: 'Discovery Failed',
         description: errorMsg.includes('fetch') 
-          ? 'Could not connect to news scanner. Please try again in a moment.'
-          : 'Failed to start scraping. Please try again.',
+          ? 'Could not connect to AI discovery. Please try again.'
+          : 'Failed to discover news. Please try again.',
         variant: 'destructive'
       });
     } finally {
