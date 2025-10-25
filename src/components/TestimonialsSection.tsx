@@ -129,25 +129,22 @@ export const TestimonialsSection = () => {
     <section className="py-16 md:py-20 px-4">
       <div className="container mx-auto">
         {/* Section Heading */}
-        <div className="text-center mb-12 md:mb-16 space-y-3">
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold gradient-text">
-            🌟 What People Say About Sarkari Khozo
-          </h2>
-          <p className="text-muted-foreground text-base md:text-lg max-w-2xl mx-auto">
+        <div className="text-center mb-12 md:mb-16">
+          <p className="text-muted-foreground text-xl md:text-2xl lg:text-3xl max-w-3xl mx-auto">
             Real stories from students, aspirants, and families across India
           </p>
         </div>
 
         {/* Horizontal Scrollable Testimonials */}
-        <ScrollArea className="w-full whitespace-nowrap">
+        <ScrollArea className="w-full whitespace-nowrap [&>div>div[style]]:!overflow-x-scroll [&>div>div[style]]:!scrollbar-none [&>div>div[style]]:!-ms-overflow-style-none [&>div>div[style]]:!scrollbar-width-none [&_div[data-radix-scroll-area-viewport]]:!scrollbar-none [&_*]:!scrollbar-none">
           <div className="flex gap-6 pb-4">
             {testimonials.map((testimonial, index) => (
               <Card 
                 key={index}
-                className="glass-card border border-white/10 backdrop-blur-xl bg-background/70 hover:scale-[1.02] transition-all duration-300 hover:shadow-[0_0_30px_hsla(212,70%,68%,0.3)] hover:border-primary/30 group overflow-hidden inline-block w-[350px] md:w-[400px] flex-shrink-0"
+                className="glass-card border border-white/10 backdrop-blur-xl bg-background/70 overflow-hidden inline-block w-[350px] md:w-[400px] flex-shrink-0"
               >
                 {/* Gradient accent bar */}
-                <div className="h-1 w-full bg-gradient-to-r from-primary via-secondary to-primary opacity-70 group-hover:opacity-100 transition-opacity" />
+                <div className="h-1 w-full bg-gradient-to-r from-primary via-secondary to-primary opacity-70" />
                 
                 <CardContent className="p-6 space-y-4 whitespace-normal">
                   {/* Quote */}
@@ -174,7 +171,6 @@ export const TestimonialsSection = () => {
               </Card>
             ))}
           </div>
-          <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </div>
     </section>
