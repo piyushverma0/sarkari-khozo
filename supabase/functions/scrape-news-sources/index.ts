@@ -47,15 +47,15 @@ serve(async (req) => {
 
         // Get current date for explicit date filtering
         const currentDate = new Date();
-        const twoDaysAgo = new Date(currentDate.getTime() - (2 * 24 * 60 * 60 * 1000));
+        const threeDaysAgo = new Date(currentDate.getTime() - (3 * 24 * 60 * 60 * 1000));
         const currentDateStr = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD
-        const twoDaysAgoStr = twoDaysAgo.toISOString().split('T')[0];
+        const threeDaysAgoStr = threeDaysAgo.toISOString().split('T')[0];
 
         // Use Claude with web search to find recent articles
-        const scrapePrompt = `Search the website ${source.url} for news articles published in the last 24-48 hours.
+        const scrapePrompt = `Search the website ${source.url} for news articles published in the last 3 days.
 
 CURRENT DATE: ${currentDateStr}
-CRITICAL: Only return articles published between ${twoDaysAgoStr} and ${currentDateStr}
+CRITICAL: Only return articles published between ${threeDaysAgoStr} and ${currentDateStr}
 
 Category focus: ${source.category}
 ${source.region !== 'National' ? `Region focus: ${source.region}` : ''}
@@ -82,7 +82,7 @@ Do not include markdown code blocks, do not include any commentary.`;
 
 CRITICAL RULES:
 1. Return ONLY a JSON array, no text before or after, no markdown code blocks
-2. Only include articles from the last 48 hours (${twoDaysAgoStr} to ${currentDateStr})
+2. Only include articles from the last 3 days (${threeDaysAgoStr} to ${currentDateStr})
 3. Each article MUST have a valid published_date in ISO format
 4. If you cannot find recent articles, return an empty array []
 

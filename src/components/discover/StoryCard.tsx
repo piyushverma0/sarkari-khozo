@@ -34,7 +34,20 @@ export const StoryCard = ({
   };
 
   const config = categoryConfig[story.category];
-  const timeAgo = formatDistanceToNow(new Date(story.published_date), { addSuffix: true });
+  const publishedDate = new Date(story.published_date);
+  const hoursOld = (Date.now() - publishedDate.getTime()) / (1000 * 60 * 60);
+  const isNew = hoursOld < 6; // Less than 6 hours old
+  const isRecent = hoursOld < 24; // Less than 24 hours old
+  
+  // Format time differently based on age
+  let timeAgo;
+  if (hoursOld < 1) {
+    timeAgo = 'Just now';
+  } else if (hoursOld < 24) {
+    timeAgo = `${Math.floor(hoursOld)}h ago`;
+  } else {
+    timeAgo = formatDistanceToNow(publishedDate, { addSuffix: true });
+  }
 
   if (viewMode === 'compact') {
     return (
@@ -70,7 +83,12 @@ export const StoryCard = ({
             <Badge variant="secondary" className="text-xs">
               {config.label}
             </Badge>
-            <span className="flex items-center gap-1">
+            {isNew && (
+              <Badge variant="default" className="text-xs bg-green-500 hover:bg-green-600">
+                🔥 New
+              </Badge>
+            )}
+            <span className={`flex items-center gap-1 ${isRecent ? 'text-green-600 font-medium' : ''}`}>
               <Clock className="w-3 h-3" />
               {timeAgo}
             </span>
@@ -98,7 +116,12 @@ export const StoryCard = ({
           <Badge variant="secondary" className="text-xs">
             {config.label}
           </Badge>
-          <span className="text-xs text-muted-foreground flex items-center gap-1">
+          {isNew && (
+            <Badge variant="default" className="text-xs bg-green-500 hover:bg-green-600">
+              🔥 New
+            </Badge>
+          )}
+          <span className={`text-xs flex items-center gap-1 ${isRecent ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
             <Clock className="w-3 h-3" />
             {timeAgo}
           </span>
