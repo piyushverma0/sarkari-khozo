@@ -58,12 +58,19 @@ const Index = () => {
           <p className="text-xs text-muted-foreground">
             Built with ❤️ by Piyush
           </p>
-          <div className="flex justify-center gap-4 text-xs text-muted-foreground">
+          <div className="flex justify-center items-center gap-2 text-xs text-muted-foreground">
             <a 
               href="/privacy-policy" 
               className="hover:text-foreground transition-colors"
             >
               Privacy Policy
+            </a>
+            <span>|</span>
+            <a 
+              href="/terms-of-service" 
+              className="hover:text-foreground transition-colors"
+            >
+              Terms of Service
             </a>
           </div>
         </div>
