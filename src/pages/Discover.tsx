@@ -280,8 +280,10 @@ export default function Discover() {
       if (error) throw error;
       
       if (data.success) {
+        const isClaudeFallback = data.results?.discovery_method === 'claude_fallback';
+        
         toast({
-          title: data.partial ? 'Partial Scan Complete' : 'Scan Complete!',
+          title: data.partial ? 'Partial Scan Complete' : isClaudeFallback ? '🤖 AI Discovery Used' : 'Scan Complete!',
           description: data.message,
           variant: data.results.found_articles > 0 ? 'default' : 'default'
         });
