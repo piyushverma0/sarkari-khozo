@@ -7,6 +7,7 @@ import HeroSection from "@/components/HeroSection";
 import { AudioNewsBanner } from "@/components/AudioNewsBanner";
 import CategoriesSection from "@/components/CategoriesSection";
 import SavedApplicationsSection from "@/components/SavedApplicationsSection";
+import { TestimonialsSection } from "@/components/TestimonialsSection";
 
 const Index = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -49,6 +50,8 @@ const Index = () => {
         <CategoriesSection user={user} onAuthRequired={handleAuthRequired} />
 
         {user && <SavedApplicationsSection userId={user.id} />}
+
+        <TestimonialsSection />
       </main>
       <footer className="py-8 bg-transparent border-t">
         <div className="container mx-auto text-center space-y-3">
