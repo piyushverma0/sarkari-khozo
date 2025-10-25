@@ -12,6 +12,7 @@ import StartupCategory from "./pages/StartupCategory";
 import LawyersCategory from "./pages/LawyersCategory";
 import Dashboard from "./pages/Dashboard";
 import Discover from "./pages/Discover";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/category/lawyers" element={<LawyersCategory />} />
             <Route path="/category/:slug" element={<Category />} />
             <Route path="/discover" element={<Discover />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

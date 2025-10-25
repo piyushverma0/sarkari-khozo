@@ -50,8 +50,16 @@ const Index = () => {
 
         {user && <SavedApplicationsSection userId={user.id} />}
       </main>
-      <footer className="py-8 bg-transparent">
-        <div className="container mx-auto text-center space-y-2">
+      <footer className="py-8 bg-transparent border-t">
+        <div className="container mx-auto text-center space-y-3">
+          <div className="flex justify-center gap-4 text-xs text-muted-foreground">
+            <a 
+              href="/privacy-policy" 
+              className="hover:text-foreground transition-colors"
+            >
+              Privacy Policy
+            </a>
+          </div>
           <p className="text-sm text-foreground">
             © 2025 All rights reserved.
           </p>
