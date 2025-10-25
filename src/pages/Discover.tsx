@@ -270,8 +270,8 @@ export default function Discover() {
   const handleScrapeNews = async () => {
     setIsScraping(true);
     toast({
-      title: 'Checking News Sources',
-      description: 'Scanning top 10 sources for new articles. This takes about 1-2 minutes...'
+      title: 'News Scraping Started',
+      description: 'Checking all sources and using AI discovery if needed. New stories will appear automatically as they are processed...'
     });
     
     try {
@@ -280,17 +280,20 @@ export default function Discover() {
       if (error) throw error;
       
       if (data.success) {
-        const isClaudeFallback = data.results?.discovery_method === 'claude_fallback';
-        
         toast({
-          title: data.partial ? 'Partial Scan Complete' : isClaudeFallback ? '🤖 AI Discovery Used' : 'Scan Complete!',
-          description: data.message,
-          variant: data.results.found_articles > 0 ? 'default' : 'default'
+          title: 'Scraping in Progress',
+          description: 'Articles are being processed in the background. Refresh the page in a minute to see new stories.',
+          variant: 'default'
         });
-        // Refresh stories only if new articles were found
-        if (data.results.found_articles > 0) {
+        
+        // Auto-refresh after 60 seconds
+        setTimeout(async () => {
           await fetchStories(true);
-        }
+          toast({
+            title: 'Feed Updated',
+            description: 'Check out the latest articles!'
+          });
+        }, 60000);
       }
     } catch (error) {
       console.error('Error scraping news:', error);
@@ -299,7 +302,7 @@ export default function Discover() {
         title: 'Scan Failed',
         description: errorMsg.includes('fetch') 
           ? 'Could not connect to news scanner. Please try again in a moment.'
-          : 'Failed to scan news sources. Please try again.',
+          : 'Failed to start scraping. Please try again.',
         variant: 'destructive'
       });
     } finally {

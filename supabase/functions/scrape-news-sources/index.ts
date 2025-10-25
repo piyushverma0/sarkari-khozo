@@ -107,58 +107,53 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Starting news source scraping...');
+    console.log('Starting news source scraping (background task)...');
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Fetch all active sources, prioritized
-    const { data: sources, error: sourcesError } = await supabase
-      .from('story_scraping_sources')
-      .select('*')
-      .eq('is_active', true)
-      .order('priority', { ascending: false })
-      .limit(10); // Limit to 10 sources to avoid timeout
+    // Define the background scraping task
+    const scrapingTask = async () => {
+      const results = {
+        total_sources: 0,
+        scraped: 0,
+        found_articles: 0,
+        processed: 0,
+        errors: [] as Array<{ source: string; error: string }>,
+        discovery_method: 'configured_sources' as 'configured_sources' | 'claude_fallback'
+      };
 
-    if (sourcesError) throw sourcesError;
-
-    console.log(`Found ${sources.length} active sources to scrape (limited to 10 for manual triggers)`);
-
-    const results = {
-      total_sources: sources.length,
-      scraped: 0,
-      found_articles: 0,
-      processed: 0,
-      errors: [] as Array<{ source: string; error: string }>,
-      timed_out: false,
-      discovery_method: 'configured_sources' as 'configured_sources' | 'claude_fallback'
-    };
-
-    const MAX_EXECUTION_TIME = 90000; // 90 seconds max (leave buffer before edge function timeout)
-    const startTime = Date.now();
-
-    // Process each source
-    for (const source of sources) {
-      // Check if we're approaching timeout
-      if (Date.now() - startTime > MAX_EXECUTION_TIME) {
-        console.log(`Stopping scrape - approaching timeout limit after ${results.scraped} sources`);
-        results.timed_out = true;
-        break;
-      }
       try {
-        const startTime = Date.now();
-        console.log(`[${new Date().toISOString()}] Starting scrape for ${source.source_name} (${source.url})`);
+        // Fetch all active sources
+        const { data: sources, error: sourcesError } = await supabase
+          .from('story_scraping_sources')
+          .select('*')
+          .eq('is_active', true)
+          .order('priority', { ascending: false })
+          .limit(10);
 
-        // Get current date for explicit date filtering
-        const currentDate = new Date();
-        const threeDaysAgo = new Date(currentDate.getTime() - (3 * 24 * 60 * 60 * 1000));
-        const currentDateStr = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD
-        const threeDaysAgoStr = threeDaysAgo.toISOString().split('T')[0];
+        if (sourcesError) {
+          console.error('Error fetching sources:', sourcesError);
+          return;
+        }
 
-        // Use Claude with web search to find recent articles
-        const scrapePrompt = `Search the website ${source.url} for news articles published in the last 3 days.
+        console.log(`Found ${sources.length} active sources to scrape`);
+        results.total_sources = sources.length;
+
+        // Process each source without timeout constraints
+        for (const source of sources) {
+          try {
+            const startTime = Date.now();
+            console.log(`[${new Date().toISOString()}] Starting scrape for ${source.source_name} (${source.url})`);
+
+            const currentDate = new Date();
+            const threeDaysAgo = new Date(currentDate.getTime() - (3 * 24 * 60 * 60 * 1000));
+            const currentDateStr = currentDate.toISOString().split('T')[0];
+            const threeDaysAgoStr = threeDaysAgo.toISOString().split('T')[0];
+
+            const scrapePrompt = `Search the website ${source.url} for news articles published in the last 3 days.
 
 CURRENT DATE: ${currentDateStr}
 CRITICAL: Only return articles published between ${threeDaysAgoStr} and ${currentDateStr}
@@ -183,8 +178,8 @@ CRITICAL: Return ONLY the JSON array itself, no explanatory text before or after
 Example: [{"url": "...", "headline": "...", "published_date": "2025-10-24T10:30:00Z"}]
 Do not include markdown code blocks, do not include any commentary.`;
 
-        const response = await callClaude({
-          systemPrompt: `You are a web scraping assistant specialized in finding VERY RECENT news articles.
+            const response = await callClaude({
+              systemPrompt: `You are a web scraping assistant specialized in finding VERY RECENT news articles.
 
 CRITICAL RULES:
 1. Return ONLY a JSON array, no text before or after, no markdown code blocks
@@ -194,240 +189,217 @@ CRITICAL RULES:
 
 Example correct response:
 [{"url": "https://ssc.gov.in/article", "headline": "SSC Exam 2025", "published_date": "2025-10-24T10:30:00Z"}]`,
-          userPrompt: scrapePrompt,
-          enableWebSearch: true,
-          forceWebSearch: true,
-          maxTokens: 2000,
-          temperature: 0.1
-        });
+              userPrompt: scrapePrompt,
+              enableWebSearch: true,
+              forceWebSearch: true,
+              maxTokens: 2000,
+              temperature: 0.1
+            });
 
-        // Parse articles from response with robust extraction
-        let articles = [];
-        try {
-          let cleanContent = response.content.trim();
-          console.log(`[${new Date().toISOString()}] Claude response preview: ${cleanContent.substring(0, 300)}...`);
-
-          // Strategy 1: Find JSON array between ```json and ```
-          const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/);
-          if (jsonBlockMatch) {
+            let articles = [];
             try {
-              articles = JSON.parse(jsonBlockMatch[1]);
-              console.log('Parsed articles (Strategy 1: markdown block)');
-            } catch (e) {
-              console.log('Strategy 1 failed, trying next...');
+              let cleanContent = response.content.trim();
+              console.log(`[${new Date().toISOString()}] Claude response preview: ${cleanContent.substring(0, 300)}...`);
+
+              const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/);
+              if (jsonBlockMatch) {
+                try {
+                  articles = JSON.parse(jsonBlockMatch[1]);
+                  console.log('Parsed articles (Strategy 1: markdown block)');
+                } catch (e) {
+                  console.log('Strategy 1 failed, trying next...');
+                }
+              }
+
+              if (!articles || articles.length === 0) {
+                const arrayMatch = cleanContent.match(/\[[\s\S]*\]/);
+                if (arrayMatch) {
+                  try {
+                    articles = JSON.parse(arrayMatch[0]);
+                    console.log('Parsed articles (Strategy 2: array pattern)');
+                  } catch (e) {
+                    console.log('Strategy 2 failed, trying next...');
+                  }
+                }
+              }
+
+              if (!articles || articles.length === 0) {
+                const firstBracket = cleanContent.indexOf('[');
+                const lastBracket = cleanContent.lastIndexOf(']');
+                if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+                  try {
+                    articles = JSON.parse(cleanContent.substring(firstBracket, lastBracket + 1));
+                    console.log('Parsed articles (Strategy 3: bracket extraction)');
+                  } catch (e) {
+                    console.log('Strategy 3 failed');
+                  }
+                }
+              }
+              
+              if (!Array.isArray(articles)) {
+                console.warn('Parsed result is not an array, defaulting to empty array');
+                articles = [];
+              }
+            } catch (parseError) {
+              console.error(`Failed to parse articles from ${source.source_name}:`, parseError);
+              results.errors.push({
+                source: source.source_name,
+                error: 'JSON parse error after all strategies'
+              });
+              continue;
             }
+
+            const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+            const recentArticles = articles.filter(article => {
+              if (!article.published_date) return false;
+              try {
+                const articleDate = new Date(article.published_date);
+                const daysOld = (Date.now() - articleDate.getTime()) / (1000 * 60 * 60 * 24);
+                return daysOld <= 7;
+              } catch (e) {
+                return false;
+              }
+            });
+
+            console.log(`[${new Date().toISOString()}] Found ${articles.length} articles, ${recentArticles.length} are recent (last 7 days)`);
+            articles = recentArticles;
+            results.found_articles += articles.length;
+
+            for (const article of articles) {
+              try {
+                console.log(`[${new Date().toISOString()}] Processing article: ${article.headline.substring(0, 80)}...`);
+                
+                const processResponse = await supabase.functions.invoke('process-story-with-ai', {
+                  body: {
+                    url: article.url,
+                    raw_headline: article.headline,
+                    source_name: source.source_name,
+                    category: source.category === 'all' ? undefined : source.category
+                  }
+                });
+
+                if (processResponse.data?.success) {
+                  results.processed++;
+                  console.log(`[${new Date().toISOString()}] Successfully processed article`);
+                } else {
+                  console.log(`[${new Date().toISOString()}] Failed to process: ${processResponse.error?.message || 'Unknown error'}`);
+                }
+              } catch (processError) {
+                console.error(`Failed to process article ${article.url}:`, processError);
+              }
+
+              await new Promise(resolve => setTimeout(resolve, 200));
+            }
+
+            const elapsed = Date.now() - startTime;
+            console.log(`[${new Date().toISOString()}] Completed ${source.source_name} in ${elapsed}ms`);
+            
+            await supabase
+              .from('story_scraping_sources')
+              .update({
+                last_scraped_at: new Date().toISOString(),
+                last_success_at: new Date().toISOString(),
+                total_scrapes: source.total_scrapes + 1,
+                success_count: source.success_count + 1,
+                avg_articles_per_scrape: ((source.avg_articles_per_scrape || 0) * source.total_scrapes + articles.length) / (source.total_scrapes + 1)
+              })
+              .eq('id', source.id);
+
+            results.scraped++;
+
+          } catch (sourceError) {
+            console.error(`[${new Date().toISOString()}] Error scraping ${source.source_name}:`, sourceError);
+            const errorMessage = sourceError instanceof Error ? sourceError.message : 'Unknown error';
+            results.errors.push({
+              source: source.source_name,
+              error: errorMessage
+            });
+
+            await supabase
+              .from('story_scraping_sources')
+              .update({
+                last_scraped_at: new Date().toISOString(),
+                total_scrapes: source.total_scrapes + 1,
+                failure_count: source.failure_count + 1,
+                last_error: errorMessage
+              })
+              .eq('id', source.id);
           }
 
-          // Strategy 2: Find JSON array pattern [...]
-          if (!articles || articles.length === 0) {
-            const arrayMatch = cleanContent.match(/\[[\s\S]*\]/);
-            if (arrayMatch) {
-              try {
-                articles = JSON.parse(arrayMatch[0]);
-                console.log('Parsed articles (Strategy 2: array pattern)');
-              } catch (e) {
-                console.log('Strategy 2 failed, trying next...');
-              }
-            }
-          }
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
 
-          // Strategy 3: Remove everything before first [ and after last ]
-          if (!articles || articles.length === 0) {
-            const firstBracket = cleanContent.indexOf('[');
-            const lastBracket = cleanContent.lastIndexOf(']');
-            if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
-              try {
-                articles = JSON.parse(cleanContent.substring(firstBracket, lastBracket + 1));
-                console.log('Parsed articles (Strategy 3: bracket extraction)');
-              } catch (e) {
-                console.log('Strategy 3 failed');
-              }
-            }
-          }
+        // Intelligent Discovery Fallback - trigger when no articles found
+        if (results.found_articles === 0) {
+          console.log('No articles found from configured sources. Activating Claude discovery fallback...');
           
-          if (!Array.isArray(articles)) {
-            console.warn('Parsed result is not an array, defaulting to empty array');
-            articles = [];
-          }
-        } catch (parseError) {
-          console.error(`Failed to parse articles from ${source.source_name}:`, parseError);
-          console.error('Raw content:', response.content);
-          results.errors.push({
-            source: source.source_name,
-            error: 'JSON parse error after all strategies'
-          });
-          continue;
-        }
-
-        // Filter out old articles (only keep articles from last 7 days)
-        const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-        const recentArticles = articles.filter(article => {
-          if (!article.published_date) {
-            console.log(`Article missing published_date: ${article.headline}`);
-            return false;
-          }
           try {
-            const articleDate = new Date(article.published_date);
-            const daysOld = (Date.now() - articleDate.getTime()) / (1000 * 60 * 60 * 24);
-            if (daysOld > 7) {
-              console.log(`Filtering out old article (${daysOld.toFixed(1)} days old): ${article.headline}`);
-              return false;
-            }
-            return true;
-          } catch (e) {
-            console.log(`Invalid date format for article: ${article.headline}`);
-            return false;
-          }
-        });
-
-        console.log(`[${new Date().toISOString()}] Found ${articles.length} articles, ${recentArticles.length} are recent (last 7 days)`);
-        articles = recentArticles;
-        results.found_articles += articles.length;
-
-        // Process each article with AI
-        for (const article of articles) {
-          try {
-            console.log(`[${new Date().toISOString()}] Processing article: ${article.headline.substring(0, 80)}...`);
+            const currentDate = new Date();
+            const currentDateStr = currentDate.toISOString().split('T')[0];
             
-            // Call process-story-with-ai function
-            const processResponse = await supabase.functions.invoke('process-story-with-ai', {
-              body: {
-                url: article.url,
-                raw_headline: article.headline,
-                source_name: source.source_name,
-                category: source.category === 'all' ? undefined : source.category
-              }
-            });
-
-            if (processResponse.data?.success) {
-              results.processed++;
-              console.log(`[${new Date().toISOString()}] Successfully processed article`);
-            } else {
-              console.log(`[${new Date().toISOString()}] Failed to process: ${processResponse.error?.message || 'Unknown error'}`);
-            }
-          } catch (processError) {
-            console.error(`Failed to process article ${article.url}:`, processError);
-          }
-
-          // Reduced delay to avoid rate limits (200ms instead of 500ms)
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-
-        // Update source metrics
-        const elapsed = Date.now() - startTime;
-        console.log(`[${new Date().toISOString()}] Completed ${source.source_name} in ${elapsed}ms`);
-        
-        await supabase
-          .from('story_scraping_sources')
-          .update({
-            last_scraped_at: new Date().toISOString(),
-            last_success_at: new Date().toISOString(),
-            total_scrapes: source.total_scrapes + 1,
-            success_count: source.success_count + 1,
-            avg_articles_per_scrape: ((source.avg_articles_per_scrape || 0) * source.total_scrapes + articles.length) / (source.total_scrapes + 1)
-          })
-          .eq('id', source.id);
-
-        results.scraped++;
-
-      } catch (sourceError) {
-        console.error(`[${new Date().toISOString()}] Error scraping ${source.source_name}:`, sourceError);
-        const errorMessage = sourceError instanceof Error ? sourceError.message : 'Unknown error';
-        results.errors.push({
-          source: source.source_name,
-          error: errorMessage
-        });
-
-        // Update source with error
-        await supabase
-          .from('story_scraping_sources')
-          .update({
-            last_scraped_at: new Date().toISOString(),
-            total_scrapes: source.total_scrapes + 1,
-            failure_count: source.failure_count + 1,
-            last_error: errorMessage
-          })
-          .eq('id', source.id);
-      }
-
-      // Reduced delay between sources (1000ms instead of 2000ms)
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-
-    // Intelligent Discovery Fallback - trigger when no articles found
-    if (results.found_articles === 0) {
-      const timeoutStatus = results.timed_out ? ' (partial scan due to timeout)' : '';
-      console.log(`No articles found from configured sources${timeoutStatus}. Activating Claude discovery fallback...`);
-      
-      try {
-        const currentDate = new Date();
-        const currentDateStr = currentDate.toISOString().split('T')[0];
-        
-        const fallbackArticles = await discoverWithClaude(currentDateStr);
-        
-        console.log(`Claude fallback discovered ${fallbackArticles.length} articles`);
-        
-        // Process discovered articles
-        for (const article of fallbackArticles) {
-          try {
-            console.log(`Processing fallback article: ${article.headline.substring(0, 80)}...`);
+            const fallbackArticles = await discoverWithClaude(currentDateStr);
+            console.log(`Claude fallback discovered ${fallbackArticles.length} articles`);
             
-            const processResponse = await supabase.functions.invoke('process-story-with-ai', {
-              body: {
-                url: article.url,
-                raw_headline: article.headline,
-                source_name: article.source_name,
-                category: undefined // Let AI determine category
+            for (const article of fallbackArticles) {
+              try {
+                console.log(`Processing fallback article: ${article.headline.substring(0, 80)}...`);
+                
+                const processResponse = await supabase.functions.invoke('process-story-with-ai', {
+                  body: {
+                    url: article.url,
+                    raw_headline: article.headline,
+                    source_name: article.source_name,
+                    category: undefined
+                  }
+                });
+
+                if (processResponse.data?.success) {
+                  results.processed++;
+                  results.found_articles++;
+                  console.log('Successfully processed fallback article');
+                }
+              } catch (processError) {
+                console.error(`Failed to process fallback article ${article.url}:`, processError);
               }
-            });
 
-            if (processResponse.data?.success) {
-              results.processed++;
-              results.found_articles++;
-              console.log('Successfully processed fallback article');
+              await new Promise(resolve => setTimeout(resolve, 200));
             }
-          } catch (processError) {
-            console.error(`Failed to process fallback article ${article.url}:`, processError);
+            
+            if (results.found_articles > 0) {
+              results.discovery_method = 'claude_fallback';
+            }
+          } catch (fallbackError) {
+            console.error('Claude fallback discovery failed:', fallbackError);
+            results.errors.push({
+              source: 'Claude Fallback',
+              error: fallbackError instanceof Error ? fallbackError.message : 'Fallback discovery failed'
+            });
           }
+        }
 
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-        
-        if (results.found_articles > 0) {
-          results.discovery_method = 'claude_fallback';
-        }
-      } catch (fallbackError) {
-        console.error('Claude fallback discovery failed:', fallbackError);
-        results.errors.push({
-          source: 'Claude Fallback',
-          error: fallbackError instanceof Error ? fallbackError.message : 'Fallback discovery failed'
-        });
+        console.log(`[${new Date().toISOString()}] Scraping complete:`, results);
+
+      } catch (error) {
+        console.error('Background scraping task failed:', error);
       }
-    }
+    };
 
-    console.log(`[${new Date().toISOString()}] Scraping complete:`, results);
+    // Start background task
+    // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
+    EdgeRuntime.waitUntil(scrapingTask());
 
-    const message = results.discovery_method === 'claude_fallback'
-      ? `Found ${results.found_articles} articles using AI discovery${results.timed_out ? ' (configured sources timed out)' : ' (no updates from configured sources)'}`
-      : results.timed_out 
-        ? `Partial scrape completed due to time limit. Processed ${results.processed} articles from ${results.scraped}/${results.total_sources} sources. Try again to check more sources.`
-        : results.found_articles > 0
-          ? `Found ${results.found_articles} new articles from ${results.scraped} sources`
-          : `Checked ${results.scraped} sources but no new articles were published recently.`;
-
+    // Return immediate response
     return new Response(
       JSON.stringify({ 
         success: true,
-        message,
-        results,
-        timestamp: new Date().toISOString(),
-        partial: results.timed_out
+        message: 'News scraping started in background. Results will be available shortly.',
+        timestamp: new Date().toISOString()
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Scraping job failed:', error);
+    console.error('Failed to start scraping task:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
       JSON.stringify({ 
