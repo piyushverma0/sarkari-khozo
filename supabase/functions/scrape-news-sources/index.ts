@@ -45,22 +45,26 @@ CRITICAL: Only include articles published in ${timeframeText}.
 Return ONLY the JSON array, no markdown, no explanatory text.`;
 
   const response = await callClaude({
-    systemPrompt: `You are a news discovery assistant specialized in finding recent government announcements.
+    systemPrompt: `You are a news discovery assistant. When given a search request:
 
-CRITICAL RULES:
-1. Return ONLY a JSON array, no text before or after
-2. Only include articles from ${lookbackDays === 1 ? 'the last 24 hours' : lookbackDays === 7 ? 'the last 7 days' : 'the last 30 days'}
-3. Each article MUST have url, headline, published_date, and source_name
-4. If you cannot find recent articles, return an empty array []
+1. ALWAYS use the web_search tool to find articles
+2. Search Indian government job portals, news sites, and official sources
+3. Return articles as a JSON array with url, headline, published_date (ISO format), source_name
+4. If you find articles but dates are unclear, estimate based on "X days ago" text or context
+5. If you cannot find ANY articles, return [] (empty array)
 
-Example correct response:
-[{"url": "https://example.com/article", "headline": "SSC Exam 2025", "published_date": "2025-10-24T10:30:00Z", "source_name": "Sarkari Result"}]`,
+CRITICAL: Return ONLY the JSON array, nothing else. No markdown, no explanation.`,
     userPrompt: fallbackPrompt,
     enableWebSearch: true,
     forceWebSearch: true,
     maxTokens: 3000,
     temperature: 0.1
   });
+
+  // Diagnostic logging
+  console.log(`📊 Claude response length: ${response.content.length} chars`);
+  console.log(`🔍 Web search used: ${response.webSearchUsed}`);
+  console.log(`📝 Raw Claude response preview: ${response.content.substring(0, 500)}...`);
 
   // Parse response
   let articles = [];
@@ -85,24 +89,42 @@ Example correct response:
     }
 
     if (!Array.isArray(articles)) {
-      console.warn('Fallback discovery: parsed result is not an array');
+      console.warn('⚠️ Parsed result is not an array');
       return [];
     }
 
+    console.log(`📚 Parsed ${articles.length} articles before date filtering`);
+
     // Filter based on lookback days
     const cutoffDate = Date.now() - (lookbackDays * 24 * 60 * 60 * 1000);
-    return articles.filter(article => {
-      if (!article.published_date) return false;
+    const filteredArticles = articles.filter(article => {
+      if (!article.published_date) {
+        console.warn(`⚠️ Article missing published_date: ${article.headline?.substring(0, 50)}`);
+        return false;
+      }
       try {
         const articleDate = new Date(article.published_date);
-        return articleDate.getTime() > cutoffDate;
-      } catch {
+        const isRecent = articleDate.getTime() > cutoffDate;
+        if (!isRecent) {
+          console.log(`🗓️ Filtered out (too old): ${article.headline?.substring(0, 50)} - ${article.published_date}`);
+        }
+        return isRecent;
+      } catch (error) {
+        console.warn(`⚠️ Invalid date format for: ${article.headline?.substring(0, 50)} - ${article.published_date}`);
         return false;
       }
     });
 
+    console.log(`✅ After date filtering: ${filteredArticles.length} articles remain`);
+    if (filteredArticles.length === 0 && articles.length > 0) {
+      console.warn(`⚠️ All ${articles.length} articles were filtered out by date constraints`);
+    }
+
+    return filteredArticles;
+
   } catch (parseError) {
-    console.error('Failed to parse fallback discovery response:', parseError);
+    console.error('❌ Failed to parse Claude response:', parseError);
+    console.error('Raw response:', response.content);
     return [];
   }
 }
@@ -169,6 +191,44 @@ serve(async (req) => {
           const moreArticles = articles30d.filter(a => !allUrls.has(a.url));
           allArticles = [...allArticles, ...moreArticles];
           searchWindow = '30 days';
+
+          // Tier 4: Absolute fallback - broad evergreen search
+          if (allArticles.length === 0) {
+            console.log('Tier 4: Trying broad evergreen search...');
+            const broadPrompt = `Find highly relevant recent or evergreen articles about:
+- Government job notifications in India (SSC, UPSC, Railway, Banking exams)
+- Important government schemes and welfare programs
+- Major policy announcements
+
+Return 5-10 articles with url, headline, published_date (estimate if unclear), source_name.
+Return ONLY the JSON array.`;
+
+            const broadResponse = await callClaude({
+              systemPrompt: `You are a news discovery assistant. Use web search to find relevant articles. Return ONLY a JSON array.`,
+              userPrompt: broadPrompt,
+              enableWebSearch: true,
+              forceWebSearch: true,
+              maxTokens: 3000,
+              temperature: 0.3
+            });
+
+            console.log(`🔄 Tier 4 response: ${broadResponse.content.substring(0, 300)}...`);
+            
+            try {
+              let broadContent = broadResponse.content.trim();
+              const jsonMatch = broadContent.match(/\[[\s\S]*\]/);
+              if (jsonMatch) {
+                const broadArticles = JSON.parse(jsonMatch[0]);
+                if (Array.isArray(broadArticles)) {
+                  console.log(`Found ${broadArticles.length} evergreen articles`);
+                  allArticles = broadArticles;
+                  searchWindow = 'evergreen content';
+                }
+              }
+            } catch (e) {
+              console.error('Failed to parse Tier 4 results:', e);
+            }
+          }
         }
       }
 
