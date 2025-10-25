@@ -8,13 +8,19 @@ const corsHeaders = {
 };
 
 // Helper function: Claude-powered intelligent discovery
-async function discoverWithClaude(currentDateStr: string): Promise<Array<{
+async function discoverWithClaude(currentDateStr: string, lookbackDays: number): Promise<Array<{
   url: string;
   headline: string;
   published_date: string;
   source_name: string;
 }>> {
-  const fallbackPrompt = `Search the web for the LATEST government job notifications, exam announcements, and welfare schemes published in the last 24 hours in India.
+  const timeframeText = lookbackDays === 1 
+    ? 'the last 24 hours' 
+    : lookbackDays === 7 
+      ? 'the last 7 days' 
+      : 'the last 30 days';
+
+  const fallbackPrompt = `Search the web for government job notifications, exam announcements, and welfare schemes published in ${timeframeText} in India.
 
 CURRENT DATE: ${currentDateStr}
 
@@ -35,7 +41,7 @@ Return a JSON array with:
 - published_date: ISO format (YYYY-MM-DDTHH:mm:ssZ)
 - source_name: Website name
 
-CRITICAL: Only include articles published in the last 24 hours.
+CRITICAL: Only include articles published in ${timeframeText}.
 Return ONLY the JSON array, no markdown, no explanatory text.`;
 
   const response = await callClaude({
@@ -43,7 +49,7 @@ Return ONLY the JSON array, no markdown, no explanatory text.`;
 
 CRITICAL RULES:
 1. Return ONLY a JSON array, no text before or after
-2. Only include articles from the last 24 hours
+2. Only include articles from ${lookbackDays === 1 ? 'the last 24 hours' : lookbackDays === 7 ? 'the last 7 days' : 'the last 30 days'}
 3. Each article MUST have url, headline, published_date, and source_name
 4. If you cannot find recent articles, return an empty array []
 
@@ -83,13 +89,13 @@ Example correct response:
       return [];
     }
 
-    // Filter to only last 24 hours
-    const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+    // Filter based on lookback days
+    const cutoffDate = Date.now() - (lookbackDays * 24 * 60 * 60 * 1000);
     return articles.filter(article => {
       if (!article.published_date) return false;
       try {
         const articleDate = new Date(article.published_date);
-        return articleDate.getTime() > oneDayAgo;
+        return articleDate.getTime() > cutoffDate;
       } catch {
         return false;
       }
@@ -121,18 +127,55 @@ serve(async (req) => {
       discovery_method: 'claude_ai' as const
     };
 
-    // Go straight to AI-powered discovery for fresh content
-    console.log('Using AI discovery to find latest articles...');
+    let searchWindow = '24 hours'; // Declare at higher scope
+
+    // Implement cascading time window search
+    console.log('Starting multi-tier AI discovery...');
     
     try {
       const currentDate = new Date();
       const currentDateStr = currentDate.toISOString().split('T')[0];
       
-      const fallbackArticles = await discoverWithClaude(currentDateStr);
-      console.log(`AI discovered ${fallbackArticles.length} articles`);
+      let allArticles: Array<{url: string; headline: string; published_date: string; source_name: string}> = [];
+
+      // Tier 1: Try last 24 hours
+      console.log('Tier 1: Searching last 24 hours...');
+      const articles24h = await discoverWithClaude(currentDateStr, 1);
+      console.log(`Found ${articles24h.length} articles from last 24 hours`);
+
+      if (articles24h.length >= 5) {
+        allArticles = articles24h;
+        searchWindow = '24 hours';
+      } else {
+        // Tier 2: Expand to 7 days
+        console.log('Tier 2: Expanding search to last 7 days...');
+        allArticles = articles24h; // Keep fresh articles
+        const articles7d = await discoverWithClaude(currentDateStr, 7);
+        console.log(`Found ${articles7d.length} articles from last 7 days`);
+        
+        // Merge and deduplicate
+        const uniqueUrls = new Set(allArticles.map(a => a.url));
+        const newArticles = articles7d.filter(a => !uniqueUrls.has(a.url));
+        allArticles = [...allArticles, ...newArticles];
+        searchWindow = '7 days';
+        
+        if (allArticles.length < 3) {
+          // Tier 3: Last resort - 30 days
+          console.log('Tier 3: Expanding search to last 30 days...');
+          const articles30d = await discoverWithClaude(currentDateStr, 30);
+          console.log(`Found ${articles30d.length} articles from last 30 days`);
+          
+          const allUrls = new Set(allArticles.map(a => a.url));
+          const moreArticles = articles30d.filter(a => !allUrls.has(a.url));
+          allArticles = [...allArticles, ...moreArticles];
+          searchWindow = '30 days';
+        }
+      }
+
+      console.log(`Total unique articles discovered: ${allArticles.length}`);
       
       // Process discovered articles
-      for (const article of fallbackArticles) {
+      for (const article of allArticles) {
         try {
           console.log(`Processing: ${article.headline.substring(0, 80)}...`);
           
@@ -169,8 +212,8 @@ serve(async (req) => {
     console.log('Discovery complete:', results);
 
     const message = results.found_articles > 0
-      ? `🤖 AI found ${results.found_articles} new articles from latest sources`
-      : 'No new articles found in the last 24 hours. Check back soon!';
+      ? `🤖 AI found ${results.found_articles} articles from the last ${searchWindow}`
+      : 'No relevant articles found. Please try again later.';
 
     return new Response(
       JSON.stringify({ 
