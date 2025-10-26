@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bookmark, Share2, ExternalLink, Clock, Eye } from 'lucide-react';
+import { Bookmark, Share2, ExternalLink, Clock } from 'lucide-react';
 import { DiscoveryStory } from '@/types/discovery';
 import { formatDistanceToNow } from 'date-fns';
-import { formatViewCount } from '@/utils/formatViewCount';
+import { EngagementMetrics } from './EngagementMetrics';
+import { useViewTracking } from '@/hooks/useViewTracking';
 
 interface StoryCardProps {
   story: DiscoveryStory;
@@ -25,6 +26,11 @@ export const StoryCard = ({
   isSaved = false 
 }: StoryCardProps) => {
   const [showFullSummary, setShowFullSummary] = useState(false);
+  const { handleMouseEnter, handleMouseLeave, trackClick } = useViewTracking({
+    storyId: story.id,
+    enabled: true,
+    timeThreshold: 3
+  });
 
   // Category icons and colors
   const categoryConfig = {
@@ -55,6 +61,8 @@ export const StoryCard = ({
       <Card 
         className="overflow-hidden hover:bg-muted/20 transition-all duration-200 cursor-pointer border-border/50"
         onClick={onView}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         <div className="p-4">
           <div className="flex items-start justify-between gap-3 mb-2">
@@ -80,22 +88,13 @@ export const StoryCard = ({
             {story.summary}
           </p>
 
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
             <Badge variant="secondary" className="text-xs">
               {config.label}
             </Badge>
-            {isNew && (
-              <Badge variant="default" className="text-xs bg-green-500 hover:bg-green-600">
-                🔥 New
-              </Badge>
-            )}
             <span className={`flex items-center gap-1 ${isRecent ? 'text-green-600 font-medium' : ''}`}>
               <Clock className="w-3 h-3" />
               {timeAgo}
-            </span>
-            <span className="flex items-center gap-1">
-              <Eye className="w-3 h-3" />
-              {formatViewCount(story.view_count)}
             </span>
             {story.source_name && (
               <>
@@ -104,6 +103,8 @@ export const StoryCard = ({
               </>
             )}
           </div>
+          
+          <EngagementMetrics story={story} placement="inline" className="text-xs" />
         </div>
       </Card>
     );
@@ -114,6 +115,8 @@ export const StoryCard = ({
     <Card 
       className="overflow-hidden hover:bg-muted/20 transition-all duration-200 cursor-pointer border-border/50"
       onClick={onView}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <div className="p-6">
         {/* Metadata */}
@@ -121,18 +124,9 @@ export const StoryCard = ({
           <Badge variant="secondary" className="text-xs">
             {config.label}
           </Badge>
-          {isNew && (
-            <Badge variant="default" className="text-xs bg-green-500 hover:bg-green-600">
-              🔥 New
-            </Badge>
-          )}
           <span className={`text-xs flex items-center gap-1 ${isRecent ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
             <Clock className="w-3 h-3" />
             {timeAgo}
-          </span>
-          <span className="text-xs text-muted-foreground flex items-center gap-1">
-            <Eye className="w-3 h-3" />
-            {formatViewCount(story.view_count)}
           </span>
           {story.source_name && (
             <>
@@ -163,13 +157,19 @@ export const StoryCard = ({
           </button>
         )}
 
+        {/* Engagement Metrics - Below content */}
+        <div className="mb-4">
+          <EngagementMetrics story={story} placement="below-key-points" showRelative={true} />
+        </div>
+
         {/* Action Buttons */}
         <div className="flex items-center gap-2 pt-4 border-t">
           <Button 
             className="flex-1"
             size="sm"
-            onClick={(e) => {
+            onClick={async (e) => {
               e.stopPropagation();
+              await trackClick();
               window.open(story.source_url, '_blank');
             }}
           >

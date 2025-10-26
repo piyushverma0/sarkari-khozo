@@ -18,6 +18,11 @@ export interface DiscoveryStory {
   save_count: number;
   share_count: number;
   click_count: number;
+  views_today?: number;
+  views_this_week?: number;
+  engagement_score?: number;
+  save_rate?: number;
+  click_through_rate?: number;
   impact_statement?: string;
   key_takeaways: string[];
   is_featured: boolean;

@@ -1,10 +1,11 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Bookmark, Share2, ExternalLink, Clock, Eye } from 'lucide-react';
+import { Bookmark, Share2, ExternalLink, Clock } from 'lucide-react';
 import { DiscoveryStory } from '@/types/discovery';
 import { formatDistanceToNow } from 'date-fns';
-import { formatViewCount } from '@/utils/formatViewCount';
+import { EngagementMetrics } from './EngagementMetrics';
+import { useViewTracking } from '@/hooks/useViewTracking';
 
 interface MobileStoryCardProps {
   story: DiscoveryStory;
@@ -28,11 +29,23 @@ export const MobileStoryCard = ({
   onShare, 
   onClick 
 }: MobileStoryCardProps) => {
+  const { handleMouseEnter, handleMouseLeave, trackClick } = useViewTracking({
+    storyId: story.id,
+    enabled: true,
+    timeThreshold: 3
+  });
+
   const timeAgo = formatDistanceToNow(new Date(story.published_date), { addSuffix: true });
   const categoryColor = categoryColors[story.category] || 'bg-gray-500/10 text-gray-500';
 
   return (
-    <Card className="h-full flex flex-col p-6">
+    <Card 
+      className="h-full flex flex-col p-6"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={handleMouseEnter}
+      onTouchEnd={handleMouseLeave}
+    >
       {/* Header Row */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <Badge 
@@ -44,10 +57,6 @@ export const MobileStoryCard = ({
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <Clock className="w-3 h-3" />
           <span>{timeAgo}</span>
-        </div>
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Eye className="w-3 h-3" />
-          <span>{formatViewCount(story.view_count)}</span>
         </div>
         {story.source_name && (
           <span className="text-xs text-muted-foreground">• {story.source_name}</span>
@@ -77,12 +86,17 @@ export const MobileStoryCard = ({
             </ul>
           </div>
         )}
+
+        <EngagementMetrics story={story} placement="below-key-points" />
       </div>
 
       {/* Actions */}
       <div className="flex items-center gap-2 pt-4 border-t mt-4">
         <Button
-          onClick={() => onClick(story)}
+          onClick={async () => {
+            await trackClick();
+            onClick(story);
+          }}
           className="flex-1"
         >
           <ExternalLink className="w-4 h-4 mr-2" />

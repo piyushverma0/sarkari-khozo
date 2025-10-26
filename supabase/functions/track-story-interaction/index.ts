@@ -33,6 +33,30 @@ serve(async (req) => {
 
     console.log('Tracking interaction:', { user_id: user.id, story_id, interaction_type });
 
+    // Check if user already viewed this story recently (within 24 hours for views)
+    if (interaction_type === 'view') {
+      const { data: existingInteraction } = await supabase
+        .from('user_story_interactions')
+        .select('viewed_at')
+        .eq('user_id', user.id)
+        .eq('story_id', story_id)
+        .maybeSingle();
+
+      if (existingInteraction?.viewed_at) {
+        const lastViewed = new Date(existingInteraction.viewed_at);
+        const hoursSinceView = (Date.now() - lastViewed.getTime()) / (1000 * 60 * 60);
+        
+        // If viewed within last 24 hours, don't count as new view
+        if (hoursSinceView < 24) {
+          console.log('User already viewed this story in last 24 hours, skipping view increment');
+          return new Response(
+            JSON.stringify({ success: true, message: 'View already tracked' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+      }
+    }
+
     // Map interaction type to column
     const interactionColumn: Record<string, string> = {
       'view': 'viewed_at',
@@ -66,27 +90,63 @@ serve(async (req) => {
 
     if (upsertError) throw upsertError;
 
-    // Update story counters
-    const counterColumn: Record<string, string> = {
-      'view': 'view_count',
-      'save': 'save_count',
-      'share': 'share_count',
-      'click_source': 'click_count'
-    };
-
-    const counter = counterColumn[interaction_type];
-    if (counter && interaction_type !== 'unsave') {
+    // Update story counters with time-based tracking
+    if (interaction_type === 'view') {
       const { data: story } = await supabase
         .from('discovery_stories')
-        .select(counter)
+        .select('view_count, views_today, views_this_week, first_viewed_at')
         .eq('id', story_id)
         .maybeSingle();
 
       if (story) {
-        const currentCount = (story as any)[counter] || 0;
         await supabase
           .from('discovery_stories')
-          .update({ [counter]: currentCount + 1 })
+          .update({
+            view_count: (story.view_count || 0) + 1,
+            views_today: (story.views_today || 0) + 1,
+            views_this_week: (story.views_this_week || 0) + 1,
+            views_last_updated: new Date().toISOString(),
+            first_viewed_at: story.first_viewed_at || new Date().toISOString()
+          })
+          .eq('id', story_id);
+      }
+    } else if (interaction_type === 'save') {
+      const { data: story } = await supabase
+        .from('discovery_stories')
+        .select('save_count')
+        .eq('id', story_id)
+        .maybeSingle();
+
+      if (story) {
+        await supabase
+          .from('discovery_stories')
+          .update({ save_count: (story.save_count || 0) + 1 })
+          .eq('id', story_id);
+      }
+    } else if (interaction_type === 'share') {
+      const { data: story } = await supabase
+        .from('discovery_stories')
+        .select('share_count')
+        .eq('id', story_id)
+        .maybeSingle();
+
+      if (story) {
+        await supabase
+          .from('discovery_stories')
+          .update({ share_count: (story.share_count || 0) + 1 })
+          .eq('id', story_id);
+      }
+    } else if (interaction_type === 'click_source') {
+      const { data: story } = await supabase
+        .from('discovery_stories')
+        .select('click_count')
+        .eq('id', story_id)
+        .maybeSingle();
+
+      if (story) {
+        await supabase
+          .from('discovery_stories')
+          .update({ click_count: (story.click_count || 0) + 1 })
           .eq('id', story_id);
       }
     }

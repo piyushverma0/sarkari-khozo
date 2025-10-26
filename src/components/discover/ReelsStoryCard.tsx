@@ -1,10 +1,11 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bookmark, Share2, ExternalLink, Clock, Eye } from 'lucide-react';
+import { Bookmark, Share2, ExternalLink, Clock } from 'lucide-react';
 import { DiscoveryStory } from '@/types/discovery';
 import { formatDistanceToNow } from 'date-fns';
 import { GraduationCap, Briefcase, Landmark, ScrollText } from 'lucide-react';
-import { formatViewCount } from '@/utils/formatViewCount';
+import { EngagementMetrics } from './EngagementMetrics';
+import { useViewTracking } from '@/hooks/useViewTracking';
 
 interface ReelsStoryCardProps {
   story: DiscoveryStory;
@@ -19,6 +20,12 @@ export const ReelsStoryCard = ({
   onShare,
   isSaved 
 }: ReelsStoryCardProps) => {
+  const { handleMouseEnter, handleMouseLeave, trackClick } = useViewTracking({
+    storyId: story.id,
+    enabled: true,
+    timeThreshold: 3
+  });
+
   const timeAgo = formatDistanceToNow(new Date(story.published_date), { addSuffix: true });
 
   // Category configuration with gradients
@@ -53,7 +60,11 @@ export const ReelsStoryCard = ({
   const IconComponent = config.icon;
 
   return (
-    <div className="h-full w-full relative flex flex-col bg-background overflow-hidden">
+    <div 
+      className="h-full w-full relative flex flex-col bg-background overflow-hidden"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       {/* Hero Section - Image or Placeholder */}
       <div className="relative h-[45vh] flex-shrink-0 overflow-hidden">
         {story.image_url ? (
@@ -94,10 +105,6 @@ export const ReelsStoryCard = ({
             <Clock className="w-3 h-3" />
             {timeAgo}
           </span>
-          <span className="text-xs text-muted-foreground flex items-center gap-1">
-            <Eye className="w-3 h-3" />
-            {formatViewCount(story.view_count)}
-          </span>
           {story.source_name && (
             <>
               <span className="text-xs text-muted-foreground">•</span>
@@ -116,12 +123,16 @@ export const ReelsStoryCard = ({
           {story.summary}
         </p>
 
+        {/* Engagement Metrics */}
+        <EngagementMetrics story={story} placement="inline" className="text-xs" />
+
         {/* Action Buttons */}
         <div className="flex items-center gap-2 pt-2">
           <Button 
             className="flex-1"
-            onClick={(e) => {
+            onClick={async (e) => {
               e.stopPropagation();
+              await trackClick();
               window.open(story.source_url, '_blank');
             }}
           >
