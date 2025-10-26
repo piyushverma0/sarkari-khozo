@@ -407,11 +407,40 @@ export const AudioNewsBanner = () => {
 
             {/* Audio Player Section */}
             <div className="w-full md:w-3/5 p-4 sm:p-5 md:p-7 space-y-3 bg-gradient-to-br from-amber-900/15 via-orange-950/20 to-stone-900/25 backdrop-blur-sm">
-              <div>
-                <h2 className="text-xl md:text-2xl font-bold text-foreground mb-1 font-devanagari">
-                  {bulletin.title}
-                </h2>
-                <p className="text-xs text-muted-foreground font-devanagari">{getCurrentDateInHindi()}</p>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-1 font-devanagari">
+                    {bulletin.title}
+                  </h2>
+                  <p className="text-xs text-muted-foreground font-devanagari">{getCurrentDateInHindi()}</p>
+                </div>
+                
+                {/* Language Selector - Top Right */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-sm text-muted-foreground font-devanagari">भाषा:</span>
+                  <div className="flex gap-1" role="group" aria-label="Language selection">
+                    <Button
+                      size="sm"
+                      variant={selectedLanguage === 'hi' ? "default" : "outline"}
+                      onClick={() => handleLanguageChange('hi')}
+                      className="h-9 px-3 text-xs font-devanagari"
+                      aria-label="Hindi language"
+                      aria-pressed={selectedLanguage === 'hi'}
+                    >
+                      हिंदी
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={selectedLanguage === 'bh' ? "default" : "outline"}
+                      onClick={() => handleLanguageChange('bh')}
+                      className="h-9 px-3 text-xs font-devanagari"
+                      aria-label="Bhojpuri language"
+                      aria-pressed={selectedLanguage === 'bh'}
+                    >
+                      भोजपुरी
+                    </Button>
+                  </div>
+                </div>
               </div>
 
               {/* Audio Element */}
@@ -453,35 +482,8 @@ export const AudioNewsBanner = () => {
                     {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
                   </Button>
 
-                  {/* Language & Speed Controls */}
+                  {/* Speed Controls */}
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                    {/* Language Selector */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground font-devanagari">भाषा:</span>
-                      <div className="flex gap-1" role="group" aria-label="Language selection">
-                        <Button
-                          size="sm"
-                          variant={selectedLanguage === 'hi' ? "default" : "outline"}
-                          onClick={() => handleLanguageChange('hi')}
-                          className="h-9 px-3 text-xs font-devanagari"
-                          aria-label="Hindi language"
-                          aria-pressed={selectedLanguage === 'hi'}
-                        >
-                          हिंदी
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={selectedLanguage === 'bh' ? "default" : "outline"}
-                          onClick={() => handleLanguageChange('bh')}
-                          className="h-9 px-3 text-xs font-devanagari"
-                          aria-label="Bhojpuri language"
-                          aria-pressed={selectedLanguage === 'bh'}
-                        >
-                          भोजपुरी
-                        </Button>
-                      </div>
-                    </div>
-                    
                     {/* Speed Control */}
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground font-devanagari">गति:</span>
