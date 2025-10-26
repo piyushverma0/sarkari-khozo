@@ -336,15 +336,25 @@ export type Database = {
             referencedRelation: "discovery_stories"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "audio_news_scripts_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "story_analytics"
+            referencedColumns: ["id"]
+          },
         ]
       }
       discovery_stories: {
         Row: {
           category: string
           click_count: number | null
+          click_through_rate: number | null
           created_at: string | null
+          engagement_score: number | null
           excerpt: string | null
           expires_at: string | null
+          first_viewed_at: string | null
           full_content: string | null
           headline: string
           id: string
@@ -358,6 +368,7 @@ export type Database = {
           region: string | null
           relevance_score: number | null
           save_count: number | null
+          save_rate: number | null
           scraped_at: string | null
           share_count: number | null
           source_name: string | null
@@ -368,13 +379,19 @@ export type Database = {
           tags: string[] | null
           updated_at: string | null
           view_count: number | null
+          views_last_updated: string | null
+          views_this_week: number | null
+          views_today: number | null
         }
         Insert: {
           category: string
           click_count?: number | null
+          click_through_rate?: number | null
           created_at?: string | null
+          engagement_score?: number | null
           excerpt?: string | null
           expires_at?: string | null
+          first_viewed_at?: string | null
           full_content?: string | null
           headline: string
           id?: string
@@ -388,6 +405,7 @@ export type Database = {
           region?: string | null
           relevance_score?: number | null
           save_count?: number | null
+          save_rate?: number | null
           scraped_at?: string | null
           share_count?: number | null
           source_name?: string | null
@@ -398,13 +416,19 @@ export type Database = {
           tags?: string[] | null
           updated_at?: string | null
           view_count?: number | null
+          views_last_updated?: string | null
+          views_this_week?: number | null
+          views_today?: number | null
         }
         Update: {
           category?: string
           click_count?: number | null
+          click_through_rate?: number | null
           created_at?: string | null
+          engagement_score?: number | null
           excerpt?: string | null
           expires_at?: string | null
+          first_viewed_at?: string | null
           full_content?: string | null
           headline?: string
           id?: string
@@ -418,6 +442,7 @@ export type Database = {
           region?: string | null
           relevance_score?: number | null
           save_count?: number | null
+          save_rate?: number | null
           scraped_at?: string | null
           share_count?: number | null
           source_name?: string | null
@@ -428,6 +453,9 @@ export type Database = {
           tags?: string[] | null
           updated_at?: string | null
           view_count?: number | null
+          views_last_updated?: string | null
+          views_this_week?: number | null
+          views_today?: number | null
         }
         Relationships: []
       }
@@ -847,14 +875,81 @@ export type Database = {
             referencedRelation: "discovery_stories"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "user_story_interactions_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "story_analytics"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
     Views: {
-      [_ in never]: never
+      story_analytics: {
+        Row: {
+          category: string | null
+          click_count: number | null
+          click_through_rate: number | null
+          created_at: string | null
+          engagement_score: number | null
+          headline: string | null
+          id: string | null
+          published_date: string | null
+          region: string | null
+          save_count: number | null
+          save_rate: number | null
+          share_count: number | null
+          view_count: number | null
+          views_this_week: number | null
+          views_today: number | null
+        }
+        Insert: {
+          category?: string | null
+          click_count?: number | null
+          click_through_rate?: number | null
+          created_at?: string | null
+          engagement_score?: number | null
+          headline?: string | null
+          id?: string | null
+          published_date?: string | null
+          region?: string | null
+          save_count?: number | null
+          save_rate?: number | null
+          share_count?: number | null
+          view_count?: number | null
+          views_this_week?: number | null
+          views_today?: number | null
+        }
+        Update: {
+          category?: string | null
+          click_count?: number | null
+          click_through_rate?: number | null
+          created_at?: string | null
+          engagement_score?: number | null
+          headline?: string | null
+          id?: string | null
+          published_date?: string | null
+          region?: string | null
+          save_count?: number | null
+          save_rate?: number | null
+          share_count?: number | null
+          view_count?: number | null
+          views_this_week?: number | null
+          views_today?: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      calculate_engagement_score: {
+        Args: {
+          p_save_count: number
+          p_share_count: number
+          p_view_count: number
+        }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never
