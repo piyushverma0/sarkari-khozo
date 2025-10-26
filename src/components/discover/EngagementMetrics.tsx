@@ -19,26 +19,27 @@ export const EngagementMetrics = ({
 }: EngagementMetricsProps) => {
   const publishedDate = new Date(story.published_date);
   const hoursOld = (Date.now() - publishedDate.getTime()) / (1000 * 60 * 60);
-  const isNew = hoursOld < 24;
+  const isNew = hoursOld < 48; // Extended to 48 hours
   
-  // Smart display logic based on view count
-  const shouldShowViews = story.view_count >= 1000;
-  const isHighEngagement = story.view_count >= 10000;
-  const isMediumEngagement = story.view_count >= 1000 && story.view_count < 10000;
+  // More realistic engagement thresholds
+  const isHighEngagement = story.view_count >= 1000; // Lowered from 10K
+  const isMediumEngagement = story.view_count >= 100 && story.view_count < 1000; // Lowered from 1K-10K
+  const isLowEngagement = story.view_count >= 10 && story.view_count < 100;
+  const isVeryLowEngagement = story.view_count < 10;
   
   // Calculate save rate for popularity badge
   const saveRate = story.view_count > 0 
     ? (story.save_count / story.view_count) * 100 
     : 0;
-  const isPopular = saveRate > 10 && story.save_count >= 50;
+  const isPopular = saveRate > 10 && story.save_count >= 20; // Lowered threshold
   
-  // Determine if we should show "New" badge instead of views
-  if (!shouldShowViews && isNew) {
+  // Show "Just Posted" for very new stories with almost no views
+  if (isVeryLowEngagement && isNew) {
     return (
       <div className={`flex items-center gap-2 ${className}`}>
         <Badge variant="default" className="bg-primary/10 text-primary hover:bg-primary/20">
           <Sparkles className="w-3 h-3 mr-1" />
-          New
+          Just Posted
         </Badge>
         {story.save_count > 0 && (
           <span className="text-sm text-muted-foreground flex items-center gap-1">
@@ -50,14 +51,11 @@ export const EngagementMetrics = ({
     );
   }
   
-  // Don't show anything for low engagement, non-new stories
-  if (!shouldShowViews && !isNew) {
-    return null;
-  }
-  
-  // Time-based context
+  // Time-based context for view label
   const viewsLabel = story.views_today && story.views_today > 0 && hoursOld < 48
     ? `${formatViewCount(story.views_today)} today`
+    : isVeryLowEngagement
+    ? `Viewed by few`
     : `${formatViewCount(story.view_count)} views`;
   
   return (
@@ -89,16 +87,17 @@ export const EngagementMetrics = ({
           </Badge>
         )}
         
-        {isPopular && isMediumEngagement && (
+        {isPopular && (isMediumEngagement || isLowEngagement) && (
           <Badge variant="default" className="bg-primary/10 text-primary hover:bg-primary/20">
             ⭐ Popular
           </Badge>
         )}
         
-        {showRelative && story.engagement_score && story.engagement_score > 1000 && (
-          <span className="text-xs text-muted-foreground">
-            High engagement
-          </span>
+        {isNew && !isVeryLowEngagement && (
+          <Badge variant="default" className="bg-primary/10 text-primary hover:bg-primary/20">
+            <Sparkles className="w-3 h-3 mr-1" />
+            New
+          </Badge>
         )}
       </div>
     </div>
