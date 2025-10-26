@@ -1,10 +1,11 @@
 import { useNavigate } from "react-router-dom";
-import { Calendar, ArrowRight, Flame } from "lucide-react";
+import { Calendar, ArrowRight, Flame, Eye } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { getCompetitionLevel } from "@/utils/statsFormatting";
+import { formatViewCount } from "@/utils/formatViewCount";
 
 interface SavedApplicationCardProps {
   id: string;
@@ -17,11 +18,13 @@ interface SavedApplicationCardProps {
 const SavedApplicationCard = ({ id, title, description, savedAt, category }: SavedApplicationCardProps) => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<any>(null);
+  const [viewCount, setViewCount] = useState<number>(0);
 
   useEffect(() => {
-    const loadStats = async () => {
+    const loadStatsAndViews = async () => {
       try {
-        const { data } = await supabase
+        // Load stats
+        const { data: statsData } = await supabase
           .from('scheme_stats')
           .select('competition_ratio, data_confidence, confidence_score')
           .eq('application_id', id)
@@ -29,15 +32,26 @@ const SavedApplicationCard = ({ id, title, description, savedAt, category }: Sav
           .limit(1)
           .maybeSingle();
         
-        if (data && (data.data_confidence === 'verified' || (data.confidence_score && data.confidence_score > 0.7))) {
-          setStats(data);
+        if (statsData && (statsData.data_confidence === 'verified' || (statsData.confidence_score && statsData.confidence_score > 0.7))) {
+          setStats(statsData);
+        }
+        
+        // Load view count
+        const { data: appData } = await supabase
+          .from('applications')
+          .select('view_count')
+          .eq('id', id)
+          .single();
+        
+        if (appData?.view_count) {
+          setViewCount(appData.view_count);
         }
       } catch (error) {
-        console.error('Failed to load stats:', error);
+        console.error('Failed to load data:', error);
       }
     };
 
-    loadStats();
+    loadStatsAndViews();
   }, [id]);
 
   const handleClick = () => {
@@ -62,6 +76,14 @@ const SavedApplicationCard = ({ id, title, description, savedAt, category }: Sav
             <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
             <span className="truncate">Saved {formatDistanceToNow(savedAt, { addSuffix: true })}</span>
           </div>
+          
+          {/* View count */}
+          {viewCount > 0 && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
+              <Eye className="w-3 h-3" />
+              <span>{formatViewCount(viewCount)} views</span>
+            </div>
+          )}
           
           {/* Competition indicator */}
           {stats?.competition_ratio && (

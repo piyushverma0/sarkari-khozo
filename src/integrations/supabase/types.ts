@@ -108,6 +108,38 @@ export type Database = {
           },
         ]
       }
+      application_views: {
+        Row: {
+          application_id: string | null
+          created_at: string | null
+          id: string
+          user_id: string | null
+          viewed_at: string | null
+        }
+        Insert: {
+          application_id?: string | null
+          created_at?: string | null
+          id?: string
+          user_id?: string | null
+          viewed_at?: string | null
+        }
+        Update: {
+          application_id?: string | null
+          created_at?: string | null
+          id?: string
+          user_id?: string | null
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_views_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       applications: {
         Row: {
           ai_enrichment: Json | null
@@ -129,6 +161,7 @@ export type Database = {
           id: string
           important_dates: Json | null
           last_checked_at: string | null
+          last_viewed_at: string | null
           local_availability_cache: Json | null
           notification_preferences: Json | null
           program_type: string | null
@@ -142,6 +175,7 @@ export type Database = {
           updated_at: string | null
           url: string | null
           user_id: string
+          view_count: number | null
         }
         Insert: {
           ai_enrichment?: Json | null
@@ -163,6 +197,7 @@ export type Database = {
           id?: string
           important_dates?: Json | null
           last_checked_at?: string | null
+          last_viewed_at?: string | null
           local_availability_cache?: Json | null
           notification_preferences?: Json | null
           program_type?: string | null
@@ -176,6 +211,7 @@ export type Database = {
           updated_at?: string | null
           url?: string | null
           user_id: string
+          view_count?: number | null
         }
         Update: {
           ai_enrichment?: Json | null
@@ -197,6 +233,7 @@ export type Database = {
           id?: string
           important_dates?: Json | null
           last_checked_at?: string | null
+          last_viewed_at?: string | null
           local_availability_cache?: Json | null
           notification_preferences?: Json | null
           program_type?: string | null
@@ -210,6 +247,7 @@ export type Database = {
           updated_at?: string | null
           url?: string | null
           user_id?: string
+          view_count?: number | null
         }
         Relationships: []
       }

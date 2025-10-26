@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Trash2, ClipboardCheck, Bell, Calendar, FileText, DollarSign, ClipboardList, ExternalLink, Clock, CheckCircle2, AlertCircle, GraduationCap, CreditCard, IdCard, User, FileCheck, Save, Edit, X, Volume2, Phone, Mail, Smartphone, TrendingUp, Award, Building, MapPin, Sparkles, GitCompare, Loader2, RefreshCw } from "lucide-react";
+import { Trash2, ClipboardCheck, Bell, Calendar, FileText, DollarSign, ClipboardList, ExternalLink, Clock, CheckCircle2, AlertCircle, GraduationCap, CreditCard, IdCard, User, FileCheck, Save, Edit, X, Volume2, Phone, Mail, Smartphone, TrendingUp, Award, Building, MapPin, Sparkles, GitCompare, Loader2, RefreshCw, Eye } from "lucide-react";
 import { differenceInDays } from "date-fns";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { formatViewCount } from "@/utils/formatViewCount";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,6 +65,8 @@ interface ApplicationData {
   date_confidence?: string;
   date_source?: string;
   dates_last_verified?: string;
+  view_count?: number;
+  last_viewed_at?: string;
   // Startup-specific fields
   program_type?: string;
   funding_amount?: string;
@@ -110,14 +113,32 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Get current user
+  // Get current user and track view
   useEffect(() => {
     const getCurrentUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
+      
+      // Track view for saved applications
+      if (user && application.id) {
+        const sessionKey = `viewed_app_${application.id}`;
+        if (!sessionStorage.getItem(sessionKey)) {
+          try {
+            const { data } = await supabase.functions.invoke('track-application-view', {
+              body: { application_id: application.id }
+            });
+            if (data?.view_count) {
+              setViewCount(data.view_count);
+            }
+            sessionStorage.setItem(sessionKey, 'true');
+          } catch (error) {
+            console.error('Failed to track view:', error);
+          }
+        }
+      }
     };
     getCurrentUser();
-  }, []);
+  }, [application.id]);
 
   // Translation and Audio hooks
   const { currentLanguage, changeLanguage, translateText, isTranslating, getLanguageLabel } = useTranslation();
@@ -136,7 +157,6 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
   const [translatedApplicationSteps, setTranslatedApplicationSteps] = useState(sanitizeText(application.application_steps));
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   
-  // AI Enrichment state
   const [enrichmentData, setEnrichmentData] = useState<any>(null);
   const [isLoadingEnrichment, setIsLoadingEnrichment] = useState(false);
   
@@ -144,6 +164,9 @@ const ApplicationCard = ({ application }: ApplicationCardProps) => {
   const [applicationStats, setApplicationStats] = useState<any>(null);
   const [isExtractingStats, setIsExtractingStats] = useState(false);
   const [lastExtractionAttempt, setLastExtractionAttempt] = useState<number | null>(null);
+  
+  // View count state
+  const [viewCount, setViewCount] = useState<number>(application.view_count || 0);
 
   // Check if this is a startup program - category is the ONLY source of truth
   const isStartupProgram = application.category?.toLowerCase() === 'startups';
@@ -908,7 +931,15 @@ ${application.fee_structure ? `Fee: ${application.fee_structure}` : ''}
               ) : isTranslating && currentLanguage !== 'en' ? (
                 <Skeleton className="h-8 sm:h-10 md:h-12 w-3/4" />
               ) : (
-                <CardTitle className="text-2xl sm:text-3xl md:text-4xl leading-tight sm:leading-snug">{translatedTitle}</CardTitle>
+                <>
+                  <CardTitle className="text-2xl sm:text-3xl md:text-4xl leading-tight sm:leading-snug">{translatedTitle}</CardTitle>
+                  {viewCount > 0 && (
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground mt-2">
+                      <Eye className="w-4 h-4" />
+                      <span>{formatViewCount(viewCount)} views</span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">

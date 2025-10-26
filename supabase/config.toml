@@ -167,6 +167,9 @@ verify_jwt = false
 [functions.track-story-interaction]
 verify_jwt = true
 
+[functions.track-application-view]
+verify_jwt = true
+
 [functions.get-saved-stories]
 verify_jwt = true
 

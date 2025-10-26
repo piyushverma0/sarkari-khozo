@@ -1,9 +1,10 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bookmark, Share2, ExternalLink, Clock } from 'lucide-react';
+import { Bookmark, Share2, ExternalLink, Clock, Eye } from 'lucide-react';
 import { DiscoveryStory } from '@/types/discovery';
 import { formatDistanceToNow } from 'date-fns';
 import { GraduationCap, Briefcase, Landmark, ScrollText } from 'lucide-react';
+import { formatViewCount } from '@/utils/formatViewCount';
 
 interface ReelsStoryCardProps {
   story: DiscoveryStory;
@@ -92,6 +93,10 @@ export const ReelsStoryCard = ({
           <span className="text-xs text-muted-foreground flex items-center gap-1">
             <Clock className="w-3 h-3" />
             {timeAgo}
+          </span>
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Eye className="w-3 h-3" />
+            {formatViewCount(story.view_count)}
           </span>
           {story.source_name && (
             <>

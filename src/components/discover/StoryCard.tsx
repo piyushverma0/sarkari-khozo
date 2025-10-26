@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bookmark, Share2, ExternalLink, Clock } from 'lucide-react';
+import { Bookmark, Share2, ExternalLink, Clock, Eye } from 'lucide-react';
 import { DiscoveryStory } from '@/types/discovery';
 import { formatDistanceToNow } from 'date-fns';
+import { formatViewCount } from '@/utils/formatViewCount';
 
 interface StoryCardProps {
   story: DiscoveryStory;
@@ -92,6 +93,10 @@ export const StoryCard = ({
               <Clock className="w-3 h-3" />
               {timeAgo}
             </span>
+            <span className="flex items-center gap-1">
+              <Eye className="w-3 h-3" />
+              {formatViewCount(story.view_count)}
+            </span>
             {story.source_name && (
               <>
                 <span>•</span>
@@ -124,6 +129,10 @@ export const StoryCard = ({
           <span className={`text-xs flex items-center gap-1 ${isRecent ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
             <Clock className="w-3 h-3" />
             {timeAgo}
+          </span>
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Eye className="w-3 h-3" />
+            {formatViewCount(story.view_count)}
           </span>
           {story.source_name && (
             <>

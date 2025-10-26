@@ -1,9 +1,10 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Bookmark, Share2, ExternalLink, Clock } from 'lucide-react';
+import { Bookmark, Share2, ExternalLink, Clock, Eye } from 'lucide-react';
 import { DiscoveryStory } from '@/types/discovery';
 import { formatDistanceToNow } from 'date-fns';
+import { formatViewCount } from '@/utils/formatViewCount';
 
 interface MobileStoryCardProps {
   story: DiscoveryStory;
@@ -43,6 +44,10 @@ export const MobileStoryCard = ({
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <Clock className="w-3 h-3" />
           <span>{timeAgo}</span>
+        </div>
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Eye className="w-3 h-3" />
+          <span>{formatViewCount(story.view_count)}</span>
         </div>
         {story.source_name && (
           <span className="text-xs text-muted-foreground">• {story.source_name}</span>
