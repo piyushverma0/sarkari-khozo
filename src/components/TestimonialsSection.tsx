@@ -22,7 +22,7 @@ const testimonials = [{
   quote: "Other websites like Sarkari result are just full of ads and fake links. Sarkari Khozo is clean and clear to use. Everything is written clearly — no need to jump between ten tabs & go to cafe. When I first used it, I actually said out loud: 'Yaar, this is how government updates should look!'"
 }, {
   name: "Rohit Kumar",
-  role: "B.Tech",
+  role: "B.A.",
   institution: "Pt. Jawahar Lal Nehru College, Banda",
   location: "U.P.",
   emoji: "🎓",
