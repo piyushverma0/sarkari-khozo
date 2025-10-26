@@ -117,26 +117,26 @@ export const TestimonialsSection = () => {
 
         {/* Horizontal Scrollable Testimonials */}
         <div className="w-full overflow-x-auto scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <div className="flex gap-6 pb-4 min-w-min">
-            {testimonials.map((testimonial, index) => <Card key={index} className="border border-white/5 backdrop-blur-xl bg-slate-900/40 overflow-hidden w-[350px] md:w-[400px] flex-shrink-0">
-                <CardContent className="p-8 space-y-6">
+          <div className="flex gap-4 md:gap-6 pb-4 min-w-min">
+            {testimonials.map((testimonial, index) => <Card key={index} className="border border-white/5 backdrop-blur-xl bg-slate-900/40 overflow-hidden w-[280px] sm:w-[320px] md:w-[380px] flex-shrink-0">
+                <CardContent className="p-5 md:p-6 space-y-4 md:space-y-5">
                   {/* Quote */}
-                  <blockquote className="text-sm md:text-base text-slate-300/90 italic leading-relaxed min-h-[180px]">
+                  <blockquote className="text-xs sm:text-sm md:text-base text-slate-300/90 italic leading-relaxed">
                     "{testimonial.quote}"
                   </blockquote>
 
                   {/* Author Details */}
-                  <div className="space-y-1.5">
-                    <p className="font-semibold text-white text-base">
+                  <div className="space-y-1">
+                    <p className="font-semibold text-white text-sm md:text-base">
                       — {testimonial.name}
                     </p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-[10px] sm:text-xs text-slate-400">
                       {testimonial.role}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-[10px] sm:text-xs text-slate-500">
                       {testimonial.institution}
                     </p>
-                    <p className="text-xs text-slate-600 flex items-center gap-1">
+                    <p className="text-[10px] sm:text-xs text-slate-600 flex items-center gap-1">
                       <span className="text-pink-500">📍</span> {testimonial.location}
                     </p>
                   </div>
