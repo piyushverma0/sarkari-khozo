@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 
-type Language = 'en' | 'hi' | 'kn';
+type Language = 'en' | 'hi' | 'kn' | 'bh';
 
 interface LanguageToolbarProps {
   currentLanguage: Language;

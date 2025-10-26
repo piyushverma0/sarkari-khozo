@@ -25,7 +25,7 @@ export interface AudioBulletin {
   audio_news_scripts: AudioScript[];
 }
 
-export const useAudioNewsBulletin = () => {
+export const useAudioNewsBulletin = (language: string = 'hi') => {
   const [bulletin, setBulletin] = useState<AudioBulletin | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +53,7 @@ export const useAudioNewsBulletin = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [language]);
 
   const fetchLatestBulletin = async () => {
     try {
@@ -74,6 +74,7 @@ export const useAudioNewsBulletin = () => {
           )
         `)
         .eq("is_active", true)
+        .eq("language", language)
         .order("generated_at", { ascending: false })
         .limit(1)
         .maybeSingle();

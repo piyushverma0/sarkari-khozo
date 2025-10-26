@@ -10,7 +10,11 @@ import { useAudioNewsBulletin } from "@/hooks/useAudioNewsBulletin";
 import reporterImage from "@/assets/reporter-on-air.jpg";
 
 export const AudioNewsBanner = () => {
-  const { bulletin, isLoading, error, trackView, refetch } = useAudioNewsBulletin();
+  const [selectedLanguage, setSelectedLanguage] = useState<'hi' | 'bh'>(() => {
+    return (localStorage.getItem('audio_bulletin_language') as 'hi' | 'bh') || 'hi';
+  });
+  
+  const { bulletin, isLoading, error, trackView, refetch } = useAudioNewsBulletin(selectedLanguage);
   const { toast } = useToast();
   
   const [isPlaying, setIsPlaying] = useState(false);
@@ -24,6 +28,15 @@ export const AudioNewsBanner = () => {
   const [isFullRefreshing, setIsFullRefreshing] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  const handleLanguageChange = (lang: 'hi' | 'bh') => {
+    setSelectedLanguage(lang);
+    localStorage.setItem('audio_bulletin_language', lang);
+    setIsPlaying(false);
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+  };
 
   // Track view when audio starts playing
   useEffect(() => {
@@ -134,13 +147,22 @@ export const AudioNewsBanner = () => {
     try {
       setIsGenerating(true);
       
+      const functionName = selectedLanguage === 'bh' 
+        ? 'generate-audio-news-bulletin-bhojpuri' 
+        : 'generate-audio-news-bulletin';
+      
+      const title = selectedLanguage === 'bh' ? "बुलेटिन बन रहल बा..." : "बुलेटिन बन रहा है...";
+      const desc = selectedLanguage === 'bh' 
+        ? "कृपया थोड़ इंतज़ार करीं। ई 30-60 सेकंड ले सकेला।" 
+        : "कृपया थोड़ा इंतज़ार करें। यह 30-60 सेकंड ले सकता है।";
+      
       toast({
-        title: "बुलेटिन बन रहा है...",
-        description: "कृपया थोड़ा इंतज़ार करें। यह 30-60 सेकंड ले सकता है।",
+        title,
+        description: desc,
       });
 
       const { data, error } = await supabase.functions.invoke(
-        'generate-audio-news-bulletin',
+        functionName,
         { body: {} }
       );
 
@@ -150,9 +172,14 @@ export const AudioNewsBanner = () => {
         throw new Error(data.error);
       }
 
+      const successTitle = selectedLanguage === 'bh' ? "✅ बुलेटिन तइयार बा!" : "✅ बुलेटिन तैयार है!";
+      const successDesc = selectedLanguage === 'bh' 
+        ? "आपके ऑडियो न्यूज़ बुलेटिन सफलतापूर्वक बन गइल बा।" 
+        : "आपका ऑडियो न्यूज़ बुलेटिन सफलतापूर्वक बन गया है।";
+      
       toast({
-        title: "✅ बुलेटिन तैयार है!",
-        description: "आपका ऑडियो न्यूज़ बुलेटिन सफलतापूर्वक बन गया है।",
+        title: successTitle,
+        description: successDesc,
       });
 
       // Automatically refresh to show new bulletin
@@ -194,8 +221,12 @@ export const AudioNewsBanner = () => {
       await new Promise(resolve => setTimeout(resolve, 5000));
 
       // Step 3: Generate new bulletin with fresh articles
+      const functionName = selectedLanguage === 'bh' 
+        ? 'generate-audio-news-bulletin-bhojpuri' 
+        : 'generate-audio-news-bulletin';
+      
       const { data, error: bulletinError } = await supabase.functions.invoke(
-        'generate-audio-news-bulletin',
+        functionName,
         { body: {} }
       );
 
@@ -422,23 +453,53 @@ export const AudioNewsBanner = () => {
                     {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
                   </Button>
 
-                  {/* Speed Control */}
-                  <div className="flex items-center gap-2 flex-wrap justify-center">
-                    <span className="text-sm text-muted-foreground font-devanagari">गति:</span>
-                    <div className="flex gap-1" role="group" aria-label="Playback speed controls">
-                      {[0.75, 1, 1.25, 1.5].map((rate) => (
+                  {/* Language & Speed Controls */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    {/* Language Selector */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground font-devanagari">भाषा:</span>
+                      <div className="flex gap-1" role="group" aria-label="Language selection">
                         <Button
-                          key={rate}
                           size="sm"
-                          variant={playbackRate === rate ? "default" : "outline"}
-                          onClick={() => handleSpeedChange(rate)}
-                          className="h-9 px-3 text-xs"
-                          aria-label={`Playback speed ${rate}x`}
-                          aria-pressed={playbackRate === rate}
+                          variant={selectedLanguage === 'hi' ? "default" : "outline"}
+                          onClick={() => handleLanguageChange('hi')}
+                          className="h-9 px-3 text-xs font-devanagari"
+                          aria-label="Hindi language"
+                          aria-pressed={selectedLanguage === 'hi'}
                         >
-                          {rate}x
+                          हिंदी
                         </Button>
-                      ))}
+                        <Button
+                          size="sm"
+                          variant={selectedLanguage === 'bh' ? "default" : "outline"}
+                          onClick={() => handleLanguageChange('bh')}
+                          className="h-9 px-3 text-xs font-devanagari"
+                          aria-label="Bhojpuri language"
+                          aria-pressed={selectedLanguage === 'bh'}
+                        >
+                          भोजपुरी
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {/* Speed Control */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground font-devanagari">गति:</span>
+                      <div className="flex gap-1" role="group" aria-label="Playback speed controls">
+                        {[0.75, 1, 1.25, 1.5].map((rate) => (
+                          <Button
+                            key={rate}
+                            size="sm"
+                            variant={playbackRate === rate ? "default" : "outline"}
+                            onClick={() => handleSpeedChange(rate)}
+                            className="h-9 px-3 text-xs"
+                            aria-label={`Playback speed ${rate}x`}
+                            aria-pressed={playbackRate === rate}
+                          >
+                            {rate}x
+                          </Button>
+                        ))}
+                      </div>
                     </div>
                   </div>
 

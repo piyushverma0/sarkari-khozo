@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-type Language = 'en' | 'hi' | 'kn';
+type Language = 'en' | 'hi' | 'kn' | 'bh';
 
 interface TranslationCache {
   [key: string]: {
@@ -74,6 +74,7 @@ export const useTranslation = () => {
       case 'en': return 'English';
       case 'hi': return 'हिंदी';
       case 'kn': return 'ಕನ್ನಡ';
+      case 'bh': return 'भोजपुरी';
       default: return 'English';
     }
   };

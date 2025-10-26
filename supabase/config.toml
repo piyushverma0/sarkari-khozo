@@ -175,3 +175,6 @@ verify_jwt = false
 
 [functions.generate-audio-news-bulletin]
 verify_jwt = false
+
+[functions.generate-audio-news-bulletin-bhojpuri]
+verify_jwt = false
