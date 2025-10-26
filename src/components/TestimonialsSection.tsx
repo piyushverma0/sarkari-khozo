@@ -118,29 +118,26 @@ export const TestimonialsSection = () => {
         {/* Horizontal Scrollable Testimonials */}
         <div className="w-full overflow-x-auto scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="flex gap-6 pb-4 min-w-min">
-            {testimonials.map((testimonial, index) => <Card key={index} className="glass-card border border-white/10 backdrop-blur-xl bg-background/70 overflow-hidden w-[350px] md:w-[400px] flex-shrink-0">
-                {/* Gradient accent bar */}
-                <div className="h-1 w-full bg-gradient-to-r from-primary via-secondary to-primary opacity-70" />
-                
-                <CardContent className="p-6 space-y-4">
+            {testimonials.map((testimonial, index) => <Card key={index} className="border border-white/5 backdrop-blur-xl bg-slate-900/40 overflow-hidden w-[350px] md:w-[400px] flex-shrink-0">
+                <CardContent className="p-8 space-y-6">
                   {/* Quote */}
-                  <blockquote className="text-sm md:text-base text-muted-foreground italic leading-relaxed min-h-[180px]">
+                  <blockquote className="text-sm md:text-base text-slate-300/90 italic leading-relaxed min-h-[180px]">
                     "{testimonial.quote}"
                   </blockquote>
 
                   {/* Author Details */}
-                  <div className="pt-4 border-t border-white/5 space-y-1">
-                    <p className="font-bold text-foreground text-base">
+                  <div className="space-y-1.5">
+                    <p className="font-semibold text-white text-base">
                       — {testimonial.name}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-slate-400">
                       {testimonial.role}
                     </p>
-                    <p className="text-xs text-muted-foreground/80">
+                    <p className="text-xs text-slate-500">
                       {testimonial.institution}
                     </p>
-                    <p className="text-xs text-muted-foreground/60">
-                      📍 {testimonial.location}
+                    <p className="text-xs text-slate-600 flex items-center gap-1">
+                      <span className="text-pink-500">📍</span> {testimonial.location}
                     </p>
                   </div>
                 </CardContent>
