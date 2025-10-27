@@ -1,7 +1,7 @@
 import { StoryCard } from './StoryCard';
 import { DiscoveryStory } from '@/types/discovery';
 import { useInView } from 'react-intersection-observer';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 interface StoryGridViewProps {
   stories: DiscoveryStory[];
@@ -29,6 +29,20 @@ export const StoryGridView = ({
     rootMargin: '400px'
   });
 
+  // Rotate featured story every 8 seconds
+  const [featuredIndex, setFeaturedIndex] = useState(0);
+  const maxFeaturedStories = Math.min(5, stories.length); // Rotate through first 5 stories
+
+  useEffect(() => {
+    if (stories.length <= 1) return;
+    
+    const interval = setInterval(() => {
+      setFeaturedIndex((prev) => (prev + 1) % maxFeaturedStories);
+    }, 8000); // Change every 8 seconds
+
+    return () => clearInterval(interval);
+  }, [stories.length, maxFeaturedStories]);
+
   // Load more when scrolling near bottom
   useEffect(() => {
     if (inView && hasMore && !isLoading && onLoadMore) {
@@ -46,26 +60,30 @@ export const StoryGridView = ({
     return ""; // Regular card
   };
 
+  // Get stories for grid (excluding the currently featured one)
+  const featuredStory = stories[featuredIndex];
+  const gridStories = stories.filter((_, idx) => idx !== featuredIndex);
+
   return (
     <div className="space-y-6">
-      {/* Featured Story */}
-      {stories.length > 0 && (
-        <div className="max-w-4xl">
+      {/* Featured Story - Rotates periodically */}
+      {featuredStory && (
+        <div className="max-w-4xl transition-opacity duration-500">
           <StoryCard
-            story={stories[0]}
+            story={featuredStory}
             viewMode="full"
-            onSave={() => onSave(stories[0].id)}
-            onShare={() => onShare(stories[0])}
-            onView={() => onStoryClick(stories[0])}
-            isSaved={savedStoryIds.has(stories[0].id)}
+            onSave={() => onSave(featuredStory.id)}
+            onShare={() => onShare(featuredStory)}
+            onView={() => onStoryClick(featuredStory)}
+            isSaved={savedStoryIds.has(featuredStory.id)}
           />
         </div>
       )}
 
       {/* Dynamic Grid of Stories */}
-      {stories.length > 1 && (
+      {gridStories.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {stories.slice(1).map((story, index) => (
+          {gridStories.map((story, index) => (
             <div key={story.id} className={getCardSpanClass(index)}>
               <StoryCard
                 story={story}
