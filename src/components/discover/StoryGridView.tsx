@@ -2,6 +2,7 @@ import { StoryCard } from './StoryCard';
 import { DiscoveryStory } from '@/types/discovery';
 import { useInView } from 'react-intersection-observer';
 import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface StoryGridViewProps {
   stories: DiscoveryStory[];
@@ -29,19 +30,43 @@ export const StoryGridView = ({
     rootMargin: '400px'
   });
 
-  // Rotate featured story every 8 seconds
-  const [featuredIndex, setFeaturedIndex] = useState(0);
-  const maxFeaturedStories = Math.min(5, stories.length); // Rotate through first 5 stories
+  // Track the latest story to feature
+  const [featuredStory, setFeaturedStory] = useState<DiscoveryStory | null>(
+    stories.length > 0 ? stories[0] : null
+  );
 
+  // Update featured story when stories change
   useEffect(() => {
-    if (stories.length <= 1) return;
-    
-    const interval = setInterval(() => {
-      setFeaturedIndex((prev) => (prev + 1) % maxFeaturedStories);
-    }, 8000); // Change every 8 seconds
+    if (stories.length > 0 && !featuredStory) {
+      setFeaturedStory(stories[0]);
+    }
+  }, [stories, featuredStory]);
 
-    return () => clearInterval(interval);
-  }, [stories.length, maxFeaturedStories]);
+  // Listen for new stories in real-time
+  useEffect(() => {
+    const channel = supabase
+      .channel('new-discovery-stories')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'discovery_stories'
+        },
+        (payload) => {
+          console.log('New story detected:', payload);
+          // Show the newly added story as featured
+          if (payload.new) {
+            setFeaturedStory(payload.new as DiscoveryStory);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   // Load more when scrolling near bottom
   useEffect(() => {
@@ -61,14 +86,13 @@ export const StoryGridView = ({
   };
 
   // Get stories for grid (excluding the currently featured one)
-  const featuredStory = stories[featuredIndex];
-  const gridStories = stories.filter((_, idx) => idx !== featuredIndex);
+  const gridStories = stories.filter((story) => story.id !== featuredStory?.id);
 
   return (
     <div className="space-y-6">
-      {/* Featured Story - Rotates periodically */}
+      {/* Featured Story - Shows latest news automatically */}
       {featuredStory && (
-        <div className="max-w-4xl transition-opacity duration-500">
+        <div className="max-w-4xl transition-all duration-500">
           <StoryCard
             story={featuredStory}
             viewMode="full"
