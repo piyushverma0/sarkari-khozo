@@ -1,4 +1,5 @@
 import { StoryCard } from './StoryCard';
+import { FeaturedStoryCard } from './FeaturedStoryCard';
 import { DiscoveryStory } from '@/types/discovery';
 import { useInView } from 'react-intersection-observer';
 import { useEffect } from 'react';
@@ -50,16 +51,13 @@ export const StoryGridView = ({
     <div className="space-y-6">
       {/* Featured Story */}
       {stories.length > 0 && (
-        <div className="max-w-4xl">
-          <StoryCard
-            story={stories[0]}
-            viewMode="full"
-            onSave={() => onSave(stories[0].id)}
-            onShare={() => onShare(stories[0])}
-            onView={() => onStoryClick(stories[0])}
-            isSaved={savedStoryIds.has(stories[0].id)}
-          />
-        </div>
+        <FeaturedStoryCard
+          story={stories[0]}
+          onSave={() => onSave(stories[0].id)}
+          onShare={() => onShare(stories[0])}
+          onView={() => onStoryClick(stories[0])}
+          isSaved={savedStoryIds.has(stories[0].id)}
+        />
       )}
 
       {/* Dynamic Grid of Stories */}
