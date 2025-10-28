@@ -9,7 +9,6 @@ import { OpportunitySelectionDialog } from "@/components/OpportunitySelectionDia
 import { SearchAutocomplete } from "@/components/SearchAutocomplete";
 import { useRotatingPlaceholder } from "@/hooks/useRotatingPlaceholder";
 import { ApplicationLoadingDialog } from "@/components/ApplicationLoadingDialog";
-import CosmosBackground from "@/components/CosmosBackground";
 interface Opportunity {
   title: string;
   description: string;
@@ -291,7 +290,6 @@ const HeroSection = ({
     }
   };
   return <>
-      <CosmosBackground />
       <ApplicationLoadingDialog
         isOpen={showLoadingDialog}
         stage={loadingStage}
