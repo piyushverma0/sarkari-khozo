@@ -1,0 +1,22 @@
+[
+  {"id": 1, "name": "Sirius", "ra": 6.7525, "dec": -16.7161, "mag": -1.46, "color": "#9db4ff"},
+  {"id": 2, "name": "Canopus", "ra": 6.3992, "dec": -52.6958, "mag": -0.72, "color": "#ffd2a1"},
+  {"id": 3, "name": "Arcturus", "ra": 14.2611, "dec": 19.1825, "mag": -0.04, "color": "#ffaa00"},
+  {"id": 4, "name": "Alpha Centauri", "ra": 14.6604, "dec": -60.8356, "mag": -0.01, "color": "#fff4ea"},
+  {"id": 5, "name": "Vega", "ra": 18.6156, "dec": 38.7836, "mag": 0.03, "color": "#cad7ff"},
+  {"id": 6, "name": "Capella", "ra": 5.2781, "dec": 45.9981, "mag": 0.08, "color": "#fff4e8"},
+  {"id": 7, "name": "Rigel", "ra": 5.2422, "dec": -8.2017, "mag": 0.12, "color": "#9bb0ff"},
+  {"id": 8, "name": "Procyon", "ra": 7.6553, "dec": 5.225, "mag": 0.38, "color": "#fff4ea"},
+  {"id": 9, "name": "Betelgeuse", "ra": 5.9195, "dec": 7.4069, "mag": 0.5, "color": "#ffaa00"},
+  {"id": 10, "name": "Achernar", "ra": 1.6285, "dec": -57.2367, "mag": 0.5, "color": "#cad7ff"},
+  {"id": 11, "name": "Hadar", "ra": 14.0637, "dec": -60.3731, "mag": 0.61, "color": "#aabfff"},
+  {"id": 12, "name": "Altair", "ra": 19.8464, "dec": 8.8683, "mag": 0.77, "color": "#f8f7ff"},
+  {"id": 13, "name": "Aldebaran", "ra": 4.5989, "dec": 16.5092, "mag": 0.85, "color": "#ff8800"},
+  {"id": 14, "name": "Spica", "ra": 13.4199, "dec": -11.1614, "mag": 1.04, "color": "#aabfff"},
+  {"id": 15, "name": "Antares", "ra": 16.4901, "dec": -26.4319, "mag": 1.09, "color": "#ff6600"},
+  {"id": 16, "name": "Pollux", "ra": 7.7553, "dec": 28.0264, "mag": 1.14, "color": "#ffaa44"},
+  {"id": 17, "name": "Fomalhaut", "ra": 22.9608, "dec": -29.6222, "mag": 1.16, "color": "#f8f7ff"},
+  {"id": 18, "name": "Deneb", "ra": 20.6906, "dec": 45.2803, "mag": 1.25, "color": "#f8f7ff"},
+  {"id": 19, "name": "Regulus", "ra": 10.1395, "dec": 11.9672, "mag": 1.35, "color": "#bbccff"},
+  {"id": 20, "name": "Adhara", "ra": 6.9771, "dec": -28.9722, "mag": 1.5, "color": "#aabfff"}
+]
