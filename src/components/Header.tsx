@@ -14,11 +14,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import logo from "@/assets/logo.jpg";
 import { NotificationCenter } from "./NotificationCenter";
+import { LanguageSwitcher } from "@/i18n/LanguageSwitcher";
+import { useT } from "@/i18n/Trans";
 
 const Header = () => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { common, auth } = useT();
 
   useEffect(() => {
     // Get initial session
@@ -76,6 +79,7 @@ const Header = () => {
             >
               My Applications
             </Button>
+            <LanguageSwitcher />
             <NotificationCenter userId={user.id} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -98,20 +102,23 @@ const Header = () => {
                   <span className="text-sm">{user.email}</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleSignOut}>
-                  <span>Sign Out</span>
+                  <span>{auth.signOut()}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-            onClick={() => navigate("/auth")}
-          >
-            Sign In
-          </Button>
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher />
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              onClick={() => navigate("/auth")}
+            >
+              {auth.signIn()}
+            </Button>
+          </div>
         )}
       </div>
     </header>
