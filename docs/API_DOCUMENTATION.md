@@ -1,6 +1,6 @@
-# API Documentation - FormVerse
+# API Documentation - Sarkari Khozo
 
-Welcome to the comprehensive API documentation for the FormVerse application. This guide covers all public APIs, hooks, utilities, components, and Supabase edge functions.
+Welcome to the comprehensive API documentation for the Sarkari Khozo application. This guide covers all public APIs, hooks, utilities, components, and Supabase edge functions.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ Welcome to the comprehensive API documentation for the FormVerse application. Th
 
 ## Overview
 
-FormVerse is a React-based application built with:
+Sarkari Khozo is a React-based application built with:
 - **Frontend**: React 18 + TypeScript + Vite
 - **UI Framework**: shadcn/ui + Tailwind CSS
 - **Backend**: Supabase (PostgreSQL + Edge Functions)
@@ -35,10 +35,10 @@ FormVerse is a React-based application built with:
 
 ## Quick Links
 
-- [Custom Hooks Documentation](./HOOKS_API.md)
-- [Utilities Documentation](./UTILITIES_API.md)
-- [Components Documentation](./COMPONENTS_API.md)
-- [Edge Functions Documentation](./EDGE_FUNCTIONS_API.md)
+- 📘 [**Custom Hooks Documentation**](./HOOKS_API.md) - useTranslation, useTextToSpeech, usePushNotifications, and more
+- 🛠️ [**Utilities Documentation**](./UTILITIES_API.md) - Helper functions, formatters, and location services
+- 🎨 [**Components Documentation**](./COMPONENTS_API.md) - React components with props and usage examples
+- ⚡ [**Edge Functions Documentation**](./EDGE_FUNCTIONS_API.md) - Supabase serverless functions API reference
 
 ---
 

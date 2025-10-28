@@ -1,6 +1,6 @@
 # Custom Hooks API Reference
 
-This document provides comprehensive documentation for all custom React hooks in the FormVerse application.
+This document provides comprehensive documentation for all custom React hooks in the Sarkari Khozo application.
 
 ## Table of Contents
 
@@ -79,11 +79,11 @@ console.log(currentLanguage); // 'hi'
 const { translateText } = useTranslation();
 
 const translatedText = await translateText(
-  'Welcome to FormVerse',
+  'Welcome to Sarkari Khozo',
   'hi'
 );
 
-console.log(translatedText); // 'FormVerse में आपका स्वागत है'
+console.log(translatedText); // 'Sarkari Khozo में आपका स्वागत है'
 ```
 
 ### Example: Get Language Label
@@ -102,9 +102,9 @@ The hook uses an in-memory cache with keys based on the first 100 characters of 
 ```typescript
 // Cache structure
 {
-  "Welcome to FormVerse...": {
-    "hi": "FormVerse में आपका स्वागत है",
-    "kn": "ಫಾರ್ಮ್‌ವರ್ಸ್‌ಗೆ ಸ್ವಾಗತ"
+  "Welcome to Sarkari Khozo...": {
+    "hi": "Sarkari Khozo में आपका स्वागत है",
+    "kn": "Sarkari Khozo ಗೆ ಸ್ವಾಗತ"
   }
 }
 ```
