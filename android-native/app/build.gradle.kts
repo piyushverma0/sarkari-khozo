@@ -22,6 +22,10 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        
+        // Supabase configuration
+        buildConfigField("String", "SUPABASE_URL", "\"https://rmgtjzeuhckqhuwwzrlm.supabase.co\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtZ3RqemV1aGNrcWh1d3d6cmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3NDcwNzksImV4cCI6MjA3NjMyMzA3OX0.T6SMyWb1gRdkC5LPD-6Zh8PNU0xgMqzCD9PNkKk3buo\"")
     }
 
     buildTypes {
@@ -52,6 +56,7 @@ android {
         compose = true
         viewBinding = true
         dataBinding = true
+        buildConfig = true
     }
 
     composeOptions {
@@ -87,6 +92,16 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     implementation(libs.kotlinx.serialization.json)
+
+    // Supabase
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:2.6.0")
+    implementation("io.github.jan-tennert.supabase:auth-kt:2.6.0")
+    implementation("io.github.jan-tennert.supabase:realtime-kt:2.6.0")
+    implementation("io.github.jan-tennert.supabase:functions-kt:2.6.0")
+    implementation("io.github.jan-tennert.supabase:storage-kt:2.6.0")
+    implementation("io.ktor:ktor-client-android:2.3.12")
+    implementation("io.ktor:ktor-client-core:2.3.12")
+    implementation("io.ktor:ktor-utils:2.3.12")
 
     // Image Loading
     implementation(libs.coil.compose)
