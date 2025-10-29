@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation as useI18nextTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
+import { getLanguageDirection, isRTL } from '@/i18n/config';
 
 type Language = 'en' | 'hi' | 'kn' | 'bh';
 
@@ -10,17 +12,18 @@ interface TranslationCache {
 }
 
 export const useTranslation = () => {
-  const [currentLanguage, setCurrentLanguage] = useState<Language>('en');
+  const { t, i18n } = useI18nextTranslation();
   const [translationCache, setTranslationCache] = useState<TranslationCache>({});
   const [isTranslating, setIsTranslating] = useState(false);
+  
+  const currentLanguage = i18n.language as Language;
 
-  // Load language preference from localStorage
+  // Update document direction when language changes
   useEffect(() => {
-    const savedLang = localStorage.getItem('preferred_language') as Language;
-    if (savedLang && ['en', 'hi', 'kn'].includes(savedLang)) {
-      setCurrentLanguage(savedLang);
-    }
-  }, []);
+    const direction = getLanguageDirection(currentLanguage);
+    document.documentElement.dir = direction;
+    document.documentElement.lang = currentLanguage;
+  }, [currentLanguage]);
 
   const translateText = useCallback(async (text: string, targetLang: Language): Promise<string> => {
     // Return original text for English
@@ -64,10 +67,10 @@ export const useTranslation = () => {
     }
   }, [translationCache]);
 
-  const changeLanguage = useCallback((lang: Language) => {
-    setCurrentLanguage(lang);
+  const changeLanguage = useCallback(async (lang: Language) => {
+    await i18n.changeLanguage(lang);
     localStorage.setItem('preferred_language', lang);
-  }, []);
+  }, [i18n]);
 
   const getLanguageLabel = (lang: Language): string => {
     switch (lang) {
@@ -85,5 +88,9 @@ export const useTranslation = () => {
     translateText,
     isTranslating,
     getLanguageLabel,
+    t, // i18next translation function
+    i18n, // i18next instance
+    isRTL: isRTL(currentLanguage),
+    direction: getLanguageDirection(currentLanguage),
   };
 };
