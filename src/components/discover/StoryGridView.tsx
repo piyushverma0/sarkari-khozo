@@ -31,16 +31,63 @@ export const StoryGridView = ({
   });
 
   // Track the latest story to feature
-  const [featuredStory, setFeaturedStory] = useState<DiscoveryStory | null>(
-    stories.length > 0 ? stories[0] : null
-  );
+  const [featuredStory, setFeaturedStory] = useState<DiscoveryStory | null>(null);
 
-  // Update featured story when stories change
+  // Smart rotation: Show different featured story on each visit (Instagram Reels style)
   useEffect(() => {
-    if (stories.length > 0 && !featuredStory) {
-      setFeaturedStory(stories[0]);
-    }
-  }, [stories, featuredStory]);
+    if (stories.length === 0) return;
+
+    // Get rotation history from sessionStorage
+    const STORAGE_KEY = 'featured_story_rotation';
+    const MAX_HISTORY = 5;
+    
+    const getRotationHistory = (): number[] => {
+      try {
+        const stored = sessionStorage.getItem(STORAGE_KEY);
+        return stored ? JSON.parse(stored) : [];
+      } catch {
+        return [];
+      }
+    };
+
+    const saveRotationHistory = (history: number[]) => {
+      try {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(-MAX_HISTORY)));
+      } catch {
+        // Ignore storage errors
+      }
+    };
+
+    // Get top candidates: Most recent and relevant stories
+    const candidates = stories
+      .map((story, index) => ({
+        story,
+        originalIndex: index,
+        score: story.relevance_score + (story.is_featured ? 5 : 0)
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, Math.min(15, stories.length)); // Top 15 or all if fewer
+
+    // Get rotation history and filter out recently shown
+    const history = getRotationHistory();
+    const availableCandidates = candidates.filter(
+      c => !history.includes(c.originalIndex)
+    );
+
+    // If all candidates were shown, reset history
+    const finalCandidates = availableCandidates.length > 0 
+      ? availableCandidates 
+      : candidates;
+
+    // Pick a random story from candidates
+    const selectedCandidate = finalCandidates[
+      Math.floor(Math.random() * finalCandidates.length)
+    ];
+
+    // Update featured story and rotation history
+    setFeaturedStory(selectedCandidate.story);
+    saveRotationHistory([...history, selectedCandidate.originalIndex]);
+  }, [stories]);
 
   // Listen for new stories in real-time
   useEffect(() => {
