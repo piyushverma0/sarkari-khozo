@@ -5,11 +5,12 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.sarkarikhozo.app.ui.screens.applications.ApplicationsScreen
+import com.sarkarikhozo.app.ui.screens.discover.DiscoverScreen
 import com.sarkarikhozo.app.ui.screens.home.HomeScreen
 import com.sarkarikhozo.app.ui.screens.jobs.JobsScreen
 import com.sarkarikhozo.app.ui.screens.notifications.NotificationsScreen
 import com.sarkarikhozo.app.ui.screens.profile.ProfileScreen
-import com.sarkarikhozo.app.ui.screens.saved.SavedScreen
 
 @Composable
 fun SarkariKhozoNavigation(
@@ -28,6 +29,12 @@ fun SarkariKhozoNavigation(
                 },
                 onNavigateToJobDetails = { jobId ->
                     navController.navigate("job_details/$jobId")
+                },
+                onNavigateToDiscover = {
+                    navController.navigate("discover")
+                },
+                onNavigateToApplications = {
+                    navController.navigate(NavigationItem.Applications.route)
                 }
             )
         }
@@ -43,16 +50,20 @@ fun SarkariKhozoNavigation(
             )
         }
         
-        composable(NavigationItem.Notifications.route) {
-            NotificationsScreen(
-                onNavigateToJobDetails = { jobId ->
-                    navController.navigate("job_details/$jobId")
+        composable(NavigationItem.Applications.route) {
+            ApplicationsScreen(
+                onNavigateToApplicationDetails = { applicationId ->
+                    navController.navigate("application_details/$applicationId")
+                },
+                onAddNewApplication = {
+                    // Navigate back to home for AI tracking
+                    navController.navigate(NavigationItem.Home.route)
                 }
             )
         }
         
-        composable(NavigationItem.Saved.route) {
-            SavedScreen(
+        composable(NavigationItem.Notifications.route) {
+            NotificationsScreen(
                 onNavigateToJobDetails = { jobId ->
                     navController.navigate("job_details/$jobId")
                 }
@@ -64,9 +75,22 @@ fun SarkariKhozoNavigation(
         }
         
         // Additional screens that are not part of bottom navigation
+        composable("discover") {
+            DiscoverScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+        
         composable("job_details/{jobId}") { backStackEntry ->
             val jobId = backStackEntry.arguments?.getString("jobId") ?: ""
             // JobDetailsScreen(jobId = jobId, onNavigateBack = { navController.popBackStack() })
+        }
+        
+        composable("application_details/{applicationId}") { backStackEntry ->
+            val applicationId = backStackEntry.arguments?.getString("applicationId") ?: ""
+            // ApplicationDetailsScreen(applicationId = applicationId, onNavigateBack = { navController.popBackStack() })
         }
         
         composable("search") {

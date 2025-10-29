@@ -2,11 +2,13 @@ package com.sarkarikhozo.app.ui.navigation
 
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Work
+import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Notifications
@@ -35,18 +37,18 @@ sealed class NavigationItem(
         unselectedIcon = Icons.Outlined.Work
     )
     
+    data object Applications : NavigationItem(
+        route = "applications",
+        title = R.string.nav_applications,
+        selectedIcon = Icons.Filled.Assignment,
+        unselectedIcon = Icons.Outlined.Assignment
+    )
+    
     data object Notifications : NavigationItem(
         route = "notifications",
         title = R.string.nav_notifications,
         selectedIcon = Icons.Filled.Notifications,
         unselectedIcon = Icons.Outlined.Notifications
-    )
-    
-    data object Saved : NavigationItem(
-        route = "saved",
-        title = R.string.nav_saved,
-        selectedIcon = Icons.Filled.BookmarkBorder,
-        unselectedIcon = Icons.Outlined.BookmarkBorder
     )
     
     data object Profile : NavigationItem(
@@ -60,7 +62,7 @@ sealed class NavigationItem(
 val bottomNavigationItems = listOf(
     NavigationItem.Home,
     NavigationItem.Jobs,
+    NavigationItem.Applications,
     NavigationItem.Notifications,
-    NavigationItem.Saved,
     NavigationItem.Profile
 )

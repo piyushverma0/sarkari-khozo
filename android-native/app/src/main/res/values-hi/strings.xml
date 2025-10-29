@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">सरकारी खोजो</string>
+    <string name="app_tagline">सरकारी खोजो - Government Opportunities Finder</string>
+    
+    <!-- Navigation -->
+    <string name="nav_home">होम</string>
+    <string name="nav_jobs">नौकरियां</string>
+    <string name="nav_applications">मेरे आवेदन</string>
+    <string name="nav_notifications">सूचनाएं</string>
+    <string name="nav_saved">सहेजे गए</string>
+    <string name="nav_profile">प्रोफाइल</string>
+    
+    <!-- Home Screen -->
+    <string name="welcome_message">सरकारी खोजो में आपका स्वागत है</string>
+    <string name="latest_opportunities">नवीनतम अवसर</string>
+    <string name="trending_jobs">ट्रेंडिंग नौकरियां</string>
+    <string name="search_hint">सरकारी नौकरियां, योजनाएं खोजें...</string>
+    <string name="ai_powered_tracking">🤖 AI संचालित आवेदन ट्रैकिंग</string>
+    <string name="track_application_description">बस हमारे AI को बताएं कि आप किसके लिए आवेदन कर रहे हैं। कभी भी डेडलाइन न चूकें।</string>
+    <string name="track_my_application">मेरा आवेदन ट्रैक करें</string>
+    
+    <!-- Job Categories -->
+    <string name="category_banking">बैंकिंग</string>
+    <string name="category_railway">रेलवे</string>
+    <string name="category_ssc">SSC</string>
+    <string name="category_upsc">UPSC</string>
+    <string name="category_state_govt">राज्य सरकार</string>
+    <string name="category_defence">रक्षा</string>
+    <string name="category_teaching">शिक्षण</string>
+    <string name="category_police">पुलिस</string>
+    
+    <!-- Applications Dashboard -->
+    <string name="my_applications">मेरे आवेदन</string>
+    <string name="applications_dashboard_subtitle">अपने सभी आवेदनों को एक स्थान पर ट्रैक और प्रबंधित करें</string>
+    <string name="quick_overview">त्वरित अवलोकन</string>
+    <string name="total_tracked">कुल ट्रैक किए गए</string>
+    <string name="applied">आवेदन किए गए</string>
+    <string name="upcoming_deadlines">आगामी</string>
+    <string name="archived">संग्रहीत</string>
+    <string name="no_applications">कोई आवेदन नहीं मिला</string>
+    <string name="start_tracking_message">अपने आवेदनों को ट्रैक करना शुरू करें</string>
+    <string name="add_application">आवेदन जोड़ें</string>
+    
+    <!-- Application Status -->
+    <string name="status_discovered">खोजा गया</string>
+    <string name="status_applied">आवेदन किया गया</string>
+    <string name="status_under_review">समीक्षाधीन</string>
+    <string name="status_admit_card_released">एडमिट कार्ड जारी</string>
+    <string name="status_results_declared">परिणाम घोषित</string>
+    <string name="status_completed">पूर्ण</string>
+    <string name="status_archived">संग्रहीत</string>
+    
+    <!-- Discover Screen -->
+    <string name="discover_news">समाचार खोजें</string>
+    <string name="no_stories_available">अभी तक कोई कहानियां उपलब्ध नहीं</string>
+    <string name="stories_loading_message">कहानियां पहली बार लोड हो रही हैं। आप नमूना कहानियां लोड कर सकते हैं या ताज़ा समाचार प्राप्त कर सकते हैं।</string>
+    <string name="load_sample_stories">नमूना कहानियां लोड करें</string>
+    <string name="fetch_fresh_news">🤖 ताज़ा समाचार प्राप्त करें</string>
+    <string name="generate_audio_bulletin">🎙️ ऑडियो बुलेटिन बनाएं</string>
+    <string name="refresh_news">समाचार रीफ्रेश करें</string>
+    
+    <!-- Job Details -->
+    <string name="job_title">नौकरी का शीर्षक</string>
+    <string name="application_deadline">आवेदन की अंतिम तिथि</string>
+    <string name="eligibility">पात्रता</string>
+    <string name="how_to_apply">आवेदन कैसे करें</string>
+    <string name="important_dates">महत्वपूर्ण तिथियां</string>
+    <string name="apply_now">अभी आवेदन करें</string>
+    <string name="save_job">नौकरी सहेजें</string>
+    <string name="share_job">नौकरी साझा करें</string>
+    <string name="application_submitted">आवेदन जमा किया गया</string>
+    
+    <!-- Search -->
+    <string name="search_results">खोज परिणाम</string>
+    <string name="no_results_found">कोई परिणाम नहीं मिला</string>
+    <string name="filter_by_category">श्रेणी के अनुसार फ़िल्टर करें</string>
+    <string name="filter_by_location">स्थान के अनुसार फ़िल्टर करें</string>
+    <string name="sort_by">इसके अनुसार क्रमबद्ध करें</string>
+    <string name="sort_by_date">तिथि</string>
+    <string name="sort_by_relevance">प्रासंगिकता</string>
+    
+    <!-- Notifications -->
+    <string name="notifications_title">सूचनाएं</string>
+    <string name="no_notifications">अभी तक कोई सूचना नहीं</string>
+    <string name="mark_as_read">पढ़ा हुआ चिह्नित करें</string>
+    <string name="notification_new_job">नई नौकरी पोस्ट की गई</string>
+    <string name="notification_deadline_reminder">आवेदन की अंतिम तिथि की याददाश्त</string>
+    
+    <!-- Saved Jobs -->
+    <string name="saved_jobs_title">सहेजी गई नौकरियां</string>
+    <string name="no_saved_jobs">अभी तक कोई सहेजी गई नौकरी नहीं</string>
+    <string name="remove_from_saved">सहेजे गए से हटाएं</string>
+    
+    <!-- Profile -->
+    <string name="profile_title">प्रोफाइल</string>
+    <string name="settings">सेटिंग्स</string>
+    <string name="about_us">हमारे बारे में</string>
+    <string name="contact_us">संपर्क करें</string>
+    <string name="privacy_policy">गोपनीयता नीति</string>
+    <string name="terms_conditions">नियम और शर्तें</string>
+    <string name="language_settings">भाषा सेटिंग्स</string>
+    <string name="notification_settings">सूचना सेटिंग्स</string>
+    
+    <!-- AI Tracking -->
+    <string name="ai_analyzing">🤖 आपके अनुरोध का विश्लेषण कर रहे हैं...</string>
+    <string name="ai_searching">🔍 आधिकारिक अधिसूचना खोज रहे हैं...</string>
+    <string name="ai_fetching_details">📄 दस्तावेज़ विवरण प्राप्त कर रहे हैं...</string>
+    <string name="ai_extracting_dates">📅 महत्वपूर्ण तिथियां निकाल रहे हैं...</string>
+    <string name="ai_generating_card">✨ आपका ट्रैक करने योग्य कार्ड बना रहे हैं...</string>
+    <string name="ai_success">✅ सफलता! आपका कार्ड तैयार है!</string>
+    <string name="track_application_placeholder">जैसे, SSC CGL, Railway NTPC, UPSC CSE...</string>
+    
+    <!-- Quick Actions -->
+    <string name="quick_actions">त्वरित कार्य</string>
+    <string name="browse_jobs">नौकरियां ब्राउज़ करें</string>
+    <string name="discover_news_action">समाचार खोजें</string>
+    <string name="my_apps">मेरे ऐप्स</string>
+    
+    <!-- Common -->
+    <string name="loading">लोड हो रहा है...</string>
+    <string name="retry">पुनः प्रयास करें</string>
+    <string name="error_network">नेटवर्क त्रुटि। कृपया अपना कनेक्शन जांचें।</string>
+    <string name="error_generic">कुछ गलत हुआ। कृपया पुनः प्रयास करें।</string>
+    <string name="ok">ठीक है</string>
+    <string name="cancel">रद्द करें</string>
+    <string name="yes">हां</string>
+    <string name="no">नहीं</string>
+    <string name="back">वापस</string>
+    <string name="next">अगला</string>
+    <string name="done">हो गया</string>
+    <string name="save">सहेजें</string>
+    <string name="delete">हटाएं</string>
+    <string name="edit">संपादित करें</string>
+    
+    <!-- Content Descriptions -->
+    <string name="cd_back_button">वापस</string>
+    <string name="cd_search_button">खोजें</string>
+    <string name="cd_filter_button">फ़िल्टर</string>
+    <string name="cd_share_button">साझा करें</string>
+    <string name="cd_save_button">सहेजें</string>
+    <string name="cd_notification_icon">सूचना</string>
+    <string name="cd_menu_button">मेनू</string>
+    <string name="cd_profile_button">प्रोफाइल</string>
+    
+    <!-- Error Messages -->
+    <string name="error_authentication_required">कृपया जारी रखने के लिए साइन इन करें</string>
+    <string name="error_query_required">कृपया परीक्षा, नौकरी या योजना का नाम दर्ज करें</string>
+    <string name="error_tracking_failed">आवेदन ट्रैक करने में विफल। कृपया पुनः प्रयास करें।</string>
+    <string name="success_application_tracked">आवेदन सफलतापूर्वक ट्रैक किया गया!</string>
+    <string name="success_application_saved">आवेदन सफलतापूर्वक सहेजा गया!</string>
+    
+    <!-- Deadlines -->
+    <string name="deadline_today">आज</string>
+    <string name="deadline_tomorrow">कल</string>
+    <string name="deadline_in_days">%1$d दिनों में</string>
+    <string name="deadline_overdue">समय सीमा समाप्त</string>
+    
+    <!-- Categories Extended -->
+    <string name="category_healthcare">स्वास्थ्य सेवा</string>
+    <string name="category_engineering">इंजीनियरिंग</string>
+    <string name="category_judicial">न्यायिक</string>
+    <string name="category_other">अन्य</string>
+</resources>

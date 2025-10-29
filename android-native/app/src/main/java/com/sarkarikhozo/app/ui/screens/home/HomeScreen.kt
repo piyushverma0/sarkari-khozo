@@ -14,16 +14,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.SearchBar
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -35,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.sarkarikhozo.app.R
@@ -42,16 +44,18 @@ import com.sarkarikhozo.app.data.model.Job
 import com.sarkarikhozo.app.data.model.JobCategory
 import com.sarkarikhozo.app.ui.components.CategoryCard
 import com.sarkarikhozo.app.ui.components.JobCard
+import com.sarkarikhozo.app.ui.theme.GovernmentBlue
 import com.sarkarikhozo.app.ui.theme.SarkariKhozoTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onNavigateToJobs: () -> Unit = {},
-    onNavigateToJobDetails: (String) -> Unit = {}
+    onNavigateToJobDetails: (String) -> Unit = {},
+    onNavigateToDiscover: () -> Unit = {},
+    onNavigateToApplications: () -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var isSearchActive by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -72,35 +76,22 @@ fun HomeScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Welcome Section
+            // Hero Section with AI Tracking
             item {
-                WelcomeSection()
+                HeroSection(
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = { searchQuery = it },
+                    onTrackApplication = { /* Handle AI tracking */ }
+                )
             }
 
-            // Search Bar
+            // Quick Actions
             item {
-                SearchBar(
-                    query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    onSearch = { 
-                        isSearchActive = false
-                        // Handle search
-                    },
-                    active = isSearchActive,
-                    onActiveChange = { isSearchActive = it },
-                    placeholder = {
-                        Text(stringResource(R.string.search_hint))
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = stringResource(R.string.cd_search_button)
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    // Search suggestions can go here
-                }
+                QuickActionsSection(
+                    onNavigateToJobs = onNavigateToJobs,
+                    onNavigateToDiscover = onNavigateToDiscover,
+                    onNavigateToApplications = onNavigateToApplications
+                )
             }
 
             // Categories Section
@@ -122,27 +113,171 @@ fun HomeScreen(
 }
 
 @Composable
-private fun WelcomeSection() {
+private fun HeroSection(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onTrackApplication: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
+        ),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // AI Badge
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = GovernmentBlue.copy(alpha = 0.1f)
+                ),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Text(
+                    text = "🤖 AI Powered",
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = GovernmentBlue,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
             Text(
-                text = stringResource(R.string.welcome_message),
-                style = MaterialTheme.typography.headlineSmall,
+                text = "Track Exams, Jobs & Government Schemes",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
+            
             Spacer(modifier = Modifier.height(8.dp))
+            
             Text(
-                text = stringResource(R.string.app_tagline),
+                text = "Just tell our AI what you're applying for. Never miss a deadline again.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
             )
+            
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            // Search Input
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChange,
+                placeholder = { 
+                    Text("e.g., SSC CGL, Railway NTPC, UPSC CSE...") 
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            Button(
+                onClick = onTrackApplication,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = "Track My Application",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickActionsSection(
+    onNavigateToJobs: () -> Unit,
+    onNavigateToDiscover: () -> Unit,
+    onNavigateToApplications: () -> Unit
+) {
+    Column {
+        Text(
+            text = "Quick Actions",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedCard(
+                onClick = onNavigateToJobs,
+                modifier = Modifier.weight(1f)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "💼",
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                    Text(
+                        text = "Browse Jobs",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+            
+            OutlinedCard(
+                onClick = onNavigateToDiscover,
+                modifier = Modifier.weight(1f)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "🔍",
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                    Text(
+                        text = "Discover News",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+            
+            OutlinedCard(
+                onClick = onNavigateToApplications,
+                modifier = Modifier.weight(1f)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "📋",
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                    Text(
+                        text = "My Apps",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
         }
     }
 }

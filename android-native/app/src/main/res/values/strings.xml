@@ -6,6 +6,7 @@
     <!-- Navigation -->
     <string name="nav_home">Home</string>
     <string name="nav_jobs">Jobs</string>
+    <string name="nav_applications">My Apps</string>
     <string name="nav_notifications">Notifications</string>
     <string name="nav_saved">Saved</string>
     <string name="nav_profile">Profile</string>
@@ -15,6 +16,9 @@
     <string name="latest_opportunities">Latest Opportunities</string>
     <string name="trending_jobs">Trending Jobs</string>
     <string name="search_hint">Search government jobs, schemes...</string>
+    <string name="ai_powered_tracking">🤖 AI Powered Application Tracking</string>
+    <string name="track_application_description">Just tell our AI what you\'re applying for. Never miss a deadline again.</string>
+    <string name="track_my_application">Track My Application</string>
     
     <!-- Job Categories -->
     <string name="category_banking">Banking</string>
@@ -26,6 +30,36 @@
     <string name="category_teaching">Teaching</string>
     <string name="category_police">Police</string>
     
+    <!-- Applications Dashboard -->
+    <string name="my_applications">My Applications</string>
+    <string name="applications_dashboard_subtitle">Track and manage all your applications in one place</string>
+    <string name="quick_overview">Quick Overview</string>
+    <string name="total_tracked">Total Tracked</string>
+    <string name="applied">Applied</string>
+    <string name="upcoming_deadlines">Upcoming</string>
+    <string name="archived">Archived</string>
+    <string name="no_applications">No applications found</string>
+    <string name="start_tracking_message">Start tracking your applications to see them here</string>
+    <string name="add_application">Add Application</string>
+    
+    <!-- Application Status -->
+    <string name="status_discovered">Discovered</string>
+    <string name="status_applied">Applied</string>
+    <string name="status_under_review">Under Review</string>
+    <string name="status_admit_card_released">Admit Card Released</string>
+    <string name="status_results_declared">Results Declared</string>
+    <string name="status_completed">Completed</string>
+    <string name="status_archived">Archived</string>
+    
+    <!-- Discover Screen -->
+    <string name="discover_news">Discover News</string>
+    <string name="no_stories_available">No Stories Available Yet</string>
+    <string name="stories_loading_message">Stories are being loaded for the first time. You can load sample stories or fetch fresh news.</string>
+    <string name="load_sample_stories">Load Sample Stories</string>
+    <string name="fetch_fresh_news">🤖 Fetch Fresh News</string>
+    <string name="generate_audio_bulletin">🎙️ Generate Audio Bulletin</string>
+    <string name="refresh_news">Refresh News</string>
+    
     <!-- Job Details -->
     <string name="job_title">Job Title</string>
     <string name="application_deadline">Application Deadline</string>
@@ -35,6 +69,7 @@
     <string name="apply_now">Apply Now</string>
     <string name="save_job">Save Job</string>
     <string name="share_job">Share Job</string>
+    <string name="application_submitted">Application Submitted</string>
     
     <!-- Search -->
     <string name="search_results">Search Results</string>
@@ -64,6 +99,23 @@
     <string name="contact_us">Contact Us</string>
     <string name="privacy_policy">Privacy Policy</string>
     <string name="terms_conditions">Terms &amp; Conditions</string>
+    <string name="language_settings">Language Settings</string>
+    <string name="notification_settings">Notification Settings</string>
+    
+    <!-- AI Tracking -->
+    <string name="ai_analyzing">🤖 Analyzing Your Request...</string>
+    <string name="ai_searching">🔍 Searching for official notification...</string>
+    <string name="ai_fetching_details">📄 Fetching document details...</string>
+    <string name="ai_extracting_dates">📅 Extracting important dates...</string>
+    <string name="ai_generating_card">✨ Generating your trackable card...</string>
+    <string name="ai_success">✅ Success! Your card is ready!</string>
+    <string name="track_application_placeholder">e.g., SSC CGL, Railway NTPC, UPSC CSE...</string>
+    
+    <!-- Quick Actions -->
+    <string name="quick_actions">Quick Actions</string>
+    <string name="browse_jobs">Browse Jobs</string>
+    <string name="discover_news_action">Discover News</string>
+    <string name="my_apps">My Apps</string>
     
     <!-- Common -->
     <string name="loading">Loading...</string>
@@ -74,6 +126,12 @@
     <string name="cancel">Cancel</string>
     <string name="yes">Yes</string>
     <string name="no">No</string>
+    <string name="back">Back</string>
+    <string name="next">Next</string>
+    <string name="done">Done</string>
+    <string name="save">Save</string>
+    <string name="delete">Delete</string>
+    <string name="edit">Edit</string>
     
     <!-- Content Descriptions -->
     <string name="cd_back_button">Back</string>
@@ -82,4 +140,25 @@
     <string name="cd_share_button">Share</string>
     <string name="cd_save_button">Save</string>
     <string name="cd_notification_icon">Notification</string>
+    <string name="cd_menu_button">Menu</string>
+    <string name="cd_profile_button">Profile</string>
+    
+    <!-- Error Messages -->
+    <string name="error_authentication_required">Please sign in to continue</string>
+    <string name="error_query_required">Please enter an exam, job, or scheme name</string>
+    <string name="error_tracking_failed">Failed to track application. Please try again.</string>
+    <string name="success_application_tracked">Application tracked successfully!</string>
+    <string name="success_application_saved">Application saved successfully!</string>
+    
+    <!-- Deadlines -->
+    <string name="deadline_today">Today</string>
+    <string name="deadline_tomorrow">Tomorrow</string>
+    <string name="deadline_in_days">In %1$d days</string>
+    <string name="deadline_overdue">Overdue</string>
+    
+    <!-- Categories Extended -->
+    <string name="category_healthcare">Healthcare</string>
+    <string name="category_engineering">Engineering</string>
+    <string name="category_judicial">Judicial</string>
+    <string name="category_other">Other</string>
 </resources>
