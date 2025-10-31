@@ -31,7 +31,9 @@ class ApplicationRepository @Inject constructor() {
                 }
             )
             
-            val trackingResponse = Json.decodeFromString<ApplicationTrackingResponse>(response.decodeToString())
+            val responseBytes = response as ByteArray
+            val responseString = responseBytes.decodeToString()
+            val trackingResponse = Json.decodeFromString<ApplicationTrackingResponse>(responseString)
             emit(Result.success(trackingResponse))
         } catch (e: Exception) {
             emit(Result.failure(e))

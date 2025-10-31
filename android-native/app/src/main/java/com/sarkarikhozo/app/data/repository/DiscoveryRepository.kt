@@ -38,7 +38,9 @@ class DiscoveryRepository @Inject constructor() {
                 }
             )
             
-            val jsonResponse = Json.parseToJsonElement(response.decodeToString()).jsonObject
+            val responseBytes = response as ByteArray
+            val responseString = responseBytes.decodeToString()
+            val jsonResponse = Json.parseToJsonElement(responseString).jsonObject
             val success = jsonResponse["success"]?.jsonPrimitive?.content?.toBoolean() ?: false
             
             if (success) {
@@ -78,7 +80,9 @@ class DiscoveryRepository @Inject constructor() {
                 function = "get-saved-stories"
             )
             
-            val jsonResponse = Json.parseToJsonElement(response.decodeToString()).jsonObject
+            val responseBytes = response as ByteArray
+            val responseString = responseBytes.decodeToString()
+            val jsonResponse = Json.parseToJsonElement(responseString).jsonObject
             val success = jsonResponse["success"]?.jsonPrimitive?.content?.toBoolean() ?: false
             
             if (success) {
@@ -131,7 +135,9 @@ class DiscoveryRepository @Inject constructor() {
                 function = "scrape-news-sources"
             )
             
-            val jsonResponse = Json.parseToJsonElement(response.decodeToString()).jsonObject
+            val responseBytes = response as ByteArray
+            val responseString = responseBytes.decodeToString()
+            val jsonResponse = Json.parseToJsonElement(responseString).jsonObject
             val success = jsonResponse["success"]?.jsonPrimitive?.content?.toBoolean() ?: false
             val message = jsonResponse["message"]?.jsonPrimitive?.content ?: ""
             
@@ -150,7 +156,9 @@ class DiscoveryRepository @Inject constructor() {
                 function = "generate-audio-news-bulletin"
             )
             
-            val jsonResponse = Json.parseToJsonElement(response.decodeToString()).jsonObject
+            val responseBytes = response as ByteArray
+            val responseString = responseBytes.decodeToString()
+            val jsonResponse = Json.parseToJsonElement(responseString).jsonObject
             val success = jsonResponse["success"]?.jsonPrimitive?.content?.toBoolean() ?: false
             val storiesCount = jsonResponse["stories_count"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
             val duration = jsonResponse["duration"]?.jsonPrimitive?.content ?: ""
@@ -167,7 +175,9 @@ class DiscoveryRepository @Inject constructor() {
                 function = "seed-sample-stories"
             )
             
-            val jsonResponse = Json.parseToJsonElement(response.decodeToString()).jsonObject
+            val responseBytes = response as ByteArray
+            val responseString = responseBytes.decodeToString()
+            val jsonResponse = Json.parseToJsonElement(responseString).jsonObject
             val success = jsonResponse["success"]?.jsonPrimitive?.content?.toBoolean() ?: false
             val count = jsonResponse["count"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
             

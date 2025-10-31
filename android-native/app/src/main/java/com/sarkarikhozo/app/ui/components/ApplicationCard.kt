@@ -180,7 +180,7 @@ private fun StatusChip(status: ApplicationStatus) {
         colors = AssistChipDefaults.assistChipColors(
             containerColor = color.copy(alpha = 0.1f),
             labelColor = color,
-            leadingIconColor = color
+            leadingIconContentColor = color
         )
     )
 }
@@ -226,6 +226,11 @@ private fun formatDate(dateString: String): String {
 
 @Composable
 private fun getDeadlineColor(dateString: String): androidx.compose.ui.graphics.Color {
+    val urgentRed = UrgentRed
+    val warningOrange = WarningOrange
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val defaultColor = MaterialTheme.colorScheme.onSurfaceVariant
+    
     return try {
         val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val date = dateFormat.parse(dateString)
@@ -234,15 +239,15 @@ private fun getDeadlineColor(dateString: String): androidx.compose.ui.graphics.C
         if (date != null) {
             val daysUntilDeadline = ((date.time - currentDate.time) / (1000 * 60 * 60 * 24)).toInt()
             when {
-                daysUntilDeadline <= 7 -> UrgentRed
-                daysUntilDeadline <= 30 -> WarningOrange
-                else -> MaterialTheme.colorScheme.primary
+                daysUntilDeadline <= 7 -> urgentRed
+                daysUntilDeadline <= 30 -> warningOrange
+                else -> primaryColor
             }
         } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
+            defaultColor
         }
     } catch (e: Exception) {
-        MaterialTheme.colorScheme.onSurfaceVariant
+        defaultColor
     }
 }
 

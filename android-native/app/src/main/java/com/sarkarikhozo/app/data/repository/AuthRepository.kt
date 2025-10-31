@@ -34,8 +34,8 @@ class AuthRepository @Inject constructor() {
     fun signIn(email: String, password: String): Flow<Result<User>> = flow {
         try {
             supabase.gotrue.loginWith(Email) {
-                this.email = email
-                this.password = password
+                email = email
+                password = password
             }
             
             val session = supabase.gotrue.currentSessionOrNull()
@@ -52,13 +52,8 @@ class AuthRepository @Inject constructor() {
     fun signUp(email: String, password: String, name: String? = null): Flow<Result<User>> = flow {
         try {
             supabase.gotrue.signUpWith(Email) {
-                this.email = email
-                this.password = password
-                data = buildMap {
-                    if (name != null) {
-                        put("name", name)
-                    }
-                }
+                email = email
+                password = password
             }
             
             val session = supabase.gotrue.currentSessionOrNull()

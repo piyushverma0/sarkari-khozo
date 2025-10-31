@@ -21,10 +21,7 @@ object SupabaseClient {
         supabaseUrl = BuildConfig.SUPABASE_URL,
         supabaseKey = BuildConfig.SUPABASE_ANON_KEY
     ) {
-        install(GoTrue) {
-            scheme = "https"
-            host = "rmgtjzeuhckqhuwwzrlm.supabase.co"
-        }
+        install(GoTrue)
         install(Postgrest)
         install(Functions)
         install(Realtime)
