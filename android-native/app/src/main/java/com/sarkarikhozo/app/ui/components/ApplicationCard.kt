@@ -10,14 +10,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Circle
-import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Chip
-import androidx.compose.material3.ChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -165,7 +162,7 @@ private fun StatusChip(status: ApplicationStatus) {
         ApplicationStatus.ARCHIVED -> MaterialTheme.colorScheme.onSurfaceVariant to Icons.Default.Circle
     }
     
-    Chip(
+    AssistChip(
         onClick = { },
         label = {
             Text(
@@ -180,7 +177,7 @@ private fun StatusChip(status: ApplicationStatus) {
                 modifier = Modifier.size(14.dp)
             )
         },
-        colors = ChipDefaults.chipColors(
+        colors = AssistChipDefaults.assistChipColors(
             containerColor = color.copy(alpha = 0.1f),
             labelColor = color,
             leadingIconColor = color

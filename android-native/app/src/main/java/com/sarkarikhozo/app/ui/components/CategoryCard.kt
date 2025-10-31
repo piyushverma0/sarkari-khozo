@@ -6,15 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.DirectionsRailway
-import androidx.compose.material.icons.filled.Engineering
-import androidx.compose.material.icons.filled.Gavel
-import androidx.compose.material.icons.filled.HealthAndSafety
-import androidx.compose.material.icons.filled.LocalPolice
-import androidx.compose.material.icons.filled.School
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Work
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -75,17 +67,17 @@ fun CategoryCard(
 private fun getCategoryIcon(category: JobCategory): ImageVector {
     return when (category) {
         JobCategory.BANKING -> Icons.Default.AccountBalance
-        JobCategory.RAILWAY -> Icons.Default.DirectionsRailway
-        JobCategory.SSC -> Icons.Default.Work
-        JobCategory.UPSC -> Icons.Default.Work
+        JobCategory.RAILWAY -> Icons.Default.DirectionsBus
+        JobCategory.SSC -> Icons.Default.BusinessCenter
+        JobCategory.UPSC -> Icons.Default.AccountBalanceWallet
         JobCategory.STATE_GOVT -> Icons.Default.AccountBalance
-        JobCategory.DEFENCE -> Icons.Default.Security
+        JobCategory.DEFENCE -> Icons.Default.Shield
         JobCategory.TEACHING -> Icons.Default.School
-        JobCategory.POLICE -> Icons.Default.LocalPolice
-        JobCategory.HEALTHCARE -> Icons.Default.HealthAndSafety
-        JobCategory.ENGINEERING -> Icons.Default.Engineering
+        JobCategory.POLICE -> Icons.Default.Shield
+        JobCategory.HEALTHCARE -> Icons.Default.LocalHospital
+        JobCategory.ENGINEERING -> Icons.Default.Build
         JobCategory.JUDICIAL -> Icons.Default.Gavel
-        JobCategory.OTHER -> Icons.Default.Work
+        JobCategory.OTHER -> Icons.Default.BusinessCenter
     }
 }
 

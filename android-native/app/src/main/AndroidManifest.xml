@@ -57,14 +57,17 @@
             android:theme="@style/Theme.SarkariKhozo"
             android:windowSoftInputMode="adjustPan" />
 
-        <!-- Job Details Activity -->
+        <!-- Job Details Activity - TODO: Create this activity when needed -->
+        <!--
         <activity
             android:name=".ui.jobdetails.JobDetailsActivity"
             android:exported="false"
             android:parentActivityName=".ui.main.MainActivity"
             android:theme="@style/Theme.SarkariKhozo" />
+        -->
 
-        <!-- Search Activity -->
+        <!-- Search Activity - TODO: Create this activity when needed -->
+        <!--
         <activity
             android:name=".ui.search.SearchActivity"
             android:exported="false"
@@ -72,11 +75,14 @@
             android:parentActivityName=".ui.main.MainActivity"
             android:theme="@style/Theme.SarkariKhozo"
             android:windowSoftInputMode="adjustResize" />
+        -->
 
-        <!-- Notification Worker -->
+        <!-- Notification Worker - WorkManager handles this automatically, no need to declare -->
+        <!--
         <service
             android:name=".workers.NotificationSyncWorker"
             android:exported="false" />
+        -->
 
         <!-- Firebase Messaging Service (for future push notifications) -->
         <!--

@@ -31,7 +31,7 @@ class ApplicationRepository @Inject constructor() {
                 }
             )
             
-            val trackingResponse = Json.decodeFromString<ApplicationTrackingResponse>(response.data.toString())
+            val trackingResponse = Json.decodeFromString<ApplicationTrackingResponse>(response.decodeToString())
             emit(Result.success(trackingResponse))
         } catch (e: Exception) {
             emit(Result.failure(e))
@@ -52,7 +52,7 @@ class ApplicationRepository @Inject constructor() {
         applicationGuidance: String?
     ): Flow<Result<Application>> = flow {
         try {
-            val userId = supabase.auth.currentUserOrNull()?.id
+            val userId = supabase.gotrue.currentUserOrNull()?.id
                 ?: throw Exception("User not authenticated")
             
             val result = supabase.from("applications").insert(
@@ -81,13 +81,13 @@ class ApplicationRepository @Inject constructor() {
     
     fun getUserApplications(): Flow<Result<List<Application>>> = flow {
         try {
-            val userId = supabase.auth.currentUserOrNull()?.id
+            val userId = supabase.gotrue.currentUserOrNull()?.id
                 ?: throw Exception("User not authenticated")
             
             val results = supabase.from("applications")
                 .select()
                 .eq("user_id", userId)
-                .order("saved_at", ascending = false)
+                .order(column = "saved_at", ascending = false)
                 .decodeList<Map<String, Any>>()
             
             val applications = results.map { mapToApplication(it) }
