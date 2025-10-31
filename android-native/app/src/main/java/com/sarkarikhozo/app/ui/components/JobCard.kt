@@ -10,13 +10,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Chip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -81,7 +79,7 @@ fun JobCard(
                         modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.BookmarkBorder,
+                            imageVector = Icons.Outlined.BookmarkBorder,
                             contentDescription = stringResource(R.string.cd_save_button),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -105,7 +103,7 @@ fun JobCard(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Chip(
+                AssistChip(
                     onClick = { },
                     label = {
                         Text(

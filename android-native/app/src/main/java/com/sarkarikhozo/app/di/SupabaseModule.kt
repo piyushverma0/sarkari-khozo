@@ -1,5 +1,6 @@
 package com.sarkarikhozo.app.di
 
+import com.sarkarikhozo.app.data.api.ApiService
 import com.sarkarikhozo.app.data.repository.ApplicationRepository
 import com.sarkarikhozo.app.data.repository.AuthRepository
 import com.sarkarikhozo.app.data.repository.DiscoveryRepository
@@ -34,7 +35,7 @@ object SupabaseModule {
     
     @Provides
     @Singleton
-    fun provideJobRepository(): JobRepository {
-        return JobRepository()
+    fun provideJobRepository(apiService: ApiService): JobRepository {
+        return JobRepository(apiService)
     }
 }

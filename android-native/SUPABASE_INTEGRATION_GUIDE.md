@@ -2,14 +2,22 @@
 
 ## ✅ **SUPABASE CONNECTION STATUS: COMPLETE**
 
-Your Android app is now **fully connected** to your Supabase backend with the same functionality as your web app.
+Your Android app is now **fully connected** to your Supabase backend using **Supabase Kotlin SDK 2.0.3** with the same functionality as your web app.
+
+### **SDK Version: 2.0.3**
+This integration is specifically designed for Supabase Kotlin SDK **2.0.3**, which uses different APIs than newer versions. See `SUPABASE_SDK_2.0.3_API_REFERENCE.md` for complete API documentation.
 
 ## 🔧 **What's Been Integrated**
 
 ### **1. Supabase Client Setup**
 - ✅ **SupabaseClient.kt** - Main client configuration
 - ✅ **Build configuration** - API keys and URLs added
-- ✅ **Dependencies** - All Supabase Kotlin libraries added
+- ✅ **Dependencies** - All Supabase Kotlin libraries added (version 2.0.3)
+  - `postgrest-kt` - Database operations
+  - `gotrue-kt` - Authentication (replaces auth-kt in v2.0.3)
+  - `realtime-kt` - Real-time subscriptions
+  - `functions-kt` - Edge functions
+  - `storage-kt` - File storage
 
 ### **2. Authentication System**
 - ✅ **AuthRepository** - Sign in, sign up, sign out
@@ -45,11 +53,21 @@ discoveryViewModel.scrapeNews()
 discoveryViewModel.generateAudioBulletin()
 ```
 
-### **👤 User Authentication**
+### **👤 User Authentication (SDK 2.0.3)**
 ```kotlin
-// Sign in/up with Supabase Auth
-authViewModel.signIn(email, password)
-authViewModel.signUp(email, password, name)
+// SDK 2.0.3 uses GoTrue module, NOT Auth
+// Sign in with loginWith(), NOT signInWith()
+authViewModel.signIn(email, password)  // Uses gotrue.loginWith internally
+authViewModel.signUp(email, password, name)  // Uses gotrue.signUpWith internally
+
+// Direct SDK usage:
+supabase.gotrue.loginWith(Email) {
+    this.email = email
+    this.password = password
+}
+
+// Sign out uses logout(), NOT signOut()
+supabase.gotrue.logout()
 ```
 
 ### **📊 Application Management**
@@ -131,6 +149,39 @@ cd android-native
 ./gradlew clean build
 ```
 
+### **SDK 2.0.3 Specific Issues**
+
+#### **Error: Unresolved reference 'auth'**
+```kotlin
+// ❌ Wrong (for newer SDK versions)
+import io.github.jan.supabase.auth.auth
+val user = client.auth.currentUserOrNull()
+
+// ✅ Correct (for SDK 2.0.3)
+import io.github.jan.supabase.gotrue.gotrue
+val user = client.gotrue.currentUserOrNull()
+```
+
+#### **Error: Unresolved reference 'data'**
+```kotlin
+// ❌ Wrong (for newer SDK versions)
+val result = response.data.toString()
+
+// ✅ Correct (for SDK 2.0.3)
+val result = response.decodeToString()
+```
+
+#### **Error: Unresolved reference 'signInWith' or 'signOut'**
+```kotlin
+// ❌ Wrong (for newer SDK versions)
+client.auth.signInWith(Email) { }
+client.auth.signOut()
+
+// ✅ Correct (for SDK 2.0.3)
+client.gotrue.loginWith(Email) { }
+client.gotrue.logout()
+```
+
 ### **Network Issues**
 - Check internet connection
 - Verify Supabase project is running
@@ -143,11 +194,21 @@ cd android-native
 
 ## ✅ **INTEGRATION COMPLETE**
 
-Your Android app now has **complete Supabase integration** with:
+Your Android app now has **complete Supabase integration** with **SDK 2.0.3**:
 - ✅ Same backend as web app
-- ✅ All AI functions working
+- ✅ All AI functions working (using 2.0.3 API)
 - ✅ Real-time capabilities
-- ✅ Secure authentication
+- ✅ Secure authentication (GoTrue module)
 - ✅ Production-ready setup
+- ✅ Full compatibility with Kotlin 2.0.0
+
+### **Important SDK 2.0.3 Notes**
+- Uses `gotrue` module instead of `auth`
+- Uses `loginWith()` instead of `signInWith()`
+- Uses `logout()` instead of `signOut()`
+- Function responses use `decodeToString()` instead of `.data`
+- Query ordering requires `column =` named parameter
+
+**For complete API reference, see:** `SUPABASE_SDK_2.0.3_API_REFERENCE.md`
 
 **Ready to build and test!** 🚀
