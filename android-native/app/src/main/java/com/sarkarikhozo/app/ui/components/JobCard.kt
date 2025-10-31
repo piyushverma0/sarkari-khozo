@@ -79,7 +79,7 @@ fun JobCard(
                         modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.BookmarkBorder,
+                            imageVector = Icons.Outlined.BookmarkBorder,
                             contentDescription = stringResource(R.string.cd_save_button),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )

@@ -215,7 +215,7 @@ private fun StoryCard(
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
-                            imageVector = if (story.isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                            imageVector = if (story.isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                             contentDescription = "Save",
                             modifier = Modifier.size(20.dp),
                             tint = if (story.isSaved) WarningOrange else MaterialTheme.colorScheme.onSurfaceVariant
