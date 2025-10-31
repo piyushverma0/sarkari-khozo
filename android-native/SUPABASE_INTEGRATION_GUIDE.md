@@ -9,7 +9,12 @@ Your Android app is now **fully connected** to your Supabase backend with the sa
 ### **1. Supabase Client Setup**
 - ✅ **SupabaseClient.kt** - Main client configuration
 - ✅ **Build configuration** - API keys and URLs added
-- ✅ **Dependencies** - All Supabase Kotlin libraries added
+- ✅ **Dependencies** - All Supabase Kotlin libraries added (version 2.0.3)
+  - `postgrest-kt` - Database operations
+  - `gotrue-kt` - Authentication (replaces auth-kt in v2.0.3)
+  - `realtime-kt` - Real-time subscriptions
+  - `functions-kt` - Edge functions
+  - `storage-kt` - File storage
 
 ### **2. Authentication System**
 - ✅ **AuthRepository** - Sign in, sign up, sign out

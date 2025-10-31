@@ -94,14 +94,14 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
 
     // Supabase
-    implementation("io.github.jan-tennert.supabase:postgrest-kt:2.6.0")
-    implementation("io.github.jan-tennert.supabase:auth-kt:2.6.0")
-    implementation("io.github.jan-tennert.supabase:realtime-kt:2.6.0")
-    implementation("io.github.jan-tennert.supabase:functions-kt:2.6.0")
-    implementation("io.github.jan-tennert.supabase:storage-kt:2.6.0")
-    implementation("io.ktor:ktor-client-android:2.3.12")
-    implementation("io.ktor:ktor-client-core:2.3.12")
-    implementation("io.ktor:ktor-utils:2.3.12")
+    implementation(libs.supabase.postgrest.kt)
+    implementation(libs.supabase.gotrue.kt)
+    implementation(libs.supabase.realtime.kt)
+    implementation(libs.supabase.functions.kt)
+    implementation(libs.supabase.storage.kt)
+    implementation(libs.ktor.client.android)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.utils)
 
     // Image Loading
     implementation(libs.coil.compose)
