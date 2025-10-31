@@ -3,8 +3,8 @@ package com.sarkarikhozo.app.data.repository
 import com.sarkarikhozo.app.data.model.AuthState
 import com.sarkarikhozo.app.data.model.User
 import com.sarkarikhozo.app.data.supabase.SupabaseClient
-import io.github.jan.supabase.gotrue.user.UserInfo
-import io.github.jan.supabase.gotrue.providers.builtin.Email
+import io.github.jan.supabase.auth.user.UserInfo
+import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.exceptions.RestException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -19,7 +19,7 @@ class AuthRepository @Inject constructor() {
     
     fun getCurrentUser(): Flow<User?> = flow {
         try {
-            val session = supabase.gotrue.currentSessionOrNull()
+            val session = supabase.auth.currentSessionOrNull()
             if (session != null) {
                 val userInfo = session.user
                 emit(mapUserInfoToUser(userInfo))
@@ -33,12 +33,12 @@ class AuthRepository @Inject constructor() {
     
     fun signIn(email: String, password: String): Flow<Result<User>> = flow {
         try {
-            supabase.gotrue.loginWith(Email) {
-                email = email
-                password = password
+            supabase.auth.signInWith(Email) {
+                this.email = email
+                this.password = password
             }
             
-            val session = supabase.gotrue.currentSessionOrNull()
+            val session = supabase.auth.currentSessionOrNull()
             val user = session?.user?.let { mapUserInfoToUser(it) }
                 ?: throw Exception("Failed to get user after login")
             emit(Result.success(user))
@@ -51,12 +51,12 @@ class AuthRepository @Inject constructor() {
     
     fun signUp(email: String, password: String, name: String? = null): Flow<Result<User>> = flow {
         try {
-            supabase.gotrue.signUpWith(Email) {
-                email = email
-                password = password
+            supabase.auth.signUpWith(Email) {
+                this.email = email
+                this.password = password
             }
             
-            val session = supabase.gotrue.currentSessionOrNull()
+            val session = supabase.auth.currentSessionOrNull()
             val user = session?.user?.let { mapUserInfoToUser(it) }
                 ?: throw Exception("Failed to get user after signup")
             emit(Result.success(user))
@@ -69,7 +69,7 @@ class AuthRepository @Inject constructor() {
     
     suspend fun signOut(): Result<Unit> {
         return try {
-            supabase.gotrue.logout()
+            supabase.auth.signOut()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -78,18 +78,18 @@ class AuthRepository @Inject constructor() {
     
     fun getAuthState(): Flow<AuthState> = flow {
         try {
-            supabase.gotrue.sessionStatus.collect { status ->
+            supabase.auth.sessionStatus.collect { status ->
                 when (status) {
-                    is io.github.jan.supabase.gotrue.SessionStatus.Authenticated -> {
+                    is io.github.jan.supabase.auth.SessionStatus.Authenticated -> {
                         emit(AuthState.AUTHENTICATED)
                     }
-                    is io.github.jan.supabase.gotrue.SessionStatus.NotAuthenticated -> {
+                    is io.github.jan.supabase.auth.SessionStatus.NotAuthenticated -> {
                         emit(AuthState.UNAUTHENTICATED)
                     }
-                    is io.github.jan.supabase.gotrue.SessionStatus.LoadingFromStorage -> {
+                    is io.github.jan.supabase.auth.SessionStatus.LoadingFromStorage -> {
                         emit(AuthState.LOADING)
                     }
-                    is io.github.jan.supabase.gotrue.SessionStatus.NetworkError -> {
+                    is io.github.jan.supabase.auth.SessionStatus.NetworkError -> {
                         emit(AuthState.ERROR)
                     }
                 }

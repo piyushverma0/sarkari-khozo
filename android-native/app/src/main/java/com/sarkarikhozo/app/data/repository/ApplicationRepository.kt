@@ -54,7 +54,7 @@ class ApplicationRepository @Inject constructor() {
         applicationGuidance: String?
     ): Flow<Result<Application>> = flow {
         try {
-            val userId = supabase.gotrue.currentUserOrNull()?.id
+            val userId = supabase.auth.currentUserOrNull()?.id
                 ?: throw Exception("User not authenticated")
             
             val result = supabase.from("applications").insert(
@@ -83,7 +83,7 @@ class ApplicationRepository @Inject constructor() {
     
     fun getUserApplications(): Flow<Result<List<Application>>> = flow {
         try {
-            val userId = supabase.gotrue.currentUserOrNull()?.id
+            val userId = supabase.auth.currentUserOrNull()?.id
                 ?: throw Exception("User not authenticated")
             
             val results = supabase.from("applications")
