@@ -21,11 +21,16 @@ export type Database = {
           delivered_at: string | null
           delivery_status: string | null
           id: string
+          is_read: boolean | null
           message: string
           metadata: Json | null
+          notification_channel: string | null
           notification_type: string
+          priority: string | null
+          read_at: string | null
           scheduled_for: string
           title: string
+          type: string
           updated_at: string | null
           user_id: string
         }
@@ -35,11 +40,16 @@ export type Database = {
           delivered_at?: string | null
           delivery_status?: string | null
           id?: string
+          is_read?: boolean | null
           message: string
           metadata?: Json | null
+          notification_channel?: string | null
           notification_type: string
+          priority?: string | null
+          read_at?: string | null
           scheduled_for: string
           title: string
+          type: string
           updated_at?: string | null
           user_id: string
         }
@@ -49,11 +59,16 @@ export type Database = {
           delivered_at?: string | null
           delivery_status?: string | null
           id?: string
+          is_read?: boolean | null
           message?: string
           metadata?: Json | null
+          notification_channel?: string | null
           notification_type?: string
+          priority?: string | null
+          read_at?: string | null
           scheduled_for?: string
           title?: string
+          type?: string
           updated_at?: string | null
           user_id?: string
         }
@@ -636,6 +651,59 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_preferences: {
+        Row: {
+          application_id: string
+          created_at: string
+          deadline_reminders: boolean
+          general_enabled: boolean
+          id: string
+          new_opportunities: boolean
+          reminder_days: number[] | null
+          status_updates: boolean
+          updated_at: string
+          updates_enabled: boolean
+          urgent_enabled: boolean
+          user_id: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          deadline_reminders?: boolean
+          general_enabled?: boolean
+          id?: string
+          new_opportunities?: boolean
+          reminder_days?: number[] | null
+          status_updates?: boolean
+          updated_at?: string
+          updates_enabled?: boolean
+          urgent_enabled?: boolean
+          user_id: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          deadline_reminders?: boolean
+          general_enabled?: boolean
+          id?: string
+          new_opportunities?: boolean
+          reminder_days?: number[] | null
+          status_updates?: boolean
+          updated_at?: string
+          updates_enabled?: boolean
+          urgent_enabled?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -950,6 +1018,7 @@ export type Database = {
         }
         Returns: number
       }
+      get_notification_stats: { Args: { p_user_id: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
