@@ -651,6 +651,69 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_analytics: {
+        Row: {
+          avg_relevance_score: number | null
+          date: string | null
+          id: string
+          total_failed: number | null
+          total_opened: number | null
+          total_queued: number | null
+          total_sent: number | null
+        }
+        Insert: {
+          avg_relevance_score?: number | null
+          date?: string | null
+          id?: string
+          total_failed?: number | null
+          total_opened?: number | null
+          total_queued?: number | null
+          total_sent?: number | null
+        }
+        Update: {
+          avg_relevance_score?: number | null
+          date?: string | null
+          id?: string
+          total_failed?: number | null
+          total_opened?: number | null
+          total_queued?: number | null
+          total_sent?: number | null
+        }
+        Relationships: []
+      }
+      notification_history: {
+        Row: {
+          action_taken: string | null
+          id: string
+          news_id: string
+          opened: boolean | null
+          opened_at: string | null
+          sent_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          action_taken?: string | null
+          id?: string
+          news_id: string
+          opened?: boolean | null
+          opened_at?: string | null
+          sent_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          action_taken?: string | null
+          id?: string
+          news_id?: string
+          opened?: boolean | null
+          opened_at?: string | null
+          sent_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notification_preferences: {
         Row: {
           application_id: string
@@ -703,6 +766,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notification_queue: {
+        Row: {
+          body: string
+          category: string
+          created_at: string | null
+          deep_link: string | null
+          id: string
+          news_id: string
+          priority: string
+          relevance_score: number
+          scheduled_for: string | null
+          status: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          category: string
+          created_at?: string | null
+          deep_link?: string | null
+          id?: string
+          news_id: string
+          priority: string
+          relevance_score: number
+          scheduled_for?: string | null
+          status?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          category?: string
+          created_at?: string | null
+          deep_link?: string | null
+          id?: string
+          news_id?: string
+          priority?: string
+          relevance_score?: number
+          scheduled_for?: string | null
+          status?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -895,6 +1003,93 @@ export type Database = {
         }
         Relationships: []
       }
+      user_daily_notification_count: {
+        Row: {
+          count: number | null
+          date: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          count?: number | null
+          date?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          count?: number | null
+          date?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_fcm_tokens: {
+        Row: {
+          created_at: string | null
+          device_info: Json | null
+          fcm_token: string
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          device_info?: Json | null
+          fcm_token: string
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          device_info?: Json | null
+          fcm_token?: string
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_notification_preferences: {
+        Row: {
+          categories: Json | null
+          created_at: string | null
+          enabled: boolean | null
+          id: string
+          max_daily_notifications: number | null
+          priority_threshold: string | null
+          quiet_hours_end: string | null
+          quiet_hours_start: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          categories?: Json | null
+          created_at?: string | null
+          enabled?: boolean | null
+          id?: string
+          max_daily_notifications?: number | null
+          priority_threshold?: string | null
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          categories?: Json | null
+          created_at?: string | null
+          enabled?: boolean | null
+          id?: string
+          max_daily_notifications?: number | null
+          priority_threshold?: string | null
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_story_interactions: {
         Row: {
           clicked_source_at: string | null
@@ -1019,6 +1214,12 @@ export type Database = {
         Returns: number
       }
       get_notification_stats: { Args: { p_user_id: string }; Returns: Json }
+      get_user_daily_count: { Args: { p_user_id: string }; Returns: number }
+      increment_daily_notification_count: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
+      reset_daily_notification_counts: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
