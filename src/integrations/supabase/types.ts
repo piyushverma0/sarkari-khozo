@@ -379,6 +379,7 @@ export type Database = {
           is_active: boolean | null
           is_featured: boolean | null
           key_takeaways: string[] | null
+          notified: boolean | null
           published_date: string | null
           region: string | null
           relevance_score: number | null
@@ -416,6 +417,7 @@ export type Database = {
           is_active?: boolean | null
           is_featured?: boolean | null
           key_takeaways?: string[] | null
+          notified?: boolean | null
           published_date?: string | null
           region?: string | null
           relevance_score?: number | null
@@ -453,6 +455,7 @@ export type Database = {
           is_active?: boolean | null
           is_featured?: boolean | null
           key_takeaways?: string[] | null
+          notified?: boolean | null
           published_date?: string | null
           region?: string | null
           relevance_score?: number | null

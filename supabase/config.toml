@@ -65,6 +65,8 @@ inspector_port = 8083
 "0 0 * * *" = "reset-daily-notification-counts"
 # Send pending notifications every 6 hours
 "0 */6 * * *" = "send-pending-notifications"
+# Notify new stories every 6 hours
+"0 */6 * * *" = "notify-new-stories"
 # Check for application updates daily at 6 AM
 "0 6 * * *" = "check-application-updates"
 # Cleanup old notifications weekly on Sunday at midnight
@@ -192,4 +194,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.send-notifications]
+verify_jwt = false
+
+[functions.notify-new-stories]
 verify_jwt = false
