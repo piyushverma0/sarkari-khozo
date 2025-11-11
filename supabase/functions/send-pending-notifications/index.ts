@@ -331,7 +331,7 @@ serve(async (req) => {
       } catch (error) {
         console.error(`Failed to deliver notification ${notification.id}:`, error);
         results.failed++;
-        results.errors.push(`${notification.id}: ${error.message}`);
+        results.errors.push(`${notification.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
 
         // Mark notification as failed
         await supabaseClient
@@ -341,7 +341,7 @@ serve(async (req) => {
             updated_at: new Date().toISOString(),
             metadata: {
               ...notification.metadata,
-              error: error.message,
+              error: error instanceof Error ? error.message : 'Unknown error',
               failed_at: new Date().toISOString(),
             },
           })
@@ -359,7 +359,7 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("Error sending pending notifications:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

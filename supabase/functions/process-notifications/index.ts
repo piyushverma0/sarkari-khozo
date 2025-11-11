@@ -43,14 +43,6 @@ serve(async (req) => {
 
     if (prefError) throw prefError
 
-    // Get user interaction history for personalization
-    const { data: interactions, error: interError } = await supabase
-      .from('user_story_interactions')
-      .select('user_id, story_id, saved_at, clicked_source_at')
-      .in('user_id', userIds)
-
-    if (interError) throw interError
-
     // Get notification history to avoid duplicates
     const { data: history, error: histError } = await supabase
       .from('notification_history')
@@ -99,23 +91,6 @@ serve(async (req) => {
       const todayCount = countMap.get(user.user_id) || 0
       if (todayCount >= userPref.max_daily_notifications) continue
 
-      // Get user's interaction history
-      const userInteractions = interactions.filter(i => i.user_id === user.user_id)
-      const categoryScores: Record<string, number> = {
-        exams: 0,
-        schemes: 0,
-        policies: 0
-      }
-
-      userInteractions.forEach(interaction => {
-        const weight = interaction.clicked_source_at ? 3 : 
-                      interaction.saved_at ? 2 : 1
-        const storyCategory = recentNews.find(n => n.id === interaction.story_id)?.category
-        if (storyCategory && categoryScores[storyCategory] !== undefined) {
-          categoryScores[storyCategory] += weight
-        }
-      })
-
       // Score each news item for this user
       for (const news of recentNews) {
         const key = `${user.user_id}_${news.id}`
@@ -123,10 +98,9 @@ serve(async (req) => {
 
         if (!userPref.categories[news.category]) continue // Category disabled
 
-        // Calculate relevance score
-        const categoryScore = categoryScores[news.category] || 0
+        // Calculate relevance score based on recency
         const recencyScore = Math.max(0, 100 - (Date.now() - new Date(news.created_at).getTime()) / (1000 * 60 * 60)) // Decay over hours
-        const relevanceScore = (categoryScore * 0.7) + (recencyScore * 0.3)
+        const relevanceScore = recencyScore
 
         // Determine priority
         let priority = 'LOW'
