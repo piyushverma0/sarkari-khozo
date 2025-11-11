@@ -1,176 +1,215 @@
+// ===========================================================
+// SCHEDULE NOTIFICATIONS EDGE FUNCTION
+// ===========================================================
+// This function schedules notifications when a user tracks an application.
+// It creates deadline reminder notifications based on important dates.
+// ===========================================================
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 interface ScheduleNotificationsRequest {
   applicationId: string;
+  userId: string;
 }
 
-interface ImportantDate {
-  date: string;
-  type: string;
+interface ImportantDates {
+  application_start?: string;
+  application_end?: string;
+  admit_card_date?: string;
+  exam_date?: string;
+  result_date?: string;
+  correction_window_start?: string;
+  correction_window_end?: string;
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    );
 
-    // Get user from auth header
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('No authorization header');
+    const { applicationId, userId } = (await req.json()) as ScheduleNotificationsRequest;
+
+    if (!applicationId || !userId) {
+      throw new Error("applicationId and userId are required");
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    
-    if (userError || !user) {
-      throw new Error('Unauthorized');
-    }
-
-    const { applicationId }: ScheduleNotificationsRequest = await req.json();
-    console.log(`Scheduling notifications for application ${applicationId}, user ${user.id}`);
-
-    // Fetch the application
-    const { data: application, error: appError } = await supabase
-      .from('applications')
-      .select('*')
-      .eq('id', applicationId)
-      .eq('user_id', user.id)
+    // Fetch application details
+    const { data: application, error: appError } = await supabaseClient
+      .from("applications")
+      .select("*")
+      .eq("id", applicationId)
       .single();
 
-    if (appError || !application) {
-      throw new Error('Application not found');
+    if (appError) throw appError;
+
+    // Get notification preferences for this application
+    const { data: preferences } = await supabaseClient
+      .from("notification_preferences")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("application_id", applicationId)
+      .maybeSingle();
+
+    // Use default preferences if none exist
+    const reminderDays = preferences?.reminder_days || [7, 3, 1];
+    const deadlineRemindersEnabled = preferences?.deadline_reminders !== false;
+
+    if (!deadlineRemindersEnabled) {
+      return new Response(JSON.stringify({ message: "Deadline reminders are disabled for this application" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
     }
 
-    if (!application.applied_confirmed) {
-      throw new Error('Application not confirmed by user');
-    }
+    const importantDates: ImportantDates = application.important_dates || {};
+    const notifications = [];
 
-    const notificationPrefs = application.notification_preferences || {
-      enabled: true,
-      channels: ['push', 'in_app'],
-      days_before: [7, 3, 1]
-    };
+    // Schedule notifications for application deadline
+    if (importantDates.application_end) {
+      const deadline = new Date(importantDates.application_end);
 
-    if (!notificationPrefs.enabled) {
-      console.log('Notifications disabled for this application');
-      return new Response(
-        JSON.stringify({ message: 'Notifications disabled', scheduled: 0 }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+      for (const days of reminderDays) {
+        const scheduledDate = new Date(deadline);
+        scheduledDate.setDate(scheduledDate.getDate() - days);
 
-    const importantDates = application.important_dates || {};
-    const daysBefore = notificationPrefs.days_before || [7, 3, 1];
-    const notificationsToSchedule = [];
-
-    // Parse and schedule notifications for each important date
-    for (const [dateKey, dateValue] of Object.entries(importantDates)) {
-      if (!dateValue || typeof dateValue !== 'string') continue;
-
-      try {
-        const targetDate = new Date(dateValue as string);
-        if (isNaN(targetDate.getTime())) continue;
-
-        // Schedule notifications for each configured day before
-        for (const days of daysBefore) {
-          const scheduledFor = new Date(targetDate);
-          scheduledFor.setDate(scheduledFor.getDate() - days);
-
-          // Only schedule future notifications
-          if (scheduledFor > new Date()) {
-            const dateTypeReadable = dateKey
-              .replace(/_/g, ' ')
-              .replace(/\b\w/g, l => l.toUpperCase());
-
-            notificationsToSchedule.push({
-              user_id: user.id,
-              application_id: applicationId,
-              notification_type: 'deadline_reminder',
-              title: `${application.title} - ${days} ${days === 1 ? 'day' : 'days'} to go!`,
-              message: `${dateTypeReadable} is scheduled for ${targetDate.toLocaleDateString('en-IN', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}. Time to prepare!`,
-              scheduled_for: scheduledFor.toISOString(),
-              delivery_status: 'pending',
-              metadata: {
-                date_key: dateKey,
-                target_date: targetDate.toISOString(),
-                days_before: days
-              }
-            });
-          }
+        // Only schedule if the notification date is in the future
+        if (scheduledDate > new Date()) {
+          notifications.push({
+            user_id: userId,
+            application_id: applicationId,
+            title: `${days} day${days > 1 ? "s" : ""} until application deadline`,
+            message: `The application deadline for "${application.title}" is in ${days} day${days > 1 ? "s" : ""}. Don't forget to submit your application!`,
+            type: "DEADLINE_REMINDER",
+            notification_channel: days === 1 ? "URGENT" : "GENERAL",
+            priority: days === 1 ? "URGENT" : days === 3 ? "HIGH" : "MEDIUM",
+            scheduled_for: scheduledDate.toISOString(),
+            delivery_status: "PENDING",
+            metadata: {
+              deadline_type: "application_end",
+              days_until_deadline: days.toString(),
+              deadline_date: importantDates.application_end,
+            },
+          });
         }
-      } catch (error) {
-        console.error(`Error processing date ${dateKey}:`, error);
       }
     }
 
-    if (notificationsToSchedule.length === 0) {
-      console.log('No future notifications to schedule');
-      return new Response(
-        JSON.stringify({ message: 'No future notifications to schedule', scheduled: 0 }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Schedule notifications for correction window deadline
+    if (importantDates.correction_window_end) {
+      const deadline = new Date(importantDates.correction_window_end);
+
+      for (const days of [3, 1]) {
+        // Only 3 and 1 day reminders for correction window
+        const scheduledDate = new Date(deadline);
+        scheduledDate.setDate(scheduledDate.getDate() - days);
+
+        if (scheduledDate > new Date()) {
+          notifications.push({
+            user_id: userId,
+            application_id: applicationId,
+            title: `Correction window closing in ${days} day${days > 1 ? "s" : ""}`,
+            message: `The correction window for "${application.title}" closes in ${days} day${days > 1 ? "s" : ""}. Review your application now!`,
+            type: "DEADLINE_REMINDER",
+            notification_channel: "URGENT",
+            priority: "HIGH",
+            scheduled_for: scheduledDate.toISOString(),
+            delivery_status: "PENDING",
+            metadata: {
+              deadline_type: "correction_window_end",
+              days_until_deadline: days.toString(),
+              deadline_date: importantDates.correction_window_end,
+            },
+          });
+        }
+      }
     }
 
-    console.log(`Scheduling ${notificationsToSchedule.length} notifications`);
+    // Schedule notification for admit card release (1 day before)
+    if (importantDates.admit_card_date) {
+      const admitCardDate = new Date(importantDates.admit_card_date);
+      const scheduledDate = new Date(admitCardDate);
+      scheduledDate.setDate(scheduledDate.getDate() - 1);
 
-    // Insert notifications with deduplication
-    // First, delete existing pending notifications for this application
-    const { error: deleteError } = await supabase
-      .from('application_notifications')
-      .delete()
-      .eq('application_id', applicationId)
-      .eq('delivery_status', 'pending');
-
-    if (deleteError) {
-      console.error('Error deleting old notifications:', deleteError);
+      if (scheduledDate > new Date()) {
+        notifications.push({
+          user_id: userId,
+          application_id: applicationId,
+          title: "Admit card releasing tomorrow",
+          message: `The admit card for "${application.title}" is expected to be released tomorrow. Check the official website!`,
+          type: "STATUS_UPDATE",
+          notification_channel: "UPDATES",
+          priority: "HIGH",
+          scheduled_for: scheduledDate.toISOString(),
+          delivery_status: "PENDING",
+          metadata: {
+            event_type: "admit_card_date",
+            event_date: importantDates.admit_card_date,
+          },
+        });
+      }
     }
 
-    // Insert new notifications
-    const { data: insertedNotifications, error: insertError } = await supabase
-      .from('application_notifications')
-      .insert(notificationsToSchedule)
-      .select();
+    // Schedule notification for exam date (1 day before)
+    if (importantDates.exam_date) {
+      const examDate = new Date(importantDates.exam_date);
+      const scheduledDate = new Date(examDate);
+      scheduledDate.setDate(scheduledDate.getDate() - 1);
 
-    if (insertError) {
-      console.error('Error inserting notifications:', insertError);
-      throw insertError;
+      if (scheduledDate > new Date()) {
+        notifications.push({
+          user_id: userId,
+          application_id: applicationId,
+          title: "Exam tomorrow",
+          message: `Your exam for "${application.title}" is scheduled for tomorrow. Good luck!`,
+          type: "DEADLINE_REMINDER",
+          notification_channel: "URGENT",
+          priority: "URGENT",
+          scheduled_for: scheduledDate.toISOString(),
+          delivery_status: "PENDING",
+          metadata: {
+            event_type: "exam_date",
+            event_date: importantDates.exam_date,
+          },
+        });
+      }
     }
 
-    console.log(`Successfully scheduled ${insertedNotifications?.length || 0} notifications`);
+    // Insert all notifications
+    if (notifications.length > 0) {
+      const { error: insertError } = await supabaseClient.from("application_notifications").insert(notifications);
+
+      if (insertError) throw insertError;
+    }
 
     return new Response(
       JSON.stringify({
-        message: 'Notifications scheduled successfully',
-        scheduled: insertedNotifications?.length || 0,
-        notifications: insertedNotifications
+        success: true,
+        message: `Scheduled ${notifications.length} notification(s)`,
+        notifications: notifications.map((n) => ({
+          title: n.title,
+          scheduled_for: n.scheduled_for,
+        })),
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
     );
-
   } catch (error) {
-    console.error('Error in schedule-notifications:', error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
+    console.error("Error scheduling notifications:", error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+    });
   }
 });
