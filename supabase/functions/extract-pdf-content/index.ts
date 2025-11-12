@@ -1,6 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import Anthropic from 'https://esm.sh/@anthropic-ai/sdk@0.30.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,6 +18,8 @@ serve(async (req) => {
     )
 
     const { note_id, source_url, language } = await req.json()
+
+    console.log(`Starting PDF extraction for note ${note_id}`)
 
     // Update status
     await supabaseClient
@@ -45,35 +46,43 @@ serve(async (req) => {
     
     const base64PDF = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)))
 
-    console.log(`PDF downloaded: ${sizeInMB.toFixed(2)}MB, starting extraction...`)
-
-    // Use Claude's native PDF support
-    const anthropic = new Anthropic({
-      apiKey: Deno.env.get('ANTHROPIC_API_KEY')
-    })
+    console.log(`PDF downloaded: ${sizeInMB.toFixed(2)}MB, starting extraction with Claude...`)
 
     await supabaseClient
       .from('study_notes')
       .update({ processing_progress: 30 })
       .eq('id', note_id)
 
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 8192,
-      messages: [{
-        role: 'user',
-        content: [
-          {
-            type: 'document',
-            source: {
-              type: 'base64',
-              media_type: 'application/pdf',
-              data: base64PDF
-            }
-          },
-          {
-            type: 'text',
-            text: `Extract ALL text content from this PDF document. This appears to be an educational/government document (exam notification, syllabus, or study material).
+    // Use direct API call to Claude with native PDF support
+    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')
+    if (!ANTHROPIC_API_KEY) {
+      throw new Error('ANTHROPIC_API_KEY not configured')
+    }
+
+    const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 8192,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'document',
+              source: {
+                type: 'base64',
+                media_type: 'application/pdf',
+                data: base64PDF
+              }
+            },
+            {
+              type: 'text',
+              text: `Extract ALL text content from this PDF document. This appears to be an educational/government document (exam notification, syllabus, or study material).
 
 EXTRACTION REQUIREMENTS:
 1. Extract ALL text while preserving document structure
@@ -96,12 +105,19 @@ EXTRACTION REQUIREMENTS:
 8. If the PDF has multiple columns, read left to right, top to bottom
 
 OUTPUT: Plain text with preserved structure. Do not add any commentary, just the extracted content.`
-          }
-        ]
-      }]
+            }
+          ]
+        }]
+      })
     })
 
-    const extractedText = message.content[0].type === 'text' ? message.content[0].text : ''
+    if (!claudeResponse.ok) {
+      const errorText = await claudeResponse.text()
+      throw new Error(`Claude API error: ${claudeResponse.status} - ${errorText}`)
+    }
+
+    const claudeData = await claudeResponse.json()
+    const extractedText = claudeData.content?.[0]?.text || ''
 
     if (!extractedText || extractedText.trim().length < 100) {
       throw new Error('Extracted text is too short or empty. The PDF might be image-based or encrypted.')
@@ -109,14 +125,22 @@ OUTPUT: Plain text with preserved structure. Do not add any commentary, just the
 
     console.log(`Successfully extracted ${extractedText.length} characters from PDF`)
 
+    // Calculate word count and reading time
+    const wordCount = extractedText.split(/\s+/).length
+    const estimatedReadTime = Math.ceil(wordCount / 200)
+
     // Save raw content
     await supabaseClient
       .from('study_notes')
       .update({ 
         raw_content: extractedText,
-        processing_progress: 50 
+        processing_progress: 50,
+        word_count: wordCount,
+        estimated_read_time: estimatedReadTime
       })
       .eq('id', note_id)
+
+    console.log('Triggering summarization')
 
     // Trigger summarization
     const summaryResponse = await fetch(
@@ -125,13 +149,17 @@ OUTPUT: Plain text with preserved structure. Do not add any commentary, just the
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'apikey': Deno.env.get('SUPABASE_ANON_KEY') ?? ''
         },
         body: JSON.stringify({ note_id, raw_content: extractedText, language })
       }
-    )
+    ).catch(err => {
+      console.error('Summarization trigger error:', err)
+      return null
+    })
 
-    if (!summaryResponse.ok) {
+    if (summaryResponse && !summaryResponse.ok) {
       console.error('Summarization trigger failed:', await summaryResponse.text())
     }
 
@@ -151,7 +179,9 @@ OUTPUT: Plain text with preserved structure. Do not add any commentary, just the
     
     // Update note with error
     try {
-      const { note_id } = await req.json()
+      const body = await req.json().catch(() => ({}))
+      const note_id = body.note_id
+      
       if (note_id) {
         const supabaseClient = createClient(
           Deno.env.get('SUPABASE_URL') ?? '',
