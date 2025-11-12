@@ -1,6 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import Anthropic from 'https://esm.sh/@anthropic-ai/sdk@0.32.1'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,48 +39,60 @@ serve(async (req) => {
 
     console.log(`PDF downloaded, size: ${pdfBuffer.byteLength} bytes`)
 
-    // Use Claude vision to extract text
-    const anthropic = new Anthropic({
-      apiKey: Deno.env.get('ANTHROPIC_API_KEY')
-    })
-
     await supabaseClient
       .from('study_notes')
       .update({ processing_progress: 30 })
       .eq('id', note_id)
 
-    console.log('Calling Claude API for text extraction')
+    console.log('Calling Lovable AI (Gemini) for text extraction')
 
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 8192,
-      messages: [{
-        role: 'user',
-        content: [
+    // Use Lovable AI with Gemini for PDF extraction
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')
+    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured')
+
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
           {
-            type: 'document',
-            source: {
-              type: 'base64',
-              media_type: 'application/pdf',
-              data: base64PDF
-            }
-          },
-          {
-            type: 'text',
-            text: `Extract ALL text from this PDF document. Preserve:
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `Extract ALL text from this PDF document. Preserve:
 - Headings and structure
-- Important dates and deadlines
+- Important dates and deadlines  
 - Lists and bullet points
 - Tables (convert to readable format)
 - Contact information and URLs
 
 Output the extracted text in a clean, readable format.`
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:application/pdf;base64,${base64PDF}`
+                }
+              }
+            ]
           }
         ]
-      }]
+      })
     })
 
-    const extractedText = message.content[0].type === 'text' ? message.content[0].text : ''
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text()
+      throw new Error(`AI API error: ${aiResponse.status} - ${errorText}`)
+    }
+
+    const aiData = await aiResponse.json()
+    const extractedText = aiData.choices?.[0]?.message?.content || ''
+    
     console.log(`Text extracted, length: ${extractedText.length} characters`)
 
     // Save raw content
