@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import Anthropic from 'https://esm.sh/@anthropic-ai/sdk@0.24.3'
+import Anthropic from 'https://esm.sh/@anthropic-ai/sdk@0.30.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -147,6 +147,8 @@ OUTPUT: Plain text with preserved structure. Do not add any commentary, just the
   } catch (error) {
     console.error('PDF extraction error:', error)
     
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    
     // Update note with error
     try {
       const { note_id } = await req.json()
@@ -159,7 +161,7 @@ OUTPUT: Plain text with preserved structure. Do not add any commentary, just the
           .from('study_notes')
           .update({ 
             processing_status: 'failed',
-            processing_error: error.message,
+            processing_error: errorMessage,
             processing_progress: 0
           })
           .eq('id', note_id)
@@ -169,7 +171,7 @@ OUTPUT: Plain text with preserved structure. Do not add any commentary, just the
     }
 
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     )
   }
