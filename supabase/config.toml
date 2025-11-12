@@ -205,12 +205,11 @@ verify_jwt = false
 [functions.extract-pdf-content]
 verify_jwt = false
 
-# Temporarily commented out to deploy in batches - uncomment after first batch deploys
-# [functions.extract-youtube-transcript]
-# verify_jwt = false
+[functions.extract-youtube-transcript]
+verify_jwt = false
 
-# [functions.generate-notes-summary]
-# verify_jwt = false
+[functions.generate-notes-summary]
+verify_jwt = false
 
-# [functions.generate-flashcards]
-# verify_jwt = true
+[functions.generate-flashcards]
+verify_jwt = true
