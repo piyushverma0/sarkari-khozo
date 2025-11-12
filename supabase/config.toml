@@ -201,3 +201,9 @@ verify_jwt = false
 
 [functions.process-study-material]
 verify_jwt = false
+
+[functions.extract-pdf-content]
+verify_jwt = false
+
+[functions.extract-youtube-transcript]
+verify_jwt = false
