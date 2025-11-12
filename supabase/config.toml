@@ -207,3 +207,6 @@ verify_jwt = false
 
 [functions.extract-youtube-transcript]
 verify_jwt = false
+
+[functions.generate-notes-summary]
+verify_jwt = false
