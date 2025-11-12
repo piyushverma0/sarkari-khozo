@@ -198,3 +198,6 @@ verify_jwt = false
 
 [functions.notify-new-stories]
 verify_jwt = false
+
+[functions.process-study-material]
+verify_jwt = false
