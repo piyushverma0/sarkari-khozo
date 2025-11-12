@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import Anthropic from 'https://esm.sh/@anthropic-ai/sdk@0.24.3'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,8 +20,6 @@ serve(async (req) => {
 
     const { note_id, source_url, language } = await req.json()
 
-    console.log(`Starting PDF extraction for note ${note_id}`)
-
     // Update status
     await supabaseClient
       .from('study_notes')
@@ -31,96 +30,117 @@ serve(async (req) => {
 
     // Download PDF
     const pdfResponse = await fetch(source_url)
-    if (!pdfResponse.ok) throw new Error('Failed to download PDF')
-    
+    if (!pdfResponse.ok) {
+      throw new Error(`Failed to download PDF: ${pdfResponse.statusText}`)
+    }
+
     const pdfBlob = await pdfResponse.blob()
     const pdfBuffer = await pdfBlob.arrayBuffer()
+    
+    // Check PDF size (max 32MB as per Claude limits)
+    const sizeInMB = pdfBuffer.byteLength / (1024 * 1024)
+    if (sizeInMB > 32) {
+      throw new Error(`PDF too large: ${sizeInMB.toFixed(2)}MB. Maximum size is 32MB.`)
+    }
+    
     const base64PDF = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)))
 
-    console.log(`PDF downloaded, size: ${pdfBuffer.byteLength} bytes`)
+    console.log(`PDF downloaded: ${sizeInMB.toFixed(2)}MB, starting extraction...`)
+
+    // Use Claude's native PDF support
+    const anthropic = new Anthropic({
+      apiKey: Deno.env.get('ANTHROPIC_API_KEY')
+    })
 
     await supabaseClient
       .from('study_notes')
       .update({ processing_progress: 30 })
       .eq('id', note_id)
 
-    console.log('Calling Lovable AI (Gemini) for text extraction')
-
-    // Use Lovable AI with Gemini for PDF extraction
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')
-    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured')
-
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-5-20250929',
+      max_tokens: 8192,
+      messages: [{
+        role: 'user',
+        content: [
           {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: `Extract ALL text from this PDF document. Preserve:
-- Headings and structure
-- Important dates and deadlines  
-- Lists and bullet points
-- Tables (convert to readable format)
-- Contact information and URLs
+            type: 'document',
+            source: {
+              type: 'base64',
+              media_type: 'application/pdf',
+              data: base64PDF
+            }
+          },
+          {
+            type: 'text',
+            text: `Extract ALL text content from this PDF document. This appears to be an educational/government document (exam notification, syllabus, or study material).
 
-Output the extracted text in a clean, readable format.`
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:application/pdf;base64,${base64PDF}`
-                }
-              }
-            ]
+EXTRACTION REQUIREMENTS:
+1. Extract ALL text while preserving document structure
+2. Maintain headings hierarchy (main headings, subheadings)
+3. Preserve important formatting:
+   - Lists and bullet points
+   - Numbered sequences
+   - Tables (convert to readable text format)
+4. Capture all critical information:
+   - Dates and deadlines (keep exact format)
+   - Numbers (fees, vacancies, age limits, etc.)
+   - Contact information (emails, phone numbers, websites)
+   - URLs and links
+5. For tables: Convert to structured text format like:
+   Category | Age Limit | Fee
+   General | 21-30 years | Rs. 500
+   OBC | 21-33 years | Rs. 250
+6. Remove headers/footers if they're repetitive
+7. De-duplicate any repeated content
+8. If the PDF has multiple columns, read left to right, top to bottom
+
+OUTPUT: Plain text with preserved structure. Do not add any commentary, just the extracted content.`
           }
         ]
-      })
+      }]
     })
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text()
-      throw new Error(`AI API error: ${aiResponse.status} - ${errorText}`)
+    const extractedText = message.content[0].type === 'text' ? message.content[0].text : ''
+
+    if (!extractedText || extractedText.trim().length < 100) {
+      throw new Error('Extracted text is too short or empty. The PDF might be image-based or encrypted.')
     }
 
-    const aiData = await aiResponse.json()
-    const extractedText = aiData.choices?.[0]?.message?.content || ''
-    
-    console.log(`Text extracted, length: ${extractedText.length} characters`)
+    console.log(`Successfully extracted ${extractedText.length} characters from PDF`)
 
     // Save raw content
     await supabaseClient
       .from('study_notes')
       .update({ 
         raw_content: extractedText,
-        processing_progress: 50,
-        word_count: extractedText.split(/\s+/).length,
-        estimated_read_time: Math.ceil(extractedText.split(/\s+/).length / 200)
+        processing_progress: 50 
       })
       .eq('id', note_id)
 
-    console.log('Triggering summarization')
-
     // Trigger summarization
-    await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-notes-summary`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-        'Content-Type': 'application/json',
-        'apikey': Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-      },
-      body: JSON.stringify({ note_id, raw_content: extractedText, language })
-    }).catch(err => console.error('Summarization trigger error:', err))
+    const summaryResponse = await fetch(
+      `${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-notes-summary`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ note_id, raw_content: extractedText, language })
+      }
+    )
+
+    if (!summaryResponse.ok) {
+      console.error('Summarization trigger failed:', await summaryResponse.text())
+    }
 
     return new Response(
-      JSON.stringify({ success: true, extracted_length: extractedText.length }),
+      JSON.stringify({ 
+        success: true, 
+        extracted_length: extractedText.length,
+        pdf_size_mb: sizeInMB.toFixed(2)
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
@@ -128,25 +148,28 @@ Output the extracted text in a clean, readable format.`
     console.error('PDF extraction error:', error)
     
     // Update note with error
-    const body = await req.json().catch(() => ({}))
-    const note_id = body.note_id
-    
-    if (note_id) {
-      const supabaseClient = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      )
-      await supabaseClient
-        .from('study_notes')
-        .update({ 
-          processing_status: 'failed',
-          processing_error: error instanceof Error ? error.message : 'Unknown error'
-        })
-        .eq('id', note_id)
+    try {
+      const { note_id } = await req.json()
+      if (note_id) {
+        const supabaseClient = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        )
+        await supabaseClient
+          .from('study_notes')
+          .update({ 
+            processing_status: 'failed',
+            processing_error: error.message,
+            processing_progress: 0
+          })
+          .eq('id', note_id)
+      }
+    } catch (updateError) {
+      console.error('Failed to update error status:', updateError)
     }
 
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     )
   }
