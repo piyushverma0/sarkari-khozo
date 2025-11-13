@@ -1,208 +1,291 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+// Extract PDF Content - Use Claude PDF support to extract text
+// Uses Claude Sonnet 4.5 with native PDF reading capability
+
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+
+const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+interface ExtractRequest {
+  note_id: string;
+  source_url: string;
+  source_type: string;
+  language: string;
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    const { note_id, source_url, language }: ExtractRequest = await req.json();
 
-    const { note_id, source_url, language } = await req.json()
-
-    console.log(`Starting PDF extraction for note ${note_id}`)
-
-    // Update status
-    await supabaseClient
-      .from('study_notes')
-      .update({ processing_status: 'extracting', processing_progress: 10 })
-      .eq('id', note_id)
-
-    console.log(`Extracting PDF content from ${source_url}`)
-
-    // Download PDF
-    const pdfResponse = await fetch(source_url)
-    if (!pdfResponse.ok) {
-      throw new Error(`Failed to download PDF: ${pdfResponse.statusText}`)
+    if (!note_id || !source_url) {
+      return new Response(JSON.stringify({ error: "note_id and source_url are required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const pdfBlob = await pdfResponse.blob()
-    const pdfBuffer = await pdfBlob.arrayBuffer()
-    
-    // Check PDF size (max 32MB as per Claude limits)
-    const sizeInMB = pdfBuffer.byteLength / (1024 * 1024)
-    if (sizeInMB > 32) {
-      throw new Error(`PDF too large: ${sizeInMB.toFixed(2)}MB. Maximum size is 32MB.`)
+    console.log("Starting PDF extraction for note:", note_id);
+
+    // Initialize Supabase client
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Update progress
+    await supabase
+      .from("study_notes")
+      .update({
+        processing_status: "extracting",
+        processing_progress: 20,
+      })
+      .eq("id", note_id);
+
+    // Step 1: Download PDF from Supabase Storage
+    console.log("Extracting PDF content from", source_url);
+
+    let pdfBuffer: ArrayBuffer;
+
+    // Parse the storage path from the URL
+    // URL format: https://{supabase-url}/storage/v1/object/public/{bucket}/{path}
+    const urlParts = source_url.split("/storage/v1/object/public/");
+    if (urlParts.length === 2) {
+      const [bucket, ...pathParts] = urlParts[1].split("/");
+      const filePath = pathParts.join("/");
+
+      console.log("Downloading from storage bucket:", bucket, "path:", filePath);
+
+      // Use Supabase client to download (handles auth automatically)
+      const { data, error } = await supabase.storage.from(bucket).download(filePath);
+
+      if (error) {
+        console.error("Storage download error:", error);
+        throw new Error(`Failed to download PDF from storage: ${error.message}`);
+      }
+
+      pdfBuffer = await data.arrayBuffer();
+    } else {
+      // Fallback to direct fetch for external URLs
+      console.log("Downloading from external URL");
+      const pdfResponse = await fetch(source_url);
+      if (!pdfResponse.ok) {
+        throw new Error(`Failed to download PDF: ${pdfResponse.statusText}`);
+      }
+      pdfBuffer = await pdfResponse.arrayBuffer();
     }
-    
-    const base64PDF = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)))
 
-    console.log(`PDF downloaded: ${sizeInMB.toFixed(2)}MB, starting extraction with Claude...`)
+    const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
+    console.log("PDF downloaded, size:", pdfBuffer.byteLength, "bytes");
 
-    await supabaseClient
-      .from('study_notes')
-      .update({ processing_progress: 30 })
-      .eq('id', note_id)
+    // Update progress
+    await supabase
+      .from("study_notes")
+      .update({
+        processing_progress: 40,
+      })
+      .eq("id", note_id);
 
-    // Use direct API call to Claude with native PDF support
-    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')
-    if (!ANTHROPIC_API_KEY) {
-      throw new Error('ANTHROPIC_API_KEY not configured')
-    }
+    // Step 2: Use Claude Sonnet 4.5 to extract and understand PDF content
+    console.log("Sending PDF to Claude Sonnet 4.5 for extraction...");
 
-    const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
+    const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
       headers: {
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json'
+        "Content-Type": "application/json",
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 8192,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'document',
-              source: {
-                type: 'base64',
-                media_type: 'application/pdf',
-                data: base64PDF
-              }
-            },
-            {
-              type: 'text',
-              text: `Extract ALL text content from this PDF document. This appears to be an educational/government document (exam notification, syllabus, or study material).
+        model: "claude-sonnet-4-5-20250929",
+        max_tokens: 16000,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "document",
+                source: {
+                  type: "base64",
+                  media_type: "application/pdf",
+                  data: pdfBase64,
+                },
+              },
+              {
+                type: "text",
+                text: `You are an expert study material analyzer. Extract ALL content from this PDF document comprehensively.
 
 EXTRACTION REQUIREMENTS:
-1. Extract ALL text while preserving document structure
-2. Maintain headings hierarchy (main headings, subheadings)
-3. Preserve important formatting:
-   - Lists and bullet points
-   - Numbered sequences
-   - Tables (convert to readable text format)
-4. Capture all critical information:
-   - Dates and deadlines (keep exact format)
-   - Numbers (fees, vacancies, age limits, etc.)
-   - Contact information (emails, phone numbers, websites)
-   - URLs and links
-5. For tables: Convert to structured text format like:
-   Category | Age Limit | Fee
-   General | 21-30 years | Rs. 500
-   OBC | 21-33 years | Rs. 250
-6. Remove headers/footers if they're repetitive
-7. De-duplicate any repeated content
-8. If the PDF has multiple columns, read left to right, top to bottom
+1. **Complete Extraction**: Extract every single word, sentence, and piece of information
+2. **Preserve Structure**: Maintain headings, sections, subsections, and hierarchical organization
+3. **Include All Details**:
+   - Tables and their complete data
+   - Lists (numbered and bulleted)
+   - Important dates and deadlines
+   - Numbers, statistics, and figures
+   - URLs, email addresses, and contact information
+   - Formulas, equations, or technical content
+   - References and citations
 
-OUTPUT: Plain text with preserved structure. Do not add any commentary, just the extracted content.`
-            }
-          ]
-        }]
-      })
-    })
+4. **Special Attention for Government Exam Materials**:
+   - Eligibility criteria (age, qualifications, experience)
+   - Important dates (application start/end, exam dates)
+   - Application fees and payment details
+   - Vacancy details and post information
+   - Selection process and exam pattern
+   - Syllabus and subjects
+   - How to apply (step-by-step process)
+   - Documents required
+   - Pay scale and allowances
+   - Exam centers and locations
 
-    if (!claudeResponse.ok) {
-      const errorText = await claudeResponse.text()
-      throw new Error(`Claude API error: ${claudeResponse.status} - ${errorText}`)
-    }
+5. **Formatting Guidelines**:
+   - Use markdown headings (# ## ###) for section hierarchy
+   - Use **bold** for important terms and deadlines
+   - Use tables for structured data when applicable
+   - Preserve bullet points and numbered lists
+   - Keep content clean and well-organized
 
-    const claudeData = await claudeResponse.json()
-    const extractedText = claudeData.content?.[0]?.text || ''
-
-    if (!extractedText || extractedText.trim().length < 100) {
-      throw new Error('Extracted text is too short or empty. The PDF might be image-based or encrypted.')
-    }
-
-    console.log(`Successfully extracted ${extractedText.length} characters from PDF`)
-
-    // Calculate word count and reading time
-    const wordCount = extractedText.split(/\s+/).length
-    const estimatedReadTime = Math.ceil(wordCount / 200)
-
-    // Save raw content
-    await supabaseClient
-      .from('study_notes')
-      .update({ 
-        raw_content: extractedText,
-        processing_progress: 50,
-        word_count: wordCount,
-        estimated_read_time: estimatedReadTime
-      })
-      .eq('id', note_id)
-
-    console.log('Triggering summarization')
-
-    // Trigger summarization
-    const summaryResponse = await fetch(
-      `${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-notes-summary`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-          'Content-Type': 'application/json',
-          'apikey': Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-        },
-        body: JSON.stringify({ note_id, raw_content: extractedText, language })
-      }
-    ).catch(err => {
-      console.error('Summarization trigger error:', err)
-      return null
-    })
-
-    if (summaryResponse && !summaryResponse.ok) {
-      console.error('Summarization trigger failed:', await summaryResponse.text())
-    }
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        extracted_length: extractedText.length,
-        pdf_size_mb: sizeInMB.toFixed(2)
+CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document in a well-structured, readable format that students can study from.`,
+              },
+            ],
+          },
+        ],
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    });
 
-  } catch (error) {
-    console.error('PDF extraction error:', error)
-    
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    
-    // Update note with error
-    try {
-      const body = await req.json().catch(() => ({}))
-      const note_id = body.note_id
-      
-      if (note_id) {
-        const supabaseClient = createClient(
-          Deno.env.get('SUPABASE_URL') ?? '',
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-        )
-        await supabaseClient
-          .from('study_notes')
-          .update({ 
-            processing_status: 'failed',
-            processing_error: errorMessage,
-            processing_progress: 0
-          })
-          .eq('id', note_id)
+    if (!anthropicResponse.ok) {
+      const errorText = await anthropicResponse.text();
+      console.error("Claude API error:", errorText);
+      throw new Error(`Claude API error: ${errorText}`);
+    }
+
+    const anthropicData = await anthropicResponse.json();
+    console.log("Claude extraction complete");
+
+    // Extract text from response
+    let extractedText = "";
+    if (anthropicData.content && anthropicData.content.length > 0) {
+      for (const block of anthropicData.content) {
+        if (block.type === "text") {
+          extractedText += block.text + "\n";
+        }
       }
-    } catch (updateError) {
-      console.error('Failed to update error status:', updateError)
+    }
+
+    if (!extractedText.trim()) {
+      throw new Error("No text could be extracted from PDF");
+    }
+
+    console.log("Extracted text length:", extractedText.length, "characters");
+
+    // Calculate word count
+    const wordCount = extractedText.split(/\s+/).filter((w) => w.length > 0).length;
+    const estimatedReadTime = Math.ceil(wordCount / 200); // 200 words per minute
+
+    // Update progress
+    await supabase
+      .from("study_notes")
+      .update({
+        processing_progress: 50,
+      })
+      .eq("id", note_id);
+
+    // Step 3: Store extracted text in database
+    const { error: updateError } = await supabase
+      .from("study_notes")
+      .update({
+        extracted_text: extractedText,
+        word_count: wordCount,
+        estimated_read_time: estimatedReadTime,
+        processing_progress: 55,
+      })
+      .eq("id", note_id);
+
+    if (updateError) {
+      console.error("Failed to update note with extracted text:", updateError);
+      throw updateError;
+    }
+
+    console.log("Extracted text stored in database");
+
+    // Step 4: Trigger summarization
+    try {
+      fetch(`${SUPABASE_URL}/functions/v1/generate-notes-summary`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+        body: JSON.stringify({
+          note_id,
+          raw_content: extractedText,
+          language,
+        }),
+      }).catch((err) => {
+        console.error("Failed to trigger summarization:", err);
+        // Update note status to failed
+        supabase
+          .from("study_notes")
+          .update({
+            processing_status: "failed",
+            processing_error: "Failed to start summarization process",
+          })
+          .eq("id", note_id);
+      });
+
+      console.log("Summarization triggered for note:", note_id);
+    } catch (triggerError) {
+      console.error("Failed to trigger summarization:", triggerError);
     }
 
     return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-    )
+      JSON.stringify({
+        success: true,
+        note_id,
+        extracted_length: extractedText.length,
+        word_count: wordCount,
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
+  } catch (error) {
+    console.error("PDF extraction error:", error);
+
+    // Try to extract note_id from the request
+    let noteId: string | null = null;
+    try {
+      const body = await req.clone().json();
+      noteId = body.note_id;
+    } catch {
+      // Ignore parsing errors
+    }
+
+    // Update note status to failed if we have the note_id
+    if (noteId) {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      await supabase
+        .from("study_notes")
+        .update({
+          processing_status: "failed",
+          processing_error: error.message || "PDF extraction failed",
+        })
+        .eq("id", noteId);
+    }
+
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
-})
+});
