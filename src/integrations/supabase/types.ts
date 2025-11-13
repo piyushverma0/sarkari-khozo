@@ -654,6 +654,221 @@ export type Database = {
         }
         Relationships: []
       }
+      note_flashcards: {
+        Row: {
+          answer: string
+          category: string | null
+          created_at: string | null
+          difficulty: string | null
+          ease_factor: number | null
+          hint: string | null
+          id: string
+          interval: number | null
+          last_reviewed_at: string | null
+          next_review_date: string | null
+          note_id: string
+          question: string
+          repetitions: number | null
+          times_correct: number | null
+          times_incorrect: number | null
+          times_reviewed: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          answer: string
+          category?: string | null
+          created_at?: string | null
+          difficulty?: string | null
+          ease_factor?: number | null
+          hint?: string | null
+          id?: string
+          interval?: number | null
+          last_reviewed_at?: string | null
+          next_review_date?: string | null
+          note_id: string
+          question: string
+          repetitions?: number | null
+          times_correct?: number | null
+          times_incorrect?: number | null
+          times_reviewed?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          answer?: string
+          category?: string | null
+          created_at?: string | null
+          difficulty?: string | null
+          ease_factor?: number | null
+          hint?: string | null
+          id?: string
+          interval?: number | null
+          last_reviewed_at?: string | null
+          next_review_date?: string | null
+          note_id?: string
+          question?: string
+          repetitions?: number | null
+          times_correct?: number | null
+          times_incorrect?: number | null
+          times_reviewed?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_flashcards_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "study_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      note_folders: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          is_smart_folder: boolean | null
+          name: string
+          parent_folder_id: string | null
+          smart_filter_rules: Json | null
+          sort_order: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_smart_folder?: boolean | null
+          name: string
+          parent_folder_id?: string | null
+          smart_filter_rules?: Json | null
+          sort_order?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_smart_folder?: boolean | null
+          name?: string
+          parent_folder_id?: string | null
+          smart_filter_rules?: Json | null
+          sort_order?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_folders_parent_folder_id_fkey"
+            columns: ["parent_folder_id"]
+            isOneToOne: false
+            referencedRelation: "note_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      note_quizzes: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          note_id: string
+          passing_score: number | null
+          questions: Json
+          quiz_type: string | null
+          show_answers_immediately: boolean | null
+          time_limit_minutes: number | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          note_id: string
+          passing_score?: number | null
+          questions: Json
+          quiz_type?: string | null
+          show_answers_immediately?: boolean | null
+          time_limit_minutes?: number | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          note_id?: string
+          passing_score?: number | null
+          questions?: Json
+          quiz_type?: string | null
+          show_answers_immediately?: boolean | null
+          time_limit_minutes?: number | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_quizzes_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "study_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      note_translations: {
+        Row: {
+          created_at: string | null
+          id: string
+          note_id: string
+          target_language: string
+          translated_content: Json
+          translated_key_points: string[] | null
+          translated_summary: string | null
+          translated_title: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          note_id: string
+          target_language: string
+          translated_content: Json
+          translated_key_points?: string[] | null
+          translated_summary?: string | null
+          translated_title: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          note_id?: string
+          target_language?: string
+          translated_content?: Json
+          translated_key_points?: string[] | null
+          translated_summary?: string | null
+          translated_title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_translations_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "study_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_analytics: {
         Row: {
           avg_relevance_score: number | null
@@ -890,6 +1105,50 @@ export type Database = {
         }
         Relationships: []
       }
+      quiz_attempts: {
+        Row: {
+          answers: Json
+          completed_at: string | null
+          correct_answers: number
+          id: string
+          quiz_id: string
+          score: number
+          time_taken_seconds: number | null
+          total_questions: number
+          user_id: string
+        }
+        Insert: {
+          answers: Json
+          completed_at?: string | null
+          correct_answers: number
+          id?: string
+          quiz_id: string
+          score: number
+          time_taken_seconds?: number | null
+          total_questions: number
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          completed_at?: string | null
+          correct_answers?: number
+          id?: string
+          quiz_id?: string
+          score?: number
+          time_taken_seconds?: number | null
+          total_questions?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_attempts_quiz_id_fkey"
+            columns: ["quiz_id"]
+            isOneToOne: false
+            referencedRelation: "note_quizzes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scheme_stats: {
         Row: {
           applicants_count: number | null
@@ -1005,6 +1264,142 @@ export type Database = {
           url?: string
         }
         Relationships: []
+      }
+      study_notes: {
+        Row: {
+          created_at: string | null
+          current_language: string | null
+          estimated_read_time: number | null
+          folder_id: string | null
+          has_flashcards: boolean | null
+          has_quiz: boolean | null
+          has_translation: boolean | null
+          id: string
+          is_favorite: boolean | null
+          key_points: string[] | null
+          last_accessed_at: string | null
+          original_language: string | null
+          processing_error: string | null
+          processing_progress: number | null
+          processing_status: string | null
+          raw_content: string | null
+          source_filename: string | null
+          source_type: string
+          source_url: string | null
+          storage_path: string | null
+          structured_content: Json | null
+          summary: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string | null
+          user_id: string
+          word_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_language?: string | null
+          estimated_read_time?: number | null
+          folder_id?: string | null
+          has_flashcards?: boolean | null
+          has_quiz?: boolean | null
+          has_translation?: boolean | null
+          id?: string
+          is_favorite?: boolean | null
+          key_points?: string[] | null
+          last_accessed_at?: string | null
+          original_language?: string | null
+          processing_error?: string | null
+          processing_progress?: number | null
+          processing_status?: string | null
+          raw_content?: string | null
+          source_filename?: string | null
+          source_type: string
+          source_url?: string | null
+          storage_path?: string | null
+          structured_content?: Json | null
+          summary?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+          word_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          current_language?: string | null
+          estimated_read_time?: number | null
+          folder_id?: string | null
+          has_flashcards?: boolean | null
+          has_quiz?: boolean | null
+          has_translation?: boolean | null
+          id?: string
+          is_favorite?: boolean | null
+          key_points?: string[] | null
+          last_accessed_at?: string | null
+          original_language?: string | null
+          processing_error?: string | null
+          processing_progress?: number | null
+          processing_status?: string | null
+          raw_content?: string | null
+          source_filename?: string | null
+          source_type?: string
+          source_url?: string | null
+          storage_path?: string | null
+          structured_content?: Json | null
+          summary?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+          word_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_notes_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "note_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      study_sessions: {
+        Row: {
+          created_at: string | null
+          duration_seconds: number
+          id: string
+          items_reviewed: number | null
+          note_id: string | null
+          session_type: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          duration_seconds: number
+          id?: string
+          items_reviewed?: number | null
+          note_id?: string | null
+          session_type?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          duration_seconds?: number
+          id?: string
+          items_reviewed?: number | null
+          note_id?: string | null
+          session_type?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_sessions_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "study_notes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_daily_notification_count: {
         Row: {
@@ -1216,6 +1611,47 @@ export type Database = {
         }
         Returns: number
       }
+      create_default_note_folders: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
+      get_flashcards_due_today: {
+        Args: { p_user_id: string }
+        Returns: {
+          answer: string
+          category: string | null
+          created_at: string | null
+          difficulty: string | null
+          ease_factor: number | null
+          hint: string | null
+          id: string
+          interval: number | null
+          last_reviewed_at: string | null
+          next_review_date: string | null
+          note_id: string
+          question: string
+          repetitions: number | null
+          times_correct: number | null
+          times_incorrect: number | null
+          times_reviewed: number | null
+          updated_at: string | null
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "note_flashcards"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_notes_count_by_folder: {
+        Args: { p_user_id: string }
+        Returns: {
+          folder_id: string
+          folder_name: string
+          notes_count: number
+        }[]
+      }
       get_notification_stats: { Args: { p_user_id: string }; Returns: Json }
       get_user_daily_count: { Args: { p_user_id: string }; Returns: number }
       increment_daily_notification_count: {
@@ -1223,6 +1659,35 @@ export type Database = {
         Returns: undefined
       }
       reset_daily_notification_counts: { Args: never; Returns: undefined }
+      update_flashcard_review: {
+        Args: { p_flashcard_id: string; p_quality: number }
+        Returns: {
+          answer: string
+          category: string | null
+          created_at: string | null
+          difficulty: string | null
+          ease_factor: number | null
+          hint: string | null
+          id: string
+          interval: number | null
+          last_reviewed_at: string | null
+          next_review_date: string | null
+          note_id: string
+          question: string
+          repetitions: number | null
+          times_correct: number | null
+          times_incorrect: number | null
+          times_reviewed: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "note_flashcards"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       [_ in never]: never
