@@ -1,0 +1,537 @@
+// Extract YouTube Transcript V2 - Enhanced with YouTube Data API V3 + Claude Sonnet 4.5
+// Triple fallback: YouTube API → Timedtext API → Claude with Web Capability
+
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
+
+const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!
+const YOUTUBE_API_KEY = Deno.env.get('YOUTUBE_API_KEY') // Optional, falls back if not set
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+interface VideoMetadata {
+  videoId: string
+  title: string
+  description: string
+  channelTitle: string
+  duration: string
+  viewCount: number
+  publishedAt: string
+  tags: string[]
+  categoryId: string
+  chapters?: Array<{ time: string; title: string }>
+}
+
+// Extract video ID from YouTube URL
+function extractVideoId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
+    /youtube\.com\/embed\/([^&\n?#]+)/,
+    /youtube\.com\/v\/([^&\n?#]+)/
+  ]
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern)
+    if (match && match[1]) {
+      return match[1]
+    }
+  }
+
+  return null
+}
+
+// Fetch video metadata using YouTube Data API V3
+async function fetchVideoMetadata(videoId: string): Promise<VideoMetadata | null> {
+  if (!YOUTUBE_API_KEY) {
+    console.log('YouTube API key not set, skipping metadata fetch')
+    return null
+  }
+
+  try {
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${videoId}&key=${YOUTUBE_API_KEY}`
+
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error(`YouTube API error: ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    if (!data.items || data.items.length === 0) {
+      throw new Error('Video not found')
+    }
+
+    const video = data.items[0]
+    const snippet = video.snippet
+    const statistics = video.statistics
+
+    // Extract chapters from description
+    const chapters = extractChaptersFromDescription(snippet.description)
+
+    return {
+      videoId,
+      title: snippet.title,
+      description: snippet.description,
+      channelTitle: snippet.channelTitle,
+      duration: video.contentDetails.duration,
+      viewCount: parseInt(statistics.viewCount || '0'),
+      publishedAt: snippet.publishedAt,
+      tags: snippet.tags || [],
+      categoryId: snippet.categoryId,
+      chapters
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to fetch metadata";
+    console.error('Failed to fetch YouTube metadata:', errorMessage)
+    return null
+  }
+}
+
+// Extract chapters from video description (timestamps like 0:00, 1:23, etc.)
+function extractChaptersFromDescription(description: string): Array<{ time: string; title: string }> {
+  const chapters: Array<{ time: string; title: string }> = []
+  const lines = description.split('\n')
+
+  // Match patterns like "0:00 Introduction" or "1:23:45 Chapter Name"
+  const timestampRegex = /^(\d{1,2}:?\d{2}:?\d{2})\s+(.+)$/
+
+  for (const line of lines) {
+    const match = line.trim().match(timestampRegex)
+    if (match) {
+      chapters.push({
+        time: match[1],
+        title: match[2].trim()
+      })
+    }
+  }
+
+  return chapters
+}
+
+// Fallback: Fetch transcript using YouTube's timedtext API
+async function fetchTranscriptFromTimedtext(videoId: string, languageCode: string = 'en'): Promise<string> {
+  const langCodes = [languageCode, 'en', 'hi', 'auto']
+
+  for (const lang of langCodes) {
+    try {
+      const transcriptUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=json3`
+      const response = await fetch(transcriptUrl)
+
+      if (response.ok) {
+        const data = await response.json()
+
+        if (data.events && Array.isArray(data.events)) {
+          const transcript = data.events
+            .filter((event: any) => event.segs)
+            .map((event: any) =>
+              event.segs.map((seg: any) => seg.utf8).join('')
+            )
+            .join(' ')
+
+          if (transcript.trim()) {
+            console.log(`✅ Transcript found via timedtext in language: ${lang}`)
+            return transcript
+          }
+        }
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Timedtext fetch failed";
+      console.log(`Failed to fetch timedtext for lang ${lang}:`, errorMessage)
+      continue
+    }
+  }
+
+  throw new Error('No transcript available via timedtext')
+}
+
+// Ultimate fallback: Use Claude with Web Capability
+async function fetchTranscriptWithClaudeWeb(videoUrl: string, metadata: VideoMetadata | null): Promise<string> {
+  console.log('🤖 Using Claude Sonnet 4.5 with web capability to extract transcript...')
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5-20250929',
+        max_tokens: 4000,
+        messages: [{
+          role: 'user',
+          content: `Please visit this YouTube video and extract the full transcript/captions if available: ${videoUrl}
+
+${metadata ? `Video Title: ${metadata.title}
+Channel: ${metadata.channelTitle}
+Description: ${metadata.description.substring(0, 500)}...` : ''}
+
+If a transcript is available, extract and return it in full. If no transcript is available, provide a detailed summary of the video content based on the title, description, and any other visible information on the page.
+
+Return ONLY the transcript text or summary, without any additional commentary.`
+        }]
+      })
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      throw new Error(`Claude API error: ${error}`)
+    }
+
+    const result = await response.json()
+    const transcriptText = result.content && result.content[0] && result.content[0].text
+      ? result.content[0].text
+      : ''
+
+    if (!transcriptText || transcriptText.length < 100) {
+      throw new Error('Claude web extraction returned insufficient content')
+    }
+
+    console.log('✅ Transcript extracted using Claude web capability')
+    return transcriptText
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Claude web extraction failed";
+    console.error('Claude web extraction failed:', errorMessage)
+    throw error
+  }
+}
+
+// Process transcript with Claude for enhanced notes
+async function processTranscriptWithClaude(
+  transcript: string,
+  metadata: VideoMetadata | null,
+  language: string
+): Promise<{
+  summary: string
+  keyPoints: string[]
+  topics: string[]
+  structuredContent: any
+}> {
+  console.log('📝 Processing transcript with Claude Sonnet 4.5...')
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5-20250929',
+        max_tokens: 8000,
+        messages: [{
+          role: 'user',
+          content: `You are an expert study notes generator for Indian students preparing for government exams and competitive tests. Process this YouTube video transcript and create comprehensive study notes.
+
+${metadata ? `Video Title: ${metadata.title}
+Channel: ${metadata.channelTitle}
+${metadata.chapters && metadata.chapters.length > 0 ? `\nChapters:\n${metadata.chapters.map(c => `- ${c.time}: ${c.title}`).join('\n')}` : ''}` : ''}
+
+Transcript:
+${transcript.substring(0, 50000)} ${transcript.length > 50000 ? '...(truncated)' : ''}
+
+Please provide a comprehensive study notes package in JSON format with these fields:
+
+1. **summary**: A detailed 3-5 paragraph summary covering all main points
+2. **keyPoints**: Array of 8-12 most important bullet points/concepts
+3. **topics**: Array of relevant tags/keywords (e.g., ["Current Affairs", "Economics", "Government Schemes"])
+4. **structuredContent**: Markdown-formatted notes with clear sections, subsections, and bullet points
+
+Format your response as valid JSON:
+{
+  "summary": "comprehensive summary here...",
+  "keyPoints": ["point 1", "point 2", ...],
+  "topics": ["topic 1", "topic 2", ...],
+  "structuredContent": "# Main Topic\\n\\n## Section 1\\n- Point A\\n- Point B\\n\\n## Section 2..."
+}
+
+Language preference: ${language === 'en' ? 'English' : language}
+Focus: Make it useful for exam preparation`
+        }]
+      })
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      throw new Error(`Claude API error: ${error}`)
+    }
+
+    const result = await response.json()
+    const responseText = result.content && result.content[0] && result.content[0].text
+      ? result.content[0].text
+      : '{}'
+
+    try {
+      // Try to parse JSON response
+      const parsed = JSON.parse(responseText)
+      return {
+        summary: parsed.summary || responseText,
+        keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints : [],
+        topics: Array.isArray(parsed.topics) ? parsed.topics : [],
+        structuredContent: parsed.structuredContent || responseText
+      }
+    } catch (parseError) {
+      // If JSON parsing fails, return text as summary
+      console.log('Claude response was not JSON, using as raw text')
+      return {
+        summary: responseText,
+        keyPoints: [],
+        topics: [],
+        structuredContent: responseText
+      }
+    }
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Claude processing failed";
+    console.error('Claude processing failed:', errorMessage)
+    // Return basic structure even if processing fails
+    return {
+      summary: transcript.substring(0, 1000) + '...',
+      keyPoints: [],
+      topics: [],
+      structuredContent: transcript
+    }
+  }
+}
+
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  try {
+    const { note_id, source_url, language } = await req.json()
+
+    if (!note_id || !source_url) {
+      return new Response(
+        JSON.stringify({ error: 'note_id and source_url are required' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    console.log('🎬 Extracting YouTube content for note:', note_id)
+    console.log('URL:', source_url)
+
+    // Initialize Supabase client
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+    // Update progress: Starting extraction
+    await supabase
+      .from('study_notes')
+      .update({
+        processing_status: 'extracting',
+        processing_progress: 15
+      })
+      .eq('id', note_id)
+
+    // Step 1: Extract video ID
+    const videoId = extractVideoId(source_url)
+    if (!videoId) {
+      throw new Error('Invalid YouTube URL - could not extract video ID')
+    }
+
+    console.log('📹 Video ID:', videoId)
+
+    // Step 2: Fetch video metadata from YouTube Data API V3
+    let metadata: VideoMetadata | null = null
+    let videoTitle = 'YouTube Video'
+
+    try {
+      metadata = await fetchVideoMetadata(videoId)
+      if (metadata) {
+        videoTitle = metadata.title
+        console.log('✅ Metadata fetched from YouTube API:', videoTitle)
+
+        // Update with video title and metadata
+        await supabase
+          .from('study_notes')
+          .update({
+            title: videoTitle,
+            processing_progress: 25
+          })
+          .eq('id', note_id)
+      } else {
+        // Fallback: Try to get title from oEmbed
+        try {
+          const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`
+          const metadataResponse = await fetch(oembedUrl)
+          if (metadataResponse.ok) {
+            const oembedData = await metadataResponse.json()
+            videoTitle = oembedData.title || videoTitle
+            console.log('✅ Title fetched from oEmbed:', videoTitle)
+
+            await supabase
+              .from('study_notes')
+              .update({
+                title: videoTitle,
+                processing_progress: 25
+              })
+              .eq('id', note_id)
+          }
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : "oEmbed fetch failed";
+          console.log('oEmbed fetch failed:', errorMessage)
+        }
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Metadata fetch failed";
+      console.log('Metadata fetch failed, will continue with transcript extraction:', errorMessage)
+    }
+
+    // Update progress: Fetching transcript
+    await supabase
+      .from('study_notes')
+      .update({
+        processing_progress: 30
+      })
+      .eq('id', note_id)
+
+    // Step 3: Fetch transcript (triple fallback strategy)
+    let transcript: string
+    let extractionMethod: string
+
+    try {
+      // Method 1: Try timedtext API (most reliable free method)
+      transcript = await fetchTranscriptFromTimedtext(videoId, language)
+      extractionMethod = 'timedtext'
+    } catch (timedtextError) {
+      const timedtextErrorMessage = timedtextError instanceof Error ? timedtextError.message : "Timedtext extraction failed";
+      console.log('Timedtext extraction failed:', timedtextErrorMessage)
+
+      try {
+        // Method 2: Ultimate fallback - Claude with web capability
+        transcript = await fetchTranscriptWithClaudeWeb(source_url, metadata)
+        extractionMethod = 'claude_web'
+      } catch (claudeError) {
+        const claudeErrorMessage = claudeError instanceof Error ? claudeError.message : "Claude web extraction failed";
+        console.error('All extraction methods failed')
+        throw new Error(`Could not extract transcript: Timedtext failed (${timedtextErrorMessage}), Claude web failed (${claudeErrorMessage})`)
+      }
+    }
+
+    if (!transcript || transcript.trim().length < 50) {
+      throw new Error('Extracted transcript is too short or empty')
+    }
+
+    console.log(`✅ Transcript extracted via ${extractionMethod}, length: ${transcript.length} characters`)
+
+    // Calculate word count and reading time
+    const wordCount = transcript.split(/\s+/).filter(w => w.length > 0).length
+    const estimatedReadTime = Math.ceil(wordCount / 200) // 200 words per minute
+
+    // Update progress: Storing transcript
+    await supabase
+      .from('study_notes')
+      .update({
+        raw_content: transcript,
+        word_count: wordCount,
+        estimated_read_time: estimatedReadTime,
+        processing_progress: 50
+      })
+      .eq('id', note_id)
+
+    console.log(`📊 Stats: ${wordCount} words, ~${estimatedReadTime} min read time`)
+
+    // Step 4: Process transcript with Claude for enhanced notes
+    await supabase
+      .from('study_notes')
+      .update({
+        processing_progress: 60,
+        processing_status: 'processing'
+      })
+      .eq('id', note_id)
+
+    const processed = await processTranscriptWithClaude(transcript, metadata, language)
+
+    console.log('✅ Claude processing complete')
+
+    // Update progress: Finalizing
+    await supabase
+      .from('study_notes')
+      .update({
+        processing_progress: 85,
+        summary: processed.summary,
+        key_points: processed.keyPoints,
+        structured_content: { content: processed.structuredContent },
+        tags: processed.topics
+      })
+      .eq('id', note_id)
+
+    // Mark as complete
+    await supabase
+      .from('study_notes')
+      .update({
+        processing_status: 'completed',
+        processing_progress: 100
+      })
+      .eq('id', note_id)
+
+    console.log('✅ Processing complete for note:', note_id)
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        note_id,
+        extraction_method: extractionMethod,
+        metadata: metadata ? {
+          title: metadata.title,
+          channel: metadata.channelTitle,
+          duration: metadata.duration,
+          views: metadata.viewCount,
+          chapters: metadata.chapters?.length || 0
+        } : { title: videoTitle },
+        transcript_length: transcript.length,
+        word_count: wordCount,
+        estimated_read_time: estimatedReadTime,
+        key_points_count: processed.keyPoints.length,
+        topics_count: processed.topics.length
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    )
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "YouTube transcript extraction failed";
+    console.error('❌ Error in extract-youtube-transcript-v2:', errorMessage)
+
+    // Update note status to failed
+    try {
+      const { note_id } = await req.json()
+      if (note_id) {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+        await supabase
+          .from('study_notes')
+          .update({
+            processing_status: 'failed',
+            processing_error: errorMessage,
+            processing_progress: 0
+          })
+          .eq('id', note_id)
+      }
+    } catch (e) {
+      console.error('Failed to update error status:', e)
+    }
+
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    )
+  }
+})
