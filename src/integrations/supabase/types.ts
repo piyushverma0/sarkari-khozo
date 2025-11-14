@@ -16,7 +16,7 @@ export type Database = {
     Tables: {
       application_notifications: {
         Row: {
-          application_id: string
+          application_id: string | null
           created_at: string | null
           delivered_at: string | null
           delivery_status: string | null
@@ -30,12 +30,11 @@ export type Database = {
           read_at: string | null
           scheduled_for: string
           title: string
-          type: string
           updated_at: string | null
           user_id: string
         }
         Insert: {
-          application_id: string
+          application_id?: string | null
           created_at?: string | null
           delivered_at?: string | null
           delivery_status?: string | null
@@ -49,12 +48,11 @@ export type Database = {
           read_at?: string | null
           scheduled_for: string
           title: string
-          type: string
           updated_at?: string | null
           user_id: string
         }
         Update: {
-          application_id?: string
+          application_id?: string | null
           created_at?: string | null
           delivered_at?: string | null
           delivery_status?: string | null
@@ -68,7 +66,6 @@ export type Database = {
           read_at?: string | null
           scheduled_for?: string
           title?: string
-          type?: string
           updated_at?: string | null
           user_id?: string
         }
@@ -1488,6 +1485,60 @@ export type Database = {
         }
         Relationships: []
       }
+      user_profiles: {
+        Row: {
+          created_at: string | null
+          date_of_birth: string | null
+          display_name: string | null
+          email_notifications: boolean | null
+          full_name: string | null
+          id: string
+          last_active_at: string | null
+          notifications_enabled: boolean | null
+          phone_number: string | null
+          photo_url: string | null
+          push_notifications: boolean | null
+          selected_region: string | null
+          theme_mode: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          date_of_birth?: string | null
+          display_name?: string | null
+          email_notifications?: boolean | null
+          full_name?: string | null
+          id?: string
+          last_active_at?: string | null
+          notifications_enabled?: boolean | null
+          phone_number?: string | null
+          photo_url?: string | null
+          push_notifications?: boolean | null
+          selected_region?: string | null
+          theme_mode?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          date_of_birth?: string | null
+          display_name?: string | null
+          email_notifications?: boolean | null
+          full_name?: string | null
+          id?: string
+          last_active_at?: string | null
+          notifications_enabled?: boolean | null
+          phone_number?: string | null
+          photo_url?: string | null
+          push_notifications?: boolean | null
+          selected_region?: string | null
+          theme_mode?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_story_interactions: {
         Row: {
           clicked_source_at: string | null
@@ -1658,6 +1709,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      notify_approaching_deadlines: { Args: never; Returns: undefined }
       reset_daily_notification_counts: { Args: never; Returns: undefined }
       update_flashcard_review: {
         Args: { p_flashcard_id: string; p_quality: number }
