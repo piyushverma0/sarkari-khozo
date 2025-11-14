@@ -121,40 +121,130 @@ serve(async (req) => {
               },
               {
                 type: "text",
-                text: `You are an expert study material analyzer. Extract ALL content from this PDF document comprehensively.
+                text: `You are an expert study-material analyzer and a highly accurate document-extraction model. Your task is to extract ALL content from the given PDF exactly and completely, without skipping or summarizing anything.
 
-EXTRACTION REQUIREMENTS:
-1. **Complete Extraction**: Extract every single word, sentence, and piece of information
-2. **Preserve Structure**: Maintain headings, sections, subsections, and hierarchical organization
-3. **Include All Details**:
-   - Tables and their complete data
-   - Lists (numbered and bulleted)
-   - Important dates and deadlines
-   - Numbers, statistics, and figures
-   - URLs, email addresses, and contact information
-   - Formulas, equations, or technical content
-   - References and citations
+EXTRACTION REQUIREMENTS
 
-4. **Special Attention for Government Exam Materials**:
-   - Eligibility criteria (age, qualifications, experience)
-   - Important dates (application start/end, exam dates)
-   - Application fees and payment details
-   - Vacancy details and post information
-   - Selection process and exam pattern
-   - Syllabus and subjects
-   - How to apply (step-by-step process)
-   - Documents required
-   - Pay scale and allowances
-   - Exam centers and locations
+1. Complete Extraction
 
-5. **Formatting Guidelines**:
-   - Use markdown headings (# ## ###) for section hierarchy
-   - Use **bold** for important terms and deadlines
-   - Use tables for structured data when applicable
-   - Preserve bullet points and numbered lists
-   - Keep content clean and well-organized
+Extract every word, every line, every page, and every section from the PDF.
 
-CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document in a well-structured, readable format that students can study from.`,
+No summarization, rewriting, paraphrasing, or shortening.
+
+Your output must reflect the document as-is, only structured neatly.
+
+
+
+
+2. Preserve Original Structure
+
+Maintain all headings, sub-headings, sections, and hierarchical relationships.
+
+Reconstruct the document flow faithfully and in original order.
+
+If the source uses unclear formatting, intelligently infer structure without altering content.
+
+
+
+
+3. Include Every Detail
+Extract ALL of the following exactly as written:
+
+Tables (convert into markdown tables with all rows/columns preserved)
+
+Bullet and numbered lists
+
+Paragraphs and notes
+
+Important dates and deadlines
+
+Figures, statistics, and numerical data
+
+URLs, email IDs, and phone numbers
+
+Contact details and official addresses
+
+Technical formulas, equations, and symbols
+
+Footnotes, references, and citations
+
+Page numbers (if present)
+
+Disclaimers & instructions
+
+
+
+4. Government Exam–Specific Extraction Priority
+Identify and fully extract these (if present):
+
+Eligibility criteria (age limits, educational qualifications)
+
+Important dates (application start/end, exam date, correction window)
+
+Application fees & payment modes
+
+Vacancies (full breakdown category-wise/post-wise)
+
+Selection process
+
+Exam pattern & marking scheme
+
+Detailed syllabus
+
+Documents required
+
+Application procedure (step-by-step)
+
+Pay scale, grade pay, allowances
+
+Exam centers / state-wise distribution
+
+Reservation details
+
+
+
+5. Formatting Guidelines (Do NOT modify these rules)
+
+Use markdown headings:
+
+# for main sections
+
+## for subsections
+
+### for sub-levels
+
+Use bold for critical details, dates, deadlines, and important terms.
+
+Use markdown tables for structured data.
+
+Preserve bullet points and numbering exactly.
+
+Keep content clean, readable, and structured for studying.
+
+STRICT RULES
+
+Do NOT summarize.
+
+Do NOT rewrite or paraphrase.
+
+Do NOT skip ANY content.
+
+Do NOT merge or compress information.
+
+Do NOT add external content or hallucinate.
+
+If something is unreadable, mark it as: _unreadable text here_.
+
+OUTPUT FORMAT
+
+Produce a complete, fully extracted document in markdown.
+
+Begin with:
+# Extracted Document
+
+Then proceed page by page or section by section.
+
+Ensure formatting is clean, consistent, and structured for study notes.`,
               },
             ],
           },
