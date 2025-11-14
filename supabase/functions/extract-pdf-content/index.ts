@@ -361,6 +361,8 @@ Ensure formatting is clean, consistent, and structured for study notes.`,
       // Ignore parsing errors
     }
 
+    const errorMessage = error instanceof Error ? error.message : "PDF extraction failed";
+
     // Update note status to failed if we have the note_id
     if (noteId) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -368,12 +370,12 @@ Ensure formatting is clean, consistent, and structured for study notes.`,
         .from("study_notes")
         .update({
           processing_status: "failed",
-          processing_error: error.message || "PDF extraction failed",
+          processing_error: errorMessage,
         })
         .eq("id", noteId);
     }
 
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
