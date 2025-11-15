@@ -76,7 +76,7 @@ serve(async (req) => {
         console.log("File uploaded to:", storageUrl);
       } catch (uploadErr) {
         console.error("File upload failed:", uploadErr);
-        return new Response(JSON.stringify({ error: "File upload failed", details: uploadErr instanceof Error ? uploadErr.message : String(uploadErr) }), {
+        return new Response(JSON.stringify({ error: "File upload failed", details: uploadErr.message }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -103,11 +103,13 @@ serve(async (req) => {
         title: generatedTitle,
         source_type,
         source_url: storageUrl,
-        language,
+        original_language: language,
+        current_language: language,
         processing_status: "pending",
         processing_progress: 5,
         has_flashcards: false,
         has_quiz: false,
+        has_translation: false,
         is_favorite: false,
       })
       .select()
@@ -181,7 +183,7 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Error in process-study-material:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
