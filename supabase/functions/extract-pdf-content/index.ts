@@ -224,10 +224,6 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
 
     console.log("Extracted text length:", extractedText.length, "characters");
 
-    // Calculate word count
-    const wordCount = extractedText.split(/\s+/).filter((w) => w.length > 0).length;
-    const estimatedReadTime = Math.ceil(wordCount / 200); // 200 words per minute
-
     // Update progress
     await supabase
       .from("study_notes")
@@ -236,25 +232,7 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
       })
       .eq("id", note_id);
 
-    // Step 3: Store extracted text in database
-    const { error: updateError } = await supabase
-      .from("study_notes")
-      .update({
-        extracted_text: extractedText,
-        word_count: wordCount,
-        estimated_read_time: estimatedReadTime,
-        processing_progress: 55,
-      })
-      .eq("id", note_id);
-
-    if (updateError) {
-      console.error("Failed to update note with extracted text:", updateError);
-      throw updateError;
-    }
-
-    console.log("Extracted text stored in database");
-
-    // Step 4: Trigger summarization
+    // Step 3: Trigger summarization (extracted text is passed directly, not stored in DB)
     try {
       fetch(`${SUPABASE_URL}/functions/v1/generate-notes-summary`, {
         method: "POST",
@@ -289,7 +267,6 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
         success: true,
         note_id,
         extracted_length: extractedText.length,
-        word_count: wordCount,
       }),
       {
         status: 200,
@@ -315,12 +292,12 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
         .from("study_notes")
         .update({
           processing_status: "failed",
-          processing_error: error instanceof Error ? error.message : "PDF extraction failed",
+          processing_error: error.message || "PDF extraction failed",
         })
         .eq("id", noteId);
     }
 
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
