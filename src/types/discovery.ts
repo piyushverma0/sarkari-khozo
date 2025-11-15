@@ -6,7 +6,7 @@ export interface DiscoveryStory {
   source_url: string;
   source_name: string;
   published_date: string;
-  category: 'exams' | 'jobs' | 'schemes' | 'policies';
+  category: 'exams' | 'jobs' | 'schemes' | 'policies' | 'current-affairs' | 'international' | 'education' | 'diplomatic';
   subcategory?: string;
   tags: string[];
   region: string;
@@ -31,7 +31,7 @@ export interface DiscoveryStory {
 }
 
 export interface FeedFilters {
-  category: 'all' | 'exams' | 'jobs' | 'schemes' | 'policies';
+  category: 'all' | 'exams' | 'jobs' | 'schemes' | 'policies' | 'current-affairs' | 'international' | 'education' | 'diplomatic';
   region?: string;
   sort: 'relevance' | 'recent' | 'trending';
 }

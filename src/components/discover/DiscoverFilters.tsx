@@ -8,7 +8,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import { MapPin, TrendingUp, Clock, Sparkles, Briefcase, GraduationCap, Landmark, ScrollText } from 'lucide-react';
+import { MapPin, TrendingUp, Clock, Sparkles, Briefcase, GraduationCap, Landmark, ScrollText, Globe, Users, BookOpen } from 'lucide-react';
 import { FeedFilters } from '@/types/discovery';
 
 interface DiscoverFiltersProps {
@@ -27,7 +27,11 @@ export const DiscoverFilters = ({
     { value: 'exams', label: 'Exams', icon: GraduationCap },
     { value: 'jobs', label: 'Jobs', icon: Briefcase },
     { value: 'schemes', label: 'Schemes', icon: Landmark },
-    { value: 'policies', label: 'Policies', icon: ScrollText }
+    { value: 'policies', label: 'Policies', icon: ScrollText },
+    { value: 'current-affairs', label: 'Current Affairs', icon: ScrollText },
+    { value: 'international', label: 'International', icon: Globe },
+    { value: 'education', label: 'Education', icon: BookOpen },
+    { value: 'diplomatic', label: 'Diplomatic', icon: Users }
   ];
 
   const sortOptions = [

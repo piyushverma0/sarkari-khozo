@@ -43,17 +43,21 @@ serve(async (req) => {
     }
 
     // Claude Prompt
-    const systemPrompt = `You are an expert Indian news analyst specializing in government schemes, competitive exams, and public sector jobs.
+    const systemPrompt = `You are an expert Indian news analyst specializing in government schemes, competitive exams, public sector jobs, current affairs, international relations, and education.
 
 CRITICAL: Your response MUST be ONLY valid JSON with no explanatory text, no markdown formatting, no commentary before or after.
 Return ONLY the JSON object itself, nothing else.
 
-Your task is to analyze news articles and extract key information for Indian citizens looking to benefit from government opportunities.
+Your task is to analyze news articles and extract key information for Indian citizens including students, job seekers (Group D to Group A), teachers, and those preparing for competitive exams like UPSC, SSC, Banking, Railway.
 
 Focus on:
 - Clear, actionable information (dates, deadlines, eligibility)
 - Benefits and impact for common citizens
 - State/region-specific details if applicable
+- For current affairs: Key facts, dates, names for exam preparation
+- For international news: India's involvement or impact on India
+- For diplomatic news: Strategic significance for India
+- For education: Opportunities for Indian students and institutions
 - Avoiding jargon, using simple Hindi-English terms where needed`;
 
     const userPrompt = `Article URL: ${url}
@@ -69,7 +73,11 @@ Please analyze this article and provide a JSON response with the following field
    - Eligibility criteria (if applicable)
    - Benefits or impact
    - How to apply/act (if relevant)
-3. **category**: MUST be one of: "exams", "jobs", "schemes", "policies"
+3. **category**: MUST be one of: "exams", "jobs", "schemes", "policies", "current-affairs", "international", "education", "diplomatic"
+   - Use "current-affairs" for: National news, economy, sports, science, environment, social issues
+   - Use "international" for: Global news with India relevance, foreign policy
+   - Use "education" for: University news, research, education policy, scholarships
+   - Use "diplomatic" for: Bilateral relations, treaties, state visits, multilateral forums
 4. **subcategory**: Specific type (e.g., "SSC Exam", "Railway Recruitment", "PM Kisan Scheme", "Budget Announcement")
 5. **tags**: Array of 5-8 relevant keywords (use common search terms, include Hindi transliterations if needed)
 6. **region**: 
@@ -83,12 +91,32 @@ Please analyze this article and provide a JSON response with the following field
 9. **key_takeaways**: Array of 3-5 bullet points, each max 100 chars
    - Focus on most important/actionable information
    - Include dates, amounts, eligibility in simple terms
-10. **relevance_score**: Rate 0-10 based on:
-    - **Recency**: Within 7 days = +3, 7-14 days = +2, 14-30 days = +1
-    - **Clarity**: Clear dates/deadlines = +2
-    - **Actionability**: Clear steps to apply/benefit = +2
-    - **Audience size**: National = +2, Multi-state = +1, Single state = 0
-    - **Impact**: High monetary benefit or major opportunity = +1
+10. **relevance_score**: Rate 0-10 based on category:
+    
+    **For exams/jobs/schemes/policies:**
+    - Recency: Within 7 days = +3, 7-14 days = +2, 14-30 days = +1
+    - Clarity: Clear dates/deadlines = +2
+    - Actionability: Clear steps to apply/benefit = +2
+    - Audience size: National = +2, Multi-state = +1, Single state = 0
+    - Impact: High monetary benefit or major opportunity = +1
+    
+    **For current-affairs:**
+    - Recency: Within 24h = +3, 3 days = +2, 7 days = +1
+    - Exam relevance: UPSC/SSC important = +3, Banking/Railway = +2, General = +1
+    - Source credibility: Government/PIB = +2, Major outlet = +1
+    - Factual content: Key dates/names/facts = +2
+    
+    **For international/diplomatic:**
+    - India involvement: Direct = +4, Economic impact = +3, Regional = +2, General = +1
+    - Recency: Within 3 days = +2, 7 days = +1
+    - Exam importance: UPSC relevant = +2
+    - Source: Official MEA/UN = +1
+    
+    **For education:**
+    - Impact: National policy = +3, Major university = +2, General = +1
+    - Opportunity: Scholarship/admission = +2
+    - Recency: Within 7 days = +2, 14 days = +1
+    - Relevance: Students/teachers = +2
 11. **published_date**: Extract publication date in ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ)
     - If not found, use current date
 12. **image_url**: Extract featured image URL if available, else null
@@ -218,7 +246,7 @@ Do not include markdown code blocks, do not include any text before or after the
     }
 
     // Validate category
-    const validCategories = ['exams', 'jobs', 'schemes', 'policies'];
+    const validCategories = ['exams', 'jobs', 'schemes', 'policies', 'current-affairs', 'international', 'education', 'diplomatic'];
     if (!validCategories.includes(cleanedData.category)) {
       console.warn('Invalid category, defaulting to "policies":', cleanedData.category);
       cleanedData.category = 'policies';
