@@ -85,7 +85,7 @@ async function fetchVideoMetadata(videoId: string): Promise<VideoMetadata | null
       chapters,
     };
   } catch (error) {
-    console.error("Failed to fetch YouTube metadata:", error instanceof Error ? error.message : String(error));
+    console.error("Failed to fetch YouTube metadata:", error.message);
     return null;
   }
 }
@@ -136,7 +136,7 @@ async function fetchTranscriptFromTimedtext(videoId: string, languageCode: strin
         }
       }
     } catch (err) {
-      console.log(`Failed to fetch timedtext for lang ${lang}:`, err instanceof Error ? err.message : String(err));
+      console.log(`Failed to fetch timedtext for lang ${lang}:`, err.message);
       continue;
     }
   }
@@ -195,7 +195,7 @@ Return ONLY the transcript text or summary, without any additional commentary.`,
     console.log("✅ Transcript extracted using Claude web capability");
     return transcriptText;
   } catch (error) {
-    console.error("Claude web extraction failed:", error instanceof Error ? error.message : String(error));
+    console.error("Claude web extraction failed:", error.message);
     throw error;
   }
 }
@@ -309,7 +309,7 @@ Focus: Make it useful for exam preparation with clear, scannable formatting`,
       };
     }
   } catch (error) {
-    console.error("Claude processing failed:", error instanceof Error ? error.message : String(error));
+    console.error("Claude processing failed:", error.message);
     // Return basic structure even if processing fails
     return {
       summary: transcript.substring(0, 1000) + "...",
@@ -395,13 +395,13 @@ serve(async (req) => {
               })
               .eq("id", note_id);
           }
-    } catch (err) {
-      console.log("oEmbed fetch failed:", err instanceof Error ? err.message : String(err));
-    }
+        } catch (err) {
+          console.log("oEmbed fetch failed:", err.message);
+        }
       }
-  } catch (error) {
-    console.log("Metadata fetch failed, will continue with transcript extraction:", error instanceof Error ? error.message : String(error));
-  }
+    } catch (error) {
+      console.log("Metadata fetch failed, will continue with transcript extraction:", error.message);
+    }
 
     // Update progress: Fetching transcript
     await supabase
@@ -419,8 +419,8 @@ serve(async (req) => {
       // Method 1: Try timedtext API (most reliable free method)
       transcript = await fetchTranscriptFromTimedtext(videoId, language);
       extractionMethod = "timedtext";
-  } catch (timedtextError) {
-    console.log("Timedtext extraction failed:", timedtextError instanceof Error ? timedtextError.message : String(timedtextError));
+    } catch (timedtextError) {
+      console.log("Timedtext extraction failed:", timedtextError.message);
 
       try {
         // Method 2: Ultimate fallback - Claude with web capability
@@ -429,7 +429,7 @@ serve(async (req) => {
       } catch (claudeError) {
         console.error("All extraction methods failed");
         throw new Error(
-          `Could not extract transcript: Timedtext failed (${timedtextError instanceof Error ? timedtextError.message : String(timedtextError)}), Claude web failed (${claudeError instanceof Error ? claudeError.message : String(claudeError)})`,
+          `Could not extract transcript: Timedtext failed (${timedtextError.message}), Claude web failed (${claudeError.message})`,
         );
       }
     }
@@ -444,18 +444,15 @@ serve(async (req) => {
     const wordCount = transcript.split(/\s+/).filter((w) => w.length > 0).length;
     const estimatedReadTime = Math.ceil(wordCount / 200); // 200 words per minute
 
-    // Update progress: Storing transcript
+    console.log(`📊 Stats: ${wordCount} words, ~${estimatedReadTime} min read time`);
+
+    // Update progress: Processing transcript
     await supabase
       .from("study_notes")
       .update({
-        extracted_text: transcript,
-        word_count: wordCount,
-        estimated_read_time: estimatedReadTime,
         processing_progress: 50,
       })
       .eq("id", note_id);
-
-    console.log(`📊 Stats: ${wordCount} words, ~${estimatedReadTime} min read time`);
 
     // Step 4: Process transcript with Claude for enhanced notes
     await supabase
@@ -530,7 +527,7 @@ serve(async (req) => {
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: error instanceof Error ? error.message : "YouTube transcript extraction failed",
+            processing_error: error.message || "YouTube transcript extraction failed",
             processing_progress: 0,
           })
           .eq("id", note_id);
@@ -539,7 +536,7 @@ serve(async (req) => {
       console.error("Failed to update error status:", e);
     }
 
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
