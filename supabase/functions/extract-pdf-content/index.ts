@@ -13,6 +13,20 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Convert ArrayBuffer to base64 in chunks to avoid stack overflow
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 8192; // Process 8KB at a time
+  let binary = "";
+
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.slice(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+
+  return btoa(binary);
+}
+
 interface ExtractRequest {
   note_id: string;
   source_url: string;
@@ -83,8 +97,19 @@ serve(async (req) => {
       pdfBuffer = await pdfResponse.arrayBuffer();
     }
 
-    const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
     console.log("PDF downloaded, size:", pdfBuffer.byteLength, "bytes");
+
+    // Check file size (Claude supports PDFs up to 32MB)
+    const maxSizeBytes = 32 * 1024 * 1024; // 32MB
+    if (pdfBuffer.byteLength > maxSizeBytes) {
+      throw new Error(
+        `PDF file is too large (${(pdfBuffer.byteLength / 1024 / 1024).toFixed(2)}MB). Maximum supported size is 32MB.`,
+      );
+    }
+
+    console.log("Converting PDF to base64...");
+    const pdfBase64 = arrayBufferToBase64(pdfBuffer);
+    console.log("Base64 conversion complete");
 
     // Update progress
     await supabase
@@ -290,12 +315,12 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
         .from("study_notes")
         .update({
           processing_status: "failed",
-          processing_error: error instanceof Error ? error.message : "PDF extraction failed",
+          processing_error: error.message || "PDF extraction failed",
         })
         .eq("id", noteId);
     }
 
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
