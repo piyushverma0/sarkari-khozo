@@ -172,7 +172,7 @@ Description: ${metadata.description.substring(0, 500)}...`
     : ""
 }
 
-If a transcript is available, extract and return it in full. If no transcript is available, provide a detailed summary of the video content based on the title, description, and any other visible information on the page.
+If a transcript is available, extract and return it in full. If no transcript is available, provide a easy to understand detailed summary of the video content based on the title, description, and any other visible information on the page.
 
 Return ONLY the transcript text or summary, without any additional commentary.`,
           },
@@ -227,7 +227,7 @@ async function processTranscriptWithClaude(
         messages: [
           {
             role: "user",
-            content: `You are an expert study notes generator for Indian students preparing for government exams and competitive tests. Process this YouTube video transcript and create comprehensive study notes.
+            content: `You are an expert study notes generator for Indian students preparing for school, college, government exams and competitive tests. Process this YouTube video transcript and create comprehensive study notes in simple understandable language for students.
 
 ${
   metadata
@@ -240,7 +240,7 @@ ${metadata.chapters && metadata.chapters.length > 0 ? `\nChapters:\n${metadata.c
 Transcript:
 ${transcript.substring(0, 50000)} ${transcript.length > 50000 ? "...(truncated)" : ""}
 
-Please provide a comprehensive study notes package in JSON format with these fields:
+Please provide a clean, comprehensive study notes package in JSON format with these fields:
 
 1. **summary**: A detailed 3-5 paragraph summary covering all main points (keep each paragraph under 4 lines)
 2. **keyPoints**: Array of 8-12 most important bullet points/concepts
@@ -400,7 +400,10 @@ serve(async (req) => {
         }
       }
     } catch (error) {
-      console.log("Metadata fetch failed, will continue with transcript extraction:", error instanceof Error ? error.message : String(error));
+      console.log(
+        "Metadata fetch failed, will continue with transcript extraction:",
+        error instanceof Error ? error.message : String(error),
+      );
     }
 
     // Update progress: Fetching transcript
@@ -420,7 +423,10 @@ serve(async (req) => {
       transcript = await fetchTranscriptFromTimedtext(videoId, language);
       extractionMethod = "timedtext";
     } catch (timedtextError) {
-      console.log("Timedtext extraction failed:", timedtextError instanceof Error ? timedtextError.message : String(timedtextError));
+      console.log(
+        "Timedtext extraction failed:",
+        timedtextError instanceof Error ? timedtextError.message : String(timedtextError),
+      );
 
       try {
         // Method 2: Ultimate fallback - Claude with web capability
