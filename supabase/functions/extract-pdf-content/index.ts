@@ -121,130 +121,52 @@ serve(async (req) => {
               },
               {
                 type: "text",
-                text: `You are an expert study-material analyzer and a highly accurate document-extraction model. Your task is to extract ALL content from the given PDF exactly and completely, without skipping or summarizing anything.
-
-EXTRACTION REQUIREMENTS
-
-1. Complete Extraction
-
-Extract every word, every line, every page, and every section from the PDF.
-
-No summarization, rewriting, paraphrasing, or shortening.
-
-Your output must reflect the document as-is, only structured neatly.
-
-
-
-
-2. Preserve Original Structure
-
-Maintain all headings, sub-headings, sections, and hierarchical relationships.
-
-Reconstruct the document flow faithfully and in original order.
-
-If the source uses unclear formatting, intelligently infer structure without altering content.
-
-
-
-
-3. Include Every Detail
-Extract ALL of the following exactly as written:
-
-Tables (convert into markdown tables with all rows/columns preserved)
-
-Bullet and numbered lists
-
-Paragraphs and notes
-
-Important dates and deadlines
-
-Figures, statistics, and numerical data
-
-URLs, email IDs, and phone numbers
-
-Contact details and official addresses
-
-Technical formulas, equations, and symbols
-
-Footnotes, references, and citations
-
-Page numbers (if present)
-
-Disclaimers & instructions
-
-
-
-4. Government Exam–Specific Extraction Priority
-Identify and fully extract these (if present):
-
-Eligibility criteria (age limits, educational qualifications)
-
-Important dates (application start/end, exam date, correction window)
-
-Application fees & payment modes
-
-Vacancies (full breakdown category-wise/post-wise)
-
-Selection process
-
-Exam pattern & marking scheme
-
-Detailed syllabus
-
-Documents required
-
-Application procedure (step-by-step)
-
-Pay scale, grade pay, allowances
-
-Exam centers / state-wise distribution
-
-Reservation details
-
-
-
-5. Formatting Guidelines (Do NOT modify these rules)
-
-Use markdown headings:
-
-# for main sections
-
-## for subsections
-
-### for sub-levels
-
-Use bold for critical details, dates, deadlines, and important terms.
-
-Use markdown tables for structured data.
-
-Preserve bullet points and numbering exactly.
-
-Keep content clean, readable, and structured for studying.
-
-STRICT RULES
-
-Do NOT summarize.
-
-Do NOT rewrite or paraphrase.
-
-Do NOT skip ANY content.
-
-Do NOT merge or compress information.
-
-Do NOT add external content or hallucinate.
-
-If something is unreadable, mark it as: _unreadable text here_.
-
-OUTPUT FORMAT
-
-Produce a complete, fully extracted document in markdown.
-
-Begin with:
-# Extracted Document
-
-Then proceed page by page or section by section.
-
-Ensure formatting is clean, consistent, and structured for study notes.`,
+                text: `You are an expert study material analyzer. Extract ALL content from this PDF document comprehensively.
+
+EXTRACTION REQUIREMENTS:
+1. **Complete Extraction**: Extract every single word, sentence, and piece of information
+2. **Preserve Structure**: Maintain headings, sections, subsections, and hierarchical organization
+3. **Include All Details**:
+   - Tables and their complete data
+   - Lists (numbered and bulleted)
+   - Important dates and deadlines
+   - Numbers, statistics, and figures
+   - URLs, email addresses, and contact information
+   - Formulas, equations, or technical content
+   - References and citations
+
+4. **Special Attention for Government Exam Materials**:
+   - Eligibility criteria (age, qualifications, experience)
+   - Important dates (application start/end, exam dates)
+   - Application fees and payment details
+   - Vacancy details and post information
+   - Selection process and exam pattern
+   - Syllabus and subjects
+   - How to apply (step-by-step process)
+   - Documents required
+   - Pay scale and allowances
+   - Exam centers and locations
+
+5. **Formatting Guidelines**:
+   - Use markdown headings (# ## ###) for section hierarchy
+   - Use **bold** for important terms, numbers, dates, and deadlines
+   - Use *italic* for emphasis or definitions
+   - Use \`code\` for specific codes, application numbers, reference IDs
+   - Use ==highlights== for critical deadlines and urgent information
+   - Use tables for structured data when applicable
+   - Preserve bullet points and numbered lists
+   - Keep content clean and well-organized
+   - **NO paragraph should exceed 4 lines (~320 characters)** - break longer paragraphs into shorter ones or convert to bullet points
+
+6. **Paragraph Length Rule**:
+   - Maximum 4 lines per paragraph
+   - If content is longer, either:
+     a) Break into multiple short paragraphs with blank lines between them
+     b) Convert to bullet points for better readability
+   - Example: Instead of "The fee is Rs. 500 for general category and Rs. 250 for SC/ST/OBC which is payable online and candidates must keep the receipt", write:
+     "**Application Fee:**\\n- General: **Rs. 500**\\n- SC/ST/OBC: **Rs. 250**\\n\\nPayable online. ==Keep payment receipt.=="
+
+CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document in a well-structured, readable format that students can study from.`,
               },
             ],
           },
@@ -361,8 +283,6 @@ Ensure formatting is clean, consistent, and structured for study notes.`,
       // Ignore parsing errors
     }
 
-    const errorMessage = error instanceof Error ? error.message : "PDF extraction failed";
-
     // Update note status to failed if we have the note_id
     if (noteId) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -370,12 +290,12 @@ Ensure formatting is clean, consistent, and structured for study notes.`,
         .from("study_notes")
         .update({
           processing_status: "failed",
-          processing_error: errorMessage,
+          processing_error: error.message || "PDF extraction failed",
         })
         .eq("id", noteId);
     }
 
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
