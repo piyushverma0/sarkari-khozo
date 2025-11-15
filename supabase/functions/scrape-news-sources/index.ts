@@ -20,20 +20,52 @@ async function discoverWithClaude(currentDateStr: string, lookbackDays: number):
       ? 'the last 7 days' 
       : 'the last 30 days';
 
-  const fallbackPrompt = `Search the web for government job notifications, exam announcements, and welfare schemes published in ${timeframeText} in India.
+  const fallbackPrompt = `Search the web for news and announcements published in ${timeframeText} in India.
 
 CURRENT DATE: ${currentDateStr}
 
-Find 5-10 MOST RECENT articles from any reputable Indian news aggregators about:
+Find 5-10 MOST RECENT articles from reputable sources about:
+
+**GOVERNMENT OPPORTUNITIES:**
 - Government job notifications (SSC, UPSC, Railway, Banking, State PSCs)
 - Exam notifications and admit card releases  
 - Government scheme launches or updates
 - Policy announcements affecting citizens
 
-Prioritize articles from these types of sources:
-- Sarkari Result, FreeJobAlert, Jagran Josh, Employment News
-- Major news outlets (Times of India, Hindustan Times, etc.)
-- Official government portals
+**CURRENT AFFAIRS (for competitive exam preparation):**
+- National political developments and Supreme Court judgments
+- Economic indicators, budget announcements, RBI policies
+- Major sports achievements, awards, honors
+- Science & technology breakthroughs by Indian institutions
+- Environmental policies and climate initiatives
+- Social issues and movements
+
+**INTERNATIONAL NEWS (India-relevant):**
+- G20/G7/UN summit outcomes involving India
+- Trade agreements and economic partnerships
+- Geopolitical developments in neighboring countries (Pakistan, China, Bangladesh, Sri Lanka)
+- Global events impacting Indian economy or citizens
+- Climate conferences and international treaties
+
+**DIPLOMATIC NEWS:**
+- State visits and bilateral meetings with India
+- Treaty signings and defense agreements
+- India's activities at UN, WTO, IMF, World Bank
+- Regional cooperation (SAARC, ASEAN, BRICS, Quad)
+- Ministry of External Affairs announcements
+
+**EDUCATION:**
+- New university rankings (NIRF, QS, Times Higher Education)
+- Research breakthroughs by IITs, IISc, AIIMS
+- Education policy changes and NEP updates
+- International scholarship announcements for Indian students
+
+Prioritize sources:
+- Government: PIB, MEA, Education Ministry, UGC, AICTE
+- News: The Hindu, Indian Express, Times of India, Hindustan Times, BBC Hindi, NDTV
+- Jobs: Sarkari Result, FreeJobAlert, Jagran Josh, Employment News
+- Diplomatic: MEA website, UN News, The Diplomat
+- Education: University portals, NAAC, NIRF
 
 Return a JSON array with:
 - url: Direct article link
@@ -42,6 +74,7 @@ Return a JSON array with:
 - source_name: Website name
 
 CRITICAL: Only include articles published in ${timeframeText}.
+For international/diplomatic news, ONLY include if it directly involves India or has clear Indian impact.
 Return ONLY the JSON array, no markdown, no explanatory text.`;
 
   const response = await callClaude({

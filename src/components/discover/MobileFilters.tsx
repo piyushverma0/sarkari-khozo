@@ -13,6 +13,10 @@ export const MobileFilters = ({ filters, onFilterChange }: MobileFiltersProps) =
     { value: 'jobs', label: 'Jobs' },
     { value: 'schemes', label: 'Schemes' },
     { value: 'policies', label: 'Policies' },
+    { value: 'current-affairs', label: 'Current Affairs' },
+    { value: 'international', label: 'International' },
+    { value: 'education', label: 'Education' },
+    { value: 'diplomatic', label: 'Diplomatic' },
   ] as const;
 
   return (
