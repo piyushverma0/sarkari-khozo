@@ -290,12 +290,12 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
         .from("study_notes")
         .update({
           processing_status: "failed",
-          processing_error: error.message || "PDF extraction failed",
+          processing_error: error instanceof Error ? error.message : "PDF extraction failed",
         })
         .eq("id", noteId);
     }
 
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
