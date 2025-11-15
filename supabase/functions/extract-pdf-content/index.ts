@@ -191,7 +191,7 @@ EXTRACTION REQUIREMENTS:
    - Example: Instead of "The fee is Rs. 500 for general category and Rs. 250 for SC/ST/OBC which is payable online and candidates must keep the receipt", write:
      "**Application Fee:**\\n- General: **Rs. 500**\\n- SC/ST/OBC: **Rs. 250**\\n\\nPayable online. ==Keep payment receipt.=="
 
-CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document in a well-structured, readable format that students can study from.`,
+CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document in a well-structured, simple easy to understand language, readable format that any students can quickly study from.`,
               },
             ],
           },
@@ -264,7 +264,8 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
         .from("study_notes")
         .update({
           processing_status: "failed",
-          processing_error: triggerError instanceof Error ? triggerError.message : "Failed to complete summarization process",
+          processing_error:
+            triggerError instanceof Error ? triggerError.message : "Failed to complete summarization process",
         })
         .eq("id", note_id);
 
