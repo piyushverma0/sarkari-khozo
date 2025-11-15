@@ -93,21 +93,37 @@ Please analyze this article and provide a JSON response with the following field
    - Include dates, amounts, eligibility in simple terms
 10. **relevance_score**: Rate 0-10 based on category:
     
-    **For exams/jobs/schemes/policies:**
+    **For exams/jobs/schemes:**
     - Recency: Within 7 days = +3, 7-14 days = +2, 14-30 days = +1
     - Clarity: Clear dates/deadlines = +2
-    - Actionability: Clear steps to apply/benefit = +2
+    - Actionability: Clear application steps = +2
     - Audience size: National = +2, Multi-state = +1, Single state = 0
     - Impact: High monetary benefit or major opportunity = +1
     
     **For current-affairs:**
     - Recency: Within 24h = +3, 3 days = +2, 7 days = +1
-    - Exam relevance: UPSC/SSC important = +3, Banking/Railway = +2, General = +1
+    - Exam importance: Supreme Court/Parliament/Budget = +3, National events = +2, General = +1
     - Source credibility: Government/PIB = +2, Major outlet = +1
-    - Factual content: Key dates/names/facts = +2
+    - Competitive exam value: Key dates/facts/names = +2
     
-    **For international/diplomatic:**
-    - India involvement: Direct = +4, Economic impact = +3, Regional = +2, General = +1
+    **For international:**
+    - India involvement: Bilateral treaty/trade deal = +4, Economic impact = +3, Regional = +2
+    - Recency: Within 3 days = +2, Within week = +1
+    - Exam relevance: G20/UN/Major events = +2, General = +1
+    
+    **For diplomatic:**
+    - Type: State visit/Treaty signing = +4, Bilateral meeting = +3, Multilateral forum = +2
+    - India's role: Primary participant = +2, Observer = +1
+    - Recency: Within week = +2
+    
+    **For education:**
+    - Impact: Ranking/Research breakthrough = +3, Policy change = +2, Scholarship = +2
+    - Institution: IIT/IISc/Central = +2, State = +1
+    - Relevance: Student opportunities = +2, General awareness = +1
+    
+    **For policies:**
+    - Impact: Major regulatory change = +3, Compliance requirement = +2
+    - Recency: Within 7 days = +2, Within 30 days = +1
     - Recency: Within 3 days = +2, 7 days = +1
     - Exam importance: UPSC relevant = +2
     - Source: Official MEA/UN = +1

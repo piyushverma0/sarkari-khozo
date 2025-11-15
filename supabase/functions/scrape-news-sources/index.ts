@@ -20,62 +20,32 @@ async function discoverWithClaude(currentDateStr: string, lookbackDays: number):
       ? 'the last 7 days' 
       : 'the last 30 days';
 
-  const fallbackPrompt = `Search the web for news and announcements published in ${timeframeText} in India.
+  const fallbackPrompt = `Search the web for news published in ${timeframeText} in India. Find 15-20 RECENT articles covering DIVERSE categories:
 
 CURRENT DATE: ${currentDateStr}
 
-Find 5-10 MOST RECENT articles from reputable sources about:
+CATEGORY DISTRIBUTION (aim for 3-4 articles per category):
 
-**GOVERNMENT OPPORTUNITIES:**
-- Government job notifications (SSC, UPSC, Railway, Banking, State PSCs)
-- Exam notifications and admit card releases  
-- Government scheme launches or updates
-- Policy announcements affecting citizens
+1. **CURRENT AFFAIRS** (Supreme Court rulings, Parliament bills, RBI monetary policy, sports victories, scientific discoveries):
+   Sources: The Hindu, Indian Express, PIB Press Releases, PTI
 
-**CURRENT AFFAIRS (for competitive exam preparation):**
-- National political developments and Supreme Court judgments
-- Economic indicators, budget announcements, RBI policies
-- Major sports achievements, awards, honors
-- Science & technology breakthroughs by Indian institutions
-- Environmental policies and climate initiatives
-- Social issues and movements
+2. **INTERNATIONAL NEWS** (G20 summits, trade deals, border issues, global events affecting India):
+   Sources: MEA website, The Hindu International, BBC, Reuters India
 
-**INTERNATIONAL NEWS (India-relevant):**
-- G20/G7/UN summit outcomes involving India
-- Trade agreements and economic partnerships
-- Geopolitical developments in neighboring countries (Pakistan, China, Bangladesh, Sri Lanka)
-- Global events impacting Indian economy or citizens
-- Climate conferences and international treaties
+3. **DIPLOMATIC** (State visits, bilateral treaties, UN/WTO activities, BRICS/ASEAN meetings):
+   Sources: Ministry of External Affairs, The Diplomat, UN News
 
-**DIPLOMATIC NEWS:**
-- State visits and bilateral meetings with India
-- Treaty signings and defense agreements
-- India's activities at UN, WTO, IMF, World Bank
-- Regional cooperation (SAARC, ASEAN, BRICS, Quad)
-- Ministry of External Affairs announcements
+4. **EDUCATION** (NIRF rankings, IIT/IISc research, NEP updates, scholarship announcements):
+   Sources: UGC, AICTE, Education Ministry, university news portals
 
-**EDUCATION:**
-- New university rankings (NIRF, QS, Times Higher Education)
-- Research breakthroughs by IITs, IISc, AIIMS
-- Education policy changes and NEP updates
-- International scholarship announcements for Indian students
+5. **EXAMS** (UPSC/SSC/Banking exam notifications, admit cards, results):
+   Sources: Sarkari Result, Jagran Josh, official board websites
 
-Prioritize sources:
-- Government: PIB, MEA, Education Ministry, UGC, AICTE
-- News: The Hindu, Indian Express, Times of India, Hindustan Times, BBC Hindi, NDTV
-- Jobs: Sarkari Result, FreeJobAlert, Jagran Josh, Employment News
-- Diplomatic: MEA website, UN News, The Diplomat
-- Education: University portals, NAAC, NIRF
+6. **JOBS** (Government recruitment drives, PSU hiring, state job notifications):
+   Sources: FreeJobAlert, Employment News, official recruitment portals
 
-Return a JSON array with:
-- url: Direct article link
-- headline: Article headline  
-- published_date: ISO format (YYYY-MM-DDTHH:mm:ssZ)
-- source_name: Website name
-
-CRITICAL: Only include articles published in ${timeframeText}.
-For international/diplomatic news, ONLY include if it directly involves India or has clear Indian impact.
-Return ONLY the JSON array, no markdown, no explanatory text.`;
+Return JSON array with url, headline, published_date (ISO format), source_name.
+ONLY include articles from ${timeframeText}. Ensure DIVERSE category coverage.`;
 
   const response = await callClaude({
     systemPrompt: `You are a news discovery assistant. When given a search request:
