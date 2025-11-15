@@ -264,7 +264,7 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
         .from("study_notes")
         .update({
           processing_status: "failed",
-          processing_error: triggerError.message || "Failed to complete summarization process",
+          processing_error: triggerError instanceof Error ? triggerError.message : "Failed to complete summarization process",
         })
         .eq("id", note_id);
 
@@ -301,12 +301,12 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
         .from("study_notes")
         .update({
           processing_status: "failed",
-          processing_error: error.message || "PDF extraction failed",
+          processing_error: error instanceof Error ? error.message : "PDF extraction failed",
         })
         .eq("id", noteId);
     }
 
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "PDF extraction failed" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
