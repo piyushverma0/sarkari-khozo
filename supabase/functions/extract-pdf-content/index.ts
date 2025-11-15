@@ -234,7 +234,9 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
 
     // Step 3: Trigger summarization (extracted text is passed directly, not stored in DB)
     try {
-      fetch(`${SUPABASE_URL}/functions/v1/generate-notes-summary`, {
+      console.log("Triggering summarization for note:", note_id);
+
+      const summaryResponse = await fetch(`${SUPABASE_URL}/functions/v1/generate-notes-summary`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -245,21 +247,28 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
           raw_content: extractedText,
           language,
         }),
-      }).catch((err) => {
-        console.error("Failed to trigger summarization:", err);
-        // Update note status to failed
-        supabase
-          .from("study_notes")
-          .update({
-            processing_status: "failed",
-            processing_error: "Failed to start summarization process",
-          })
-          .eq("id", note_id);
       });
 
-      console.log("Summarization triggered for note:", note_id);
+      if (!summaryResponse.ok) {
+        const errorText = await summaryResponse.text();
+        console.error("Summarization failed:", errorText);
+        throw new Error(`Summarization failed: ${errorText}`);
+      }
+
+      console.log("Summarization completed successfully for note:", note_id);
     } catch (triggerError) {
-      console.error("Failed to trigger summarization:", triggerError);
+      console.error("Failed to trigger or complete summarization:", triggerError);
+
+      // Update note status to failed
+      await supabase
+        .from("study_notes")
+        .update({
+          processing_status: "failed",
+          processing_error: triggerError.message || "Failed to complete summarization process",
+        })
+        .eq("id", note_id);
+
+      throw triggerError;
     }
 
     return new Response(
@@ -285,8 +294,6 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
       // Ignore parsing errors
     }
 
-    const errorMessage = error instanceof Error ? error.message : "PDF extraction failed";
-
     // Update note status to failed if we have the note_id
     if (noteId) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -294,12 +301,12 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
         .from("study_notes")
         .update({
           processing_status: "failed",
-          processing_error: errorMessage,
+          processing_error: error.message || "PDF extraction failed",
         })
         .eq("id", noteId);
     }
 
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
