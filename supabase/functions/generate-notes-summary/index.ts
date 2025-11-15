@@ -226,7 +226,7 @@ Remember: Return ONLY the JSON object, nothing else.`;
     } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      throw new Error(`Failed to parse summary: ${parseError.message}`);
+      throw new Error(`Failed to parse summary: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
     }
 
     console.log("Structured content generated:", Object.keys(structuredContent));
@@ -287,7 +287,7 @@ Remember: Return ONLY the JSON object, nothing else.`;
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: error.message || "Summary generation failed",
+            processing_error: error instanceof Error ? error.message : "Summary generation failed",
           })
           .eq("id", body.note_id);
       }
@@ -295,7 +295,7 @@ Remember: Return ONLY the JSON object, nothing else.`;
       console.error("Failed to update error status:", e);
     }
 
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
