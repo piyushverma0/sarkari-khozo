@@ -50,7 +50,7 @@ serve(async (req) => {
       .eq("id", note_id);
 
     // Build the prompt
-    const prompt = `You are an expert study assistant specializing in Indian government exams, jobs, and educational content. Transform the following text/content into clean, well-structured study notes optimized for learning and exam preparation.
+    const prompt = `You are an expert study assistant specializing in Indian government exams, jobs, and educational content. Transform the following text into clean, well-structured study notes optimized for learning and exam preparation.
 
 CRITICAL REQUIREMENTS:
 1. Create clear hierarchical sections with descriptive headings
@@ -167,7 +167,7 @@ Remember: Return ONLY the JSON object, nothing else.`;
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-5-20250929",
-        max_tokens: 25000,
+        max_tokens: 8192,
         temperature: 0.3,
         system:
           "You are an expert study assistant. Always return valid JSON without any markdown formatting or code blocks.",
@@ -226,7 +226,7 @@ Remember: Return ONLY the JSON object, nothing else.`;
     } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      throw new Error(`Failed to parse summary: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+      throw new Error(`Failed to parse summary: ${parseError.message}`);
     }
 
     console.log("Structured content generated:", Object.keys(structuredContent));
@@ -240,13 +240,15 @@ Remember: Return ONLY the JSON object, nothing else.`;
       .eq("id", note_id);
 
     // Store in database
+    // Note: Only store sections in structured_content since title, summary, and key_points
+    // are stored separately. This matches the Kotlin NoteContent model which only has sections.
     const { error: updateError } = await supabase
       .from("study_notes")
       .update({
         title: structuredContent.title || "Study Notes",
         summary: structuredContent.summary,
         key_points: structuredContent.key_points || [],
-        structured_content: structuredContent,
+        structured_content: { sections: structuredContent.sections || [] },
         processing_status: "completed",
         processing_progress: 100,
         processing_error: null,
@@ -287,7 +289,7 @@ Remember: Return ONLY the JSON object, nothing else.`;
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: error instanceof Error ? error.message : "Summary generation failed",
+            processing_error: error.message || "Summary generation failed",
           })
           .eq("id", body.note_id);
       }
@@ -295,7 +297,7 @@ Remember: Return ONLY the JSON object, nothing else.`;
       console.error("Failed to update error status:", e);
     }
 
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
