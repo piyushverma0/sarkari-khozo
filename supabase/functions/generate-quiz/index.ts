@@ -191,7 +191,8 @@ Generate exactly ${question_count} questions. Return ONLY the JSON.`;
     } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      throw new Error(`Failed to parse quiz: ${parseError.message}`);
+      const errorMessage = parseError instanceof Error ? parseError.message : "Unknown parse error";
+      throw new Error(`Failed to parse quiz: ${errorMessage}`);
     }
 
     if (!quizData.questions || !Array.isArray(quizData.questions)) {
@@ -253,8 +254,9 @@ Generate exactly ${question_count} questions. Return ONLY the JSON.`;
     );
   } catch (error) {
     console.error("Error in generate-quiz:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
