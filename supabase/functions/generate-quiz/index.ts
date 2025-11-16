@@ -191,8 +191,7 @@ Generate exactly ${question_count} questions. Return ONLY the JSON.`;
     } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      const errorMessage = parseError instanceof Error ? parseError.message : "Unknown parse error";
-      throw new Error(`Failed to parse quiz: ${errorMessage}`);
+      throw new Error(`Failed to parse quiz: ${parseError.message}`);
     }
 
     if (!quizData.questions || !Array.isArray(quizData.questions)) {
@@ -219,10 +218,11 @@ Generate exactly ${question_count} questions. Return ONLY the JSON.`;
         note_id,
         user_id,
         title: quizData.quiz_title || `${note.title} - Quiz`,
+        description: `${quiz_type.toUpperCase()} quiz with ${questionsWithIds.length} questions`,
         quiz_type,
-        total_questions: questionsWithIds.length,
         passing_score: quizData.passing_score || 60,
         time_limit_minutes,
+        show_answers_immediately: true,
         questions: questionsWithIds,
       })
       .select()
@@ -244,7 +244,7 @@ Generate exactly ${question_count} questions. Return ONLY the JSON.`;
         quiz_id: quiz.id,
         note_id,
         quiz_title: quiz.title,
-        total_questions: quiz.total_questions,
+        total_questions: questionsWithIds.length,
         quiz,
       }),
       {
@@ -254,9 +254,8 @@ Generate exactly ${question_count} questions. Return ONLY the JSON.`;
     );
   } catch (error) {
     console.error("Error in generate-quiz:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
