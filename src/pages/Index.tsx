@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import Header from "@/components/Header";
@@ -62,19 +62,19 @@ const Index = () => {
             Built with ❤️ by Piyush
           </p>
           <div className="flex justify-center items-center gap-2 text-xs text-muted-foreground">
-            <a 
-              href="/privacy-policy" 
+            <Link 
+              to="/privacy-policy" 
               className="hover:text-foreground transition-colors"
             >
               Privacy Policy
-            </a>
+            </Link>
             <span>|</span>
-            <a 
-              href="/terms-of-service" 
+            <Link 
+              to="/terms-of-service" 
               className="hover:text-foreground transition-colors"
             >
               Terms of Service
-            </a>
+            </Link>
           </div>
         </div>
       </footer>
