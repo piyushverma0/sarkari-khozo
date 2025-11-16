@@ -219,3 +219,6 @@ verify_jwt = false
 
 [functions.generate-quiz]
 verify_jwt = true
+
+[functions.generate-audio-script]
+verify_jwt = true
