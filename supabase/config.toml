@@ -115,6 +115,9 @@ verify_jwt = false
 [functions.generate-audio-summary-website]
 verify_jwt = false
 
+[functions.generate-audio-summary]
+verify_jwt = true
+
 [functions.chat-with-program]
 verify_jwt = false
 
