@@ -112,7 +112,7 @@ verify_jwt = false
 [functions.translate-content]
 verify_jwt = false
 
-[functions.generate-audio-summary]
+[functions.generate-audio-summary-website]
 verify_jwt = false
 
 [functions.chat-with-program]
