@@ -132,7 +132,7 @@ serve(async (req) => {
     const fileName = `${note.user_id}/${note_id}/audio_${language}_${Date.now()}.mp3`
 
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('study-materials')
+      .from('study-audio-summaries')
       .upload(fileName, combinedAudio, {
         contentType: 'audio/mpeg',
         upsert: true
@@ -145,7 +145,7 @@ serve(async (req) => {
 
     // Get public URL
     const { data: { publicUrl } } = supabase.storage
-      .from('study-materials')
+      .from('study-audio-summaries')
       .getPublicUrl(fileName)
 
     console.log(`✅ Audio uploaded: ${publicUrl}`)
