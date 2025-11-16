@@ -53,7 +53,7 @@ serve(async (req) => {
     // Fetch note content
     const { data: note, error: fetchError } = await supabase
       .from("study_notes")
-      .select("title, structured_content, extracted_text")
+      .select("title, structured_content")
       .eq("id", note_id)
       .eq("user_id", user_id)
       .single();
@@ -70,18 +70,12 @@ serve(async (req) => {
     console.log("Note fetched:", note.title);
 
     // Check if note has content
-    if (!note.structured_content && !note.extracted_text) {
+    if (!note.structured_content) {
       throw new Error("Note has no content. Please ensure the note has been fully processed before generating a quiz.");
     }
 
-    // Build quiz generation prompt
-    const contentForPrompt = note.structured_content
-      ? JSON.stringify(note.structured_content, null, 2)
-      : note.extracted_text;
-
-    if (!contentForPrompt) {
-      throw new Error("Note content is empty");
-    }
+    // Build quiz generation prompt from structured content
+    const contentForPrompt = JSON.stringify(note.structured_content, null, 2);
 
     const quizTypeInstructions = {
       mcq: "Multiple Choice Questions with 4 options (A, B, C, D). Mark correct answer.",
@@ -197,8 +191,7 @@ Generate exactly ${question_count} questions. Return ONLY the JSON.`;
     } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      const errorMessage = parseError instanceof Error ? parseError.message : "Unknown parse error";
-      throw new Error(`Failed to parse quiz: ${errorMessage}`);
+      throw new Error(`Failed to parse quiz: ${parseError.message}`);
     }
 
     if (!quizData.questions || !Array.isArray(quizData.questions)) {
@@ -260,9 +253,8 @@ Generate exactly ${question_count} questions. Return ONLY the JSON.`;
     );
   } catch (error) {
     console.error("Error in generate-quiz:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
