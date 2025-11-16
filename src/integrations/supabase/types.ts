@@ -1264,10 +1264,21 @@ export type Database = {
       }
       study_notes: {
         Row: {
+          audio_english_duration: number | null
+          audio_english_url: string | null
+          audio_generated_at: string | null
+          audio_generation_error: string | null
+          audio_generation_status: string | null
+          audio_hindi_duration: number | null
+          audio_hindi_url: string | null
+          audio_last_played_at: string | null
+          audio_script_english: Json | null
+          audio_script_hindi: Json | null
           created_at: string | null
           current_language: string | null
           estimated_read_time: number | null
           folder_id: string | null
+          has_audio: boolean | null
           has_flashcards: boolean | null
           has_quiz: boolean | null
           has_translation: boolean | null
@@ -1293,10 +1304,21 @@ export type Database = {
           word_count: number | null
         }
         Insert: {
+          audio_english_duration?: number | null
+          audio_english_url?: string | null
+          audio_generated_at?: string | null
+          audio_generation_error?: string | null
+          audio_generation_status?: string | null
+          audio_hindi_duration?: number | null
+          audio_hindi_url?: string | null
+          audio_last_played_at?: string | null
+          audio_script_english?: Json | null
+          audio_script_hindi?: Json | null
           created_at?: string | null
           current_language?: string | null
           estimated_read_time?: number | null
           folder_id?: string | null
+          has_audio?: boolean | null
           has_flashcards?: boolean | null
           has_quiz?: boolean | null
           has_translation?: boolean | null
@@ -1322,10 +1344,21 @@ export type Database = {
           word_count?: number | null
         }
         Update: {
+          audio_english_duration?: number | null
+          audio_english_url?: string | null
+          audio_generated_at?: string | null
+          audio_generation_error?: string | null
+          audio_generation_status?: string | null
+          audio_hindi_duration?: number | null
+          audio_hindi_url?: string | null
+          audio_last_played_at?: string | null
+          audio_script_english?: Json | null
+          audio_script_hindi?: Json | null
           created_at?: string | null
           current_language?: string | null
           estimated_read_time?: number | null
           folder_id?: string | null
+          has_audio?: boolean | null
           has_flashcards?: boolean | null
           has_quiz?: boolean | null
           has_translation?: boolean | null
