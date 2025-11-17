@@ -396,9 +396,29 @@ serve(async (req) => {
       .eq("id", note_id);
 
     // Step 1: Extract video ID
-    const videoId = extractVideoId(source_url);
+    let youtubeUrl = source_url;
+
+    // Check if this is a storage URL containing the actual YouTube URL
+    if (source_url.includes("/storage/v1/object/")) {
+      console.log("📦 Detected storage URL, fetching YouTube URL from storage...");
+      try {
+        const storageResponse = await fetch(source_url);
+        if (storageResponse.ok) {
+          youtubeUrl = await storageResponse.text();
+          youtubeUrl = youtubeUrl.trim();
+          console.log("✅ Extracted YouTube URL from storage:", youtubeUrl);
+        } else {
+          throw new Error(`Failed to fetch content from storage: ${storageResponse.statusText}`);
+        }
+      } catch (error) {
+        console.error("❌ Error fetching from storage:", error);
+        throw new Error("Failed to retrieve YouTube URL from storage");
+      }
+    }
+
+    const videoId = extractVideoId(youtubeUrl);
     if (!videoId) {
-      throw new Error("Invalid YouTube URL - could not extract video ID");
+      throw new Error(`Invalid YouTube URL - could not extract video ID from: ${youtubeUrl}`);
     }
 
     console.log("📹 Video ID:", videoId);
