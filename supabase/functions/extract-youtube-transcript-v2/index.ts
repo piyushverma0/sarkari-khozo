@@ -253,7 +253,7 @@ async function processTranscriptWithClaude(
   summary: string;
   keyPoints: string[];
   topics: string[];
-  structuredContent: string;
+  structuredContent: any; // JSON object with sections array
 }> {
   console.log("📝 Processing transcript with Claude Sonnet 4.5...");
 
@@ -271,7 +271,7 @@ async function processTranscriptWithClaude(
         messages: [
           {
             role: "user",
-            content: `You are an expert study notes generator for Indian students preparing for school, college, government exams and competitive tests. Process this YouTube video transcript and create comprehensive study notes in simple understandable language for students.
+            content: `You are an expert study notes generator for Indian students preparing for school, college, government exams and competitive tests. Process this YouTube video transcript and create comprehensive study notes.
 
 ${
   metadata
@@ -284,42 +284,33 @@ ${metadata.chapters && metadata.chapters.length > 0 ? `\nChapters:\n${metadata.c
 Transcript:
 ${transcript.substring(0, 50000)} ${transcript.length > 50000 ? "...(truncated)" : ""}
 
-Please provide a clean, comprehensive study notes package in JSON format with these fields:
-
-1. **summary**: A detailed 3-5 paragraph summary covering all main points (keep each paragraph under 4 lines)
-2. **keyPoints**: Array of 8-12 most important bullet points/concepts
-3. **topics**: Array of relevant tags/keywords (e.g., ["Current Affairs", "Economics", "Government Schemes"])
-4. **structuredContent**: Markdown-formatted notes with clear sections, subsections, and bullet points
-
-MARKDOWN FORMATTING RULES for structuredContent:
-1. **Paragraph Length**: NO paragraph should exceed 4 lines (~320 characters)
-   - If content is longer, break into multiple short paragraphs OR convert to bullet points
-   - Use bullet lists for 3+ related items
-2. **Use Rich Markdown**:
-   - Headings: Use ## for sections, ### for subsections
-   - Bold: Use **text** for important terms, numbers, dates
-   - Italic: Use *text* for emphasis or definitions
-   - Code: Use \`text\` for specific codes, numbers, IDs
-   - Highlights: Use ==text== for critical information
-   - Lists: Use bullet points (- or •) extensively
-3. **Visual Clarity**:
-   - Add blank lines between paragraphs
-   - Bold all important numbers, dates, fees, ages
-   - Highlight deadlines and urgent info with ==text==
-4. **Example**:
-   BAD: "This video discusses the UPSC exam which has three stages including prelims, mains and interview and the age limit is 21-32 years with relaxation for OBC and SC/ST candidates and the application fee is Rs. 100."
-   GOOD: "**UPSC Exam Overview:**\\n\\nThe exam has **3 stages:**\\n- Prelims (objective)\\n- Mains (descriptive)\\n- Interview (personality test)\\n\\n**Eligibility:**\\n- Age: **21-32 years**\\n- Relaxation for OBC/SC/ST\\n- Fee: **Rs. 100**"
-
-Format your response as valid JSON:
+Return VALID JSON with this EXACT structure:
 {
-  "summary": "comprehensive summary here with short paragraphs...",
+  "summary": "3-5 paragraph detailed summary",
   "keyPoints": ["point 1", "point 2", ...],
-  "topics": ["topic 1", "topic 2", ...],
-  "structuredContent": "## Main Topic\\n\\nShort intro paragraph (2-3 lines).\\n\\n### Section 1\\n\\n**Key Point:** Brief explanation.\\n\\n- Bullet point A\\n- Bullet point B\\n\\n### Section 2..."
+  "topics": ["topic1", "topic2", ...],
+  "structuredContent": {
+    "sections": [
+      {
+        "title": "Main Section Title",
+        "content": "Markdown content for this section. Use **bold** for important terms, bullet points for lists, and keep paragraphs under 4 lines."
+      },
+      {
+        "title": "Another Section",
+        "content": "More markdown content here..."
+      }
+    ]
+  }
 }
 
-Language preference: ${language === "en" ? "English" : language}
-Focus: Make it useful for exam preparation with clear, scannable formatting`,
+IMPORTANT RULES:
+1. Return ONLY valid JSON, no extra text
+2. structuredContent MUST have "sections" array
+3. Each section MUST have "title" and "content"
+4. Use markdown in content: **bold**, *italic*, bullet points (-)
+5. Keep paragraphs under 4 lines
+6. Include 8-12 key points
+7. Language: ${language === "en" ? "English" : language}`,
           },
         ],
       }),
@@ -334,22 +325,47 @@ Focus: Make it useful for exam preparation with clear, scannable formatting`,
     const responseText = result.content && result.content[0] && result.content[0].text ? result.content[0].text : "{}";
 
     try {
-      // Try to parse JSON response
+      // Parse JSON response
       const parsed = JSON.parse(responseText);
+
+      // Validate structuredContent has the right format
+      if (
+        !parsed.structuredContent ||
+        !parsed.structuredContent.sections ||
+        !Array.isArray(parsed.structuredContent.sections)
+      ) {
+        console.log("⚠️ structuredContent missing or invalid, creating fallback structure");
+        parsed.structuredContent = {
+          sections: [
+            {
+              title: "Content",
+              content: parsed.structuredContent || responseText,
+            },
+          ],
+        };
+      }
+
       return {
         summary: parsed.summary || responseText,
         keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints : [],
         topics: Array.isArray(parsed.topics) ? parsed.topics : [],
-        structuredContent: parsed.structuredContent || responseText,
+        structuredContent: parsed.structuredContent,
       };
     } catch (parseError) {
-      // If JSON parsing fails, return text as summary
-      console.log("Claude response was not JSON, using as raw text");
+      // If JSON parsing fails, create minimal structure
+      console.log("❌ Claude response was not valid JSON, creating fallback structure");
       return {
-        summary: responseText,
+        summary: responseText.substring(0, 2000),
         keyPoints: [],
         topics: [],
-        structuredContent: responseText,
+        structuredContent: {
+          sections: [
+            {
+              title: "Content",
+              content: responseText,
+            },
+          ],
+        },
       };
     }
   } catch (error) {
@@ -359,7 +375,14 @@ Focus: Make it useful for exam preparation with clear, scannable formatting`,
       summary: transcript.substring(0, 1000) + "...",
       keyPoints: [],
       topics: [],
-      structuredContent: transcript,
+      structuredContent: {
+        sections: [
+          {
+            title: "Raw Content",
+            content: transcript,
+          },
+        ],
+      },
     };
   }
 }
@@ -440,7 +463,7 @@ serve(async (req) => {
         console.log("✅ Extracted YouTube URL from storage:", youtubeUrl);
       } catch (error) {
         console.error("❌ Error fetching from storage:", error);
-        throw new Error(`Failed to retrieve YouTube URL from storage: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(`Failed to retrieve YouTube URL from storage: ${error.message}`);
       }
     }
 
@@ -566,15 +589,13 @@ serve(async (req) => {
     console.log("✅ Claude processing complete");
 
     // Update progress: Finalizing
-    // Note: structured_content expects a JSON object with sections array, not a string
-    // We save the markdown to raw_content and leave structured_content as null for now
+    // Save structured content as JSON object with sections array
     const { error: updateError } = await supabase
       .from("study_notes")
       .update({
         processing_progress: 85,
         summary: processed.summary,
-        raw_content: processed.structuredContent, // Save markdown to raw_content
-        structured_content: null, // Leave null since we don't have proper sections structure
+        structured_content: processed.structuredContent, // JSON object with sections
         tags: processed.topics,
       })
       .eq("id", note_id);
