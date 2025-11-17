@@ -370,8 +370,11 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  let note_id: string | undefined;
+
   try {
-    const { note_id, source_url, language } = await req.json();
+    const { note_id: noteIdFromBody, source_url, language } = await req.json();
+    note_id = noteIdFromBody;
 
     if (!note_id || !source_url) {
       return new Response(JSON.stringify({ error: "note_id and source_url are required" }), {
@@ -437,7 +440,7 @@ serve(async (req) => {
         console.log("✅ Extracted YouTube URL from storage:", youtubeUrl);
       } catch (error) {
         console.error("❌ Error fetching from storage:", error);
-        throw new Error(`Failed to retrieve YouTube URL from storage: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(`Failed to retrieve YouTube URL from storage: ${error.message}`);
       }
     }
 
@@ -563,7 +566,7 @@ serve(async (req) => {
     console.log("✅ Claude processing complete");
 
     // Update progress: Finalizing
-    await supabase
+    const { error: updateError } = await supabase
       .from("study_notes")
       .update({
         processing_progress: 85,
@@ -573,14 +576,24 @@ serve(async (req) => {
       })
       .eq("id", note_id);
 
+    if (updateError) {
+      console.error("❌ Failed to save processed data:", updateError);
+      throw new Error(`Database update failed: ${updateError.message}`);
+    }
+
     // Mark as complete
-    await supabase
+    const { error: completeError } = await supabase
       .from("study_notes")
       .update({
         processing_status: "completed",
         processing_progress: 100,
       })
       .eq("id", note_id);
+
+    if (completeError) {
+      console.error("❌ Failed to mark note as completed:", completeError);
+      throw new Error(`Failed to mark as completed: ${completeError.message}`);
+    }
 
     console.log("✅ Processing complete for note:", note_id);
 
@@ -613,12 +626,11 @@ serve(async (req) => {
     console.error("❌ Error in extract-youtube-transcript-v2:", error);
 
     // Update note status to failed
-    try {
-      const { note_id } = await req.json();
-      if (note_id) {
+    if (note_id) {
+      try {
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-        await supabase
+        const { error: updateError } = await supabase
           .from("study_notes")
           .update({
             processing_status: "failed",
@@ -626,9 +638,13 @@ serve(async (req) => {
             processing_progress: 0,
           })
           .eq("id", note_id);
+
+        if (updateError) {
+          console.error("Failed to update error status:", updateError);
+        }
+      } catch (e) {
+        console.error("Failed to update error status:", e);
       }
-    } catch (e) {
-      console.error("Failed to update error status:", e);
     }
 
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "An error occurred" }), {
