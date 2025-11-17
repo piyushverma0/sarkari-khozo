@@ -440,7 +440,7 @@ serve(async (req) => {
         console.log("✅ Extracted YouTube URL from storage:", youtubeUrl);
       } catch (error) {
         console.error("❌ Error fetching from storage:", error);
-        throw new Error(`Failed to retrieve YouTube URL from storage: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(`Failed to retrieve YouTube URL from storage: ${error.message}`);
       }
     }
 
@@ -566,12 +566,15 @@ serve(async (req) => {
     console.log("✅ Claude processing complete");
 
     // Update progress: Finalizing
+    // Note: structured_content expects a JSON object with sections array, not a string
+    // We save the markdown to raw_content and leave structured_content as null for now
     const { error: updateError } = await supabase
       .from("study_notes")
       .update({
         processing_progress: 85,
         summary: processed.summary,
-        structured_content: processed.structuredContent,
+        raw_content: processed.structuredContent, // Save markdown to raw_content
+        structured_content: null, // Leave null since we don't have proper sections structure
         tags: processed.topics,
       })
       .eq("id", note_id);
