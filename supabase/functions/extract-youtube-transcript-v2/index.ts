@@ -157,12 +157,24 @@ function extractChaptersFromDescription(description: string): Array<{ time: stri
 
 // Fallback: Fetch transcript using YouTube's timedtext API
 async function fetchTranscriptFromTimedtext(videoId: string, languageCode: string = "en"): Promise<string> {
-  const langCodes = [languageCode, "en", "hi", "auto"];
+  console.log(`🔍 [TIMEDTEXT] Starting transcript extraction for video: ${videoId}`);
+  console.log(`🔍 [TIMEDTEXT] User preferred language: ${languageCode}`);
+
+  // Prioritize Hindi if user language is Hindi, otherwise prioritize English
+  const langCodes =
+    languageCode === "hi" || languageCode === "hindi"
+      ? ["hi", "hi-IN", "en", "en-US", "auto"]
+      : ["en", "en-US", languageCode, "hi", "hi-IN", "auto"];
+
+  console.log(`🔍 [TIMEDTEXT] Will try language codes in order:`, langCodes);
 
   for (const lang of langCodes) {
     try {
+      console.log(`🔍 [TIMEDTEXT] Attempting to fetch transcript in language: ${lang}`);
       const transcriptUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=json3`;
       const response = await fetch(transcriptUrl);
+
+      console.log(`🔍 [TIMEDTEXT] Response status for ${lang}:`, response.status);
 
       if (response.ok) {
         const data = await response.json();
@@ -174,23 +186,78 @@ async function fetchTranscriptFromTimedtext(videoId: string, languageCode: strin
             .join(" ");
 
           if (transcript.trim()) {
-            console.log(`✅ Transcript found via timedtext in language: ${lang}`);
+            console.log(`✅ [TIMEDTEXT] Success! Transcript found in language: ${lang}`);
+            console.log(`✅ [TIMEDTEXT] Transcript length: ${transcript.length} characters`);
+            console.log(`✅ [TIMEDTEXT] Preview (first 200 chars):`, transcript.substring(0, 200));
             return transcript;
+          } else {
+            console.log(`⚠️ [TIMEDTEXT] Empty transcript received for language: ${lang}`);
           }
+        } else {
+          console.log(`⚠️ [TIMEDTEXT] No events array in response for language: ${lang}`);
         }
       }
     } catch (err) {
-      console.log(`Failed to fetch timedtext for lang ${lang}:`, err instanceof Error ? err.message : String(err));
+      console.log(`❌ [TIMEDTEXT] Failed to fetch for lang ${lang}:`, err instanceof Error ? err.message : String(err));
       continue;
     }
   }
 
+  console.error(`❌ [TIMEDTEXT] All language attempts failed. No transcript available.`);
   throw new Error("No transcript available via timedtext");
+}
+
+// Step 3: Validate transcript content
+function isValidTranscript(text: string): { valid: boolean; reason?: string } {
+  console.log(`🔍 [VALIDATION] Validating transcript, length: ${text.length}`);
+
+  // Check 1: Minimum length
+  if (text.length < 100) {
+    console.log(`❌ [VALIDATION] Failed - too short (${text.length} < 100)`);
+    return { valid: false, reason: "Transcript too short (less than 100 characters)" };
+  }
+
+  // Check 2: Not an error message
+  const errorKeywords = [
+    "could not",
+    "cannot",
+    "error",
+    "failed to",
+    "unable to",
+    "not available",
+    "access denied",
+    "no transcript",
+  ];
+
+  const lowerText = text.toLowerCase();
+  for (const keyword of errorKeywords) {
+    if (lowerText.includes(keyword)) {
+      console.log(`❌ [VALIDATION] Failed - contains error keyword: "${keyword}"`);
+      return { valid: false, reason: `Transcript contains error message: "${keyword}"` };
+    }
+  }
+
+  // Check 3: Not HTML/XML
+  if (text.trim().startsWith("<")) {
+    console.log(`❌ [VALIDATION] Failed - appears to be HTML/XML`);
+    return { valid: false, reason: "Transcript appears to be HTML/XML" };
+  }
+
+  // Check 4: Not just JSON error response
+  if (text.trim().startsWith("{") && (lowerText.includes("error") || lowerText.includes("message"))) {
+    console.log(`❌ [VALIDATION] Failed - appears to be JSON error response`);
+    return { valid: false, reason: "Transcript appears to be a JSON error response" };
+  }
+
+  console.log(`✅ [VALIDATION] Transcript is valid`);
+  console.log(`✅ [VALIDATION] Preview (first 200 chars):`, text.substring(0, 200));
+  return { valid: true };
 }
 
 // Ultimate fallback: Use Claude with Web Capability
 async function fetchTranscriptWithClaudeWeb(videoUrl: string, metadata: VideoMetadata | null): Promise<string> {
-  console.log("🤖 Using Claude Sonnet 4.5 with web capability to extract transcript...");
+  console.log("🌐 [CLAUDE_WEB] Using Claude Sonnet 4.5 with web capability to extract transcript...");
+  console.log("🌐 [CLAUDE_WEB] Video URL:", videoUrl);
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -232,14 +299,21 @@ Return ONLY the transcript text or summary, without any additional commentary.`,
     const result = await response.json();
     const transcriptText = result.content && result.content[0] && result.content[0].text ? result.content[0].text : "";
 
+    console.log(`🌐 [CLAUDE_WEB] Received response, length: ${transcriptText.length}`);
+    console.log(`🌐 [CLAUDE_WEB] Preview (first 200 chars):`, transcriptText.substring(0, 200));
+
     if (!transcriptText || transcriptText.length < 100) {
+      console.log(`❌ [CLAUDE_WEB] Insufficient content received`);
       throw new Error("Claude web extraction returned insufficient content");
     }
 
-    console.log("✅ Transcript extracted using Claude web capability");
+    console.log("✅ [CLAUDE_WEB] Transcript extracted using Claude web capability");
     return transcriptText;
   } catch (error) {
-    console.error("Claude web extraction failed:", error instanceof Error ? error.message : String(error));
+    console.error(
+      "❌ [CLAUDE_WEB] Claude web extraction failed:",
+      error instanceof Error ? error.message : String(error),
+    );
     throw error;
   }
 }
@@ -463,7 +537,7 @@ serve(async (req) => {
         console.log("✅ Extracted YouTube URL from storage:", youtubeUrl);
       } catch (error) {
         console.error("❌ Error fetching from storage:", error);
-        throw new Error(`Failed to retrieve YouTube URL from storage: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(`Failed to retrieve YouTube URL from storage: ${error.message}`);
       }
     }
 
@@ -530,36 +604,68 @@ serve(async (req) => {
       .eq("id", note_id);
 
     // Step 3: Fetch transcript (triple fallback strategy)
+    console.log(`📥 [EXTRACTION] Starting transcript extraction for video: ${videoId}`);
     let transcript: string;
     let extractionMethod: string;
 
     try {
       // Method 1: Try timedtext API (most reliable free method)
+      console.log(`📥 [EXTRACTION] Attempting Method 1: Timedtext API`);
       transcript = await fetchTranscriptFromTimedtext(videoId, language);
       extractionMethod = "timedtext";
+      console.log(`✅ [EXTRACTION] Method 1 succeeded: Timedtext API`);
     } catch (timedtextError) {
       console.log(
-        "Timedtext extraction failed:",
+        "⚠️ [EXTRACTION] Method 1 failed - Timedtext extraction:",
         timedtextError instanceof Error ? timedtextError.message : String(timedtextError),
       );
 
       try {
         // Method 2: Ultimate fallback - Claude with web capability
-        transcript = await fetchTranscriptWithClaudeWeb(source_url, metadata);
+        console.log(`📥 [EXTRACTION] Attempting Method 2: Claude Web Capability`);
+        transcript = await fetchTranscriptWithClaudeWeb(youtubeUrl, metadata);
         extractionMethod = "claude_web";
+        console.log(`✅ [EXTRACTION] Method 2 succeeded: Claude Web Capability`);
       } catch (claudeError) {
-        console.error("All extraction methods failed");
-        throw new Error(
-          `Could not extract transcript: Timedtext failed (${timedtextError instanceof Error ? timedtextError.message : String(timedtextError)}), Claude web failed (${claudeError instanceof Error ? claudeError.message : String(claudeError)})`,
-        );
+        console.error("❌ [EXTRACTION] All extraction methods failed");
+
+        // Step 4: Better error handling - fail with clear message
+        const errorMessage = `Could not extract captions from this video. The video may not have captions available in Hindi or English. Please try a different video or enable captions on YouTube.`;
+
+        await supabase
+          .from("study_notes")
+          .update({
+            processing_status: "failed",
+            processing_error: errorMessage,
+            processing_progress: 0,
+          })
+          .eq("id", note_id);
+
+        throw new Error(errorMessage);
       }
     }
 
-    if (!transcript || transcript.trim().length < 50) {
-      throw new Error("Extracted transcript is too short or empty");
+    // Step 3: Validate transcript before processing
+    const validation = isValidTranscript(transcript);
+    if (!validation.valid) {
+      console.error(`❌ [EXTRACTION] Transcript validation failed: ${validation.reason}`);
+
+      const errorMessage = `Extracted content is invalid: ${validation.reason}. Please try a different video.`;
+
+      await supabase
+        .from("study_notes")
+        .update({
+          processing_status: "failed",
+          processing_error: errorMessage,
+          processing_progress: 0,
+        })
+        .eq("id", note_id);
+
+      throw new Error(errorMessage);
     }
 
-    console.log(`✅ Transcript extracted via ${extractionMethod}, length: ${transcript.length} characters`);
+    console.log(`✅ [EXTRACTION] Transcript successfully extracted and validated via ${extractionMethod}`);
+    console.log(`✅ [EXTRACTION] Transcript length: ${transcript.length} characters`);
 
     // Calculate word count and reading time
     const wordCount = transcript.split(/\s+/).filter((w) => w.length > 0).length;
