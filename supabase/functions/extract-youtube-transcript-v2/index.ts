@@ -402,17 +402,42 @@ serve(async (req) => {
     if (source_url.includes("/storage/v1/object/")) {
       console.log("📦 Detected storage URL, fetching YouTube URL from storage...");
       try {
-        const storageResponse = await fetch(source_url);
-        if (storageResponse.ok) {
-          youtubeUrl = await storageResponse.text();
-          youtubeUrl = youtubeUrl.trim();
-          console.log("✅ Extracted YouTube URL from storage:", youtubeUrl);
-        } else {
-          throw new Error(`Failed to fetch content from storage: ${storageResponse.statusText}`);
+        // Parse the storage URL to extract bucket and path
+        // URL format: https://.../storage/v1/object/public/{bucket}/{path}
+        const urlParts = source_url.split("/storage/v1/object/");
+        if (urlParts.length < 2) {
+          throw new Error("Invalid storage URL format");
         }
+
+        const afterStorage = urlParts[1];
+        // Remove 'public/' or 'authenticated/' prefix if present
+        const pathWithoutPrefix = afterStorage.replace(/^(public|authenticated)\//, "");
+
+        // Extract bucket and file path
+        const pathParts = pathWithoutPrefix.split("/");
+        const bucket = pathParts[0];
+        const filePath = pathParts.slice(1).join("/");
+
+        console.log(`📥 Downloading from bucket: ${bucket}, path: ${filePath}`);
+
+        // Use Supabase Storage API to download the file
+        const { data, error } = await supabase.storage.from(bucket).download(filePath);
+
+        if (error) {
+          throw new Error(`Storage download error: ${error.message}`);
+        }
+
+        if (!data) {
+          throw new Error("No data received from storage");
+        }
+
+        // Convert Blob to text
+        youtubeUrl = await data.text();
+        youtubeUrl = youtubeUrl.trim();
+        console.log("✅ Extracted YouTube URL from storage:", youtubeUrl);
       } catch (error) {
         console.error("❌ Error fetching from storage:", error);
-        throw new Error("Failed to retrieve YouTube URL from storage");
+        throw new Error(`Failed to retrieve YouTube URL from storage: ${error.message}`);
       }
     }
 
