@@ -28,18 +28,62 @@ interface VideoMetadata {
 }
 
 // Extract video ID from YouTube URL
-function extractVideoId(url: string): string | null {
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
-    /youtube\.com\/embed\/([^&\n?#]+)/,
-    /youtube\.com\/v\/([^&\n?#]+)/,
-  ];
+// Handles all YouTube URL formats including URLs with extra parameters like &si=, &t=, etc.
 
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match && match[1]) {
-      return match[1];
-    }
+function extractVideoId(url: string): string | null {
+  // Remove whitespace
+
+  url = url.trim();
+
+  // Pattern 1: youtube.com/watch?v=VIDEO_ID (with or without other params like &si=, &t=, etc.)
+
+  // Matches exactly 11 characters after v=
+
+  let match = url.match(/[?&]v=([a-zA-Z0-9_-]{11})(?:[&/#]|$)/);
+
+  if (match && match[1]) {
+    return match[1];
+  }
+
+  // Pattern 2: youtu.be/VIDEO_ID (short URL format)
+
+  match = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})(?:[?&#/]|$)/);
+
+  if (match && match[1]) {
+    return match[1];
+  }
+
+  // Pattern 3: youtube.com/embed/VIDEO_ID
+
+  match = url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})(?:[?&#/]|$)/);
+
+  if (match && match[1]) {
+    return match[1];
+  }
+
+  // Pattern 4: youtube.com/v/VIDEO_ID
+
+  match = url.match(/youtube\.com\/v\/([a-zA-Z0-9_-]{11})(?:[?&#/]|$)/);
+
+  if (match && match[1]) {
+    return match[1];
+  }
+
+  // Pattern 5: youtube.com/shorts/VIDEO_ID
+
+  match = url.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})(?:[?&#/]|$)/);
+
+  if (match && match[1]) {
+    return match[1];
+  }
+
+  // Pattern 6: Fallback - try to extract any 11-character video ID
+
+  // This catches edge cases where the URL format might be slightly different
+
+  match = url.match(/[?&/]([a-zA-Z0-9_-]{11})(?:[?&#/]|$)/);
+  if (match && match[1]) {
+    return match[1];
   }
 
   return null;
