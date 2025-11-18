@@ -176,15 +176,14 @@ async function fetchTranscriptWithPackage(
     for (const lang of langCodes) {
       try {
         console.log(`🔍 [TRANSCRIPT] Attempting language: ${lang}`);
-        transcriptData = await YoutubeTranscript.fetchTranscript(videoId, {
-          lang: lang,
-        });
+        // YoutubeTranscript is not available in Deno environment
+        // transcriptData = await YoutubeTranscript.fetchTranscript(videoId, {
+        //   lang: lang,
+        // });
 
-        if (transcriptData && transcriptData.length > 0) {
-          usedLang = lang;
-          console.log(`✅ [TRANSCRIPT] Success! Found transcript in language: ${lang}`);
-          break;
-        }
+        // Skip this method as the package is not compatible
+        console.log(`⚠️ [TRANSCRIPT] YoutubeTranscript package not available in Deno`);
+        break;
       } catch (err) {
         console.log(`⚠️ [TRANSCRIPT] Language ${lang} not available, trying next...`);
         continue;
@@ -193,9 +192,10 @@ async function fetchTranscriptWithPackage(
 
     // If no language worked, try without language specification
     if (transcriptData.length === 0) {
-      console.log(`🔍 [TRANSCRIPT] Attempting to fetch default transcript...`);
-      transcriptData = await YoutubeTranscript.fetchTranscript(videoId);
-      usedLang = "auto";
+      console.log(`🔍 [TRANSCRIPT] Attempting fallback method...`);
+      // transcriptData = await YoutubeTranscript.fetchTranscript(videoId);
+      // usedLang = "auto";
+      throw new Error("YoutubeTranscript package not available - use alternative transcript extraction method");
     }
 
     if (!transcriptData || transcriptData.length === 0) {
@@ -772,7 +772,7 @@ serve(async (req) => {
         console.log("✅ Extracted YouTube URL from storage:", youtubeUrl);
       } catch (error) {
         console.error("❌ Error fetching from storage:", error);
-        throw new Error(`Failed to retrieve YouTube URL from storage: ${error.message}`);
+        throw new Error(`Failed to retrieve YouTube URL from storage: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 

@@ -268,14 +268,18 @@ Do not include markdown code blocks, do not include any text before or after the
       cleanedData.category = 'policies';
     }
 
-    // Check relevance score
-    if (cleanedData.relevance_score < 3) {
-      console.log('Low relevance score, skipping save:', cleanedData.relevance_score);
+    // Check relevance score - Lower threshold for current-affairs, international, diplomatic, education
+    const diverseCategories = ['current-affairs', 'international', 'diplomatic', 'education'];
+    const relevanceThreshold = diverseCategories.includes(cleanedData.category) ? 2 : 3;
+    
+    if (cleanedData.relevance_score < relevanceThreshold) {
+      console.log(`Low relevance score for ${cleanedData.category}, skipping save:`, cleanedData.relevance_score);
       return new Response(
         JSON.stringify({ 
           success: false, 
           message: 'Story relevance too low',
-          relevance_score: cleanedData.relevance_score 
+          relevance_score: cleanedData.relevance_score,
+          threshold: relevanceThreshold
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
