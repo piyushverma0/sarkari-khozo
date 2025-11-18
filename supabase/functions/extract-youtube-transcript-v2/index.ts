@@ -155,67 +155,154 @@ function extractChaptersFromDescription(description: string): Array<{ time: stri
   return chapters;
 }
 
+// Get available caption tracks for a video
+async function getAvailableCaptionTracks(videoId: string): Promise<Array<{ lang: string; name: string; url: string }>> {
+  console.log(`🔍 [CAPTIONS] Fetching available caption tracks for video: ${videoId}`);
+
+  try {
+    // Fetch the video page to extract caption track information
+    const videoPageUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    const response = await fetch(videoPageUrl);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch video page: ${response.status}`);
+    }
+
+    const html = await response.text();
+
+    // Extract captionTracks from the page source
+    // Look for "captionTracks" in the ytInitialPlayerResponse
+    const captionTracksMatch = html.match(/"captionTracks":(\[.*?\])/);
+
+    if (!captionTracksMatch) {
+      console.log(`⚠️ [CAPTIONS] No caption tracks found in video page`);
+      return [];
+    }
+
+    const captionTracks = JSON.parse(captionTracksMatch[1]);
+    console.log(`✅ [CAPTIONS] Found ${captionTracks.length} caption tracks`);
+
+    return captionTracks.map((track: any) => ({
+      lang: track.languageCode,
+      name: track.name?.simpleText || track.languageCode,
+      url: track.baseUrl,
+    }));
+  } catch (error) {
+    console.log(
+      `❌ [CAPTIONS] Failed to fetch caption tracks:`,
+      error instanceof Error ? error.message : String(error),
+    );
+    return [];
+  }
+}
+
 // Fallback: Fetch transcript using YouTube's timedtext API
 async function fetchTranscriptFromTimedtext(videoId: string, languageCode: string = "en"): Promise<string> {
   console.log(`🔍 [TIMEDTEXT] Starting transcript extraction for video: ${videoId}`);
   console.log(`🔍 [TIMEDTEXT] User preferred language: ${languageCode}`);
 
-  // Prioritize Hindi if user language is Hindi, otherwise prioritize English
+  // First, try to get available caption tracks
+  const captionTracks = await getAvailableCaptionTracks(videoId);
+
+  if (captionTracks.length > 0) {
+    console.log(
+      `🔍 [TIMEDTEXT] Available caption tracks:`,
+      captionTracks.map((t) => `${t.lang} (${t.name})`),
+    );
+
+    // Prioritize based on user language preference
+    const preferredLangs =
+      languageCode === "hi" || languageCode === "hindi"
+        ? ["hi", "hi-IN", "en", "en-US"]
+        : ["en", "en-US", languageCode, "hi", "hi-IN"];
+
+    // Try to find a matching caption track
+    for (const prefLang of preferredLangs) {
+      const track = captionTracks.find((t) => t.lang === prefLang || t.lang.startsWith(prefLang + "-"));
+
+      if (track) {
+        console.log(`🔍 [TIMEDTEXT] Using caption track: ${track.lang} (${track.name})`);
+        console.log(`🔍 [TIMEDTEXT] Caption URL: ${track.url.substring(0, 100)}...`);
+
+        try {
+          // Fetch the captions using the direct URL with json3 format
+          const captionUrl = track.url + "&fmt=json3";
+          const response = await fetch(captionUrl);
+
+          if (response.ok) {
+            const responseText = await response.text();
+            console.log(`🔍 [TIMEDTEXT] Response length: ${responseText.length}`);
+
+            if (responseText && responseText.trim().length > 0) {
+              const data = JSON.parse(responseText);
+
+              if (data.events && Array.isArray(data.events)) {
+                const transcript = data.events
+                  .filter((event: any) => event.segs)
+                  .map((event: any) => event.segs.map((seg: any) => seg.utf8).join(""))
+                  .join(" ");
+
+                if (transcript.trim()) {
+                  console.log(`✅ [TIMEDTEXT] Success! Transcript extracted`);
+                  console.log(`✅ [TIMEDTEXT] Length: ${transcript.length} characters`);
+                  console.log(`✅ [TIMEDTEXT] Preview: ${transcript.substring(0, 200)}`);
+                  return transcript;
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.log(
+            `❌ [TIMEDTEXT] Failed to fetch caption track ${track.lang}:`,
+            err instanceof Error ? err.message : String(err),
+          );
+          continue;
+        }
+      }
+    }
+  }
+
+  // Fallback to old method if caption tracks not found
+  console.log(`🔍 [TIMEDTEXT] Trying fallback method with direct timedtext API`);
+
   const langCodes =
     languageCode === "hi" || languageCode === "hindi"
       ? ["hi", "hi-IN", "en", "en-US", "auto"]
       : ["en", "en-US", languageCode, "hi", "hi-IN", "auto"];
 
-  console.log(`🔍 [TIMEDTEXT] Will try language codes in order:`, langCodes);
-
   for (const lang of langCodes) {
     try {
-      console.log(`🔍 [TIMEDTEXT] Attempting to fetch transcript in language: ${lang}`);
+      console.log(`🔍 [TIMEDTEXT] Attempting language: ${lang}`);
       const transcriptUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=json3`;
       const response = await fetch(transcriptUrl);
 
-      console.log(`🔍 [TIMEDTEXT] Response status for ${lang}:`, response.status);
-
       if (response.ok) {
-        // Get response text first to check if it's empty
         const responseText = await response.text();
-        console.log(`🔍 [TIMEDTEXT] Response length for ${lang}:`, responseText.length);
 
-        if (!responseText || responseText.trim().length === 0) {
-          console.log(`⚠️ [TIMEDTEXT] Empty response for language: ${lang}`);
-          continue;
-        }
+        if (responseText && responseText.trim().length > 0) {
+          const data = JSON.parse(responseText);
 
-        // Try to parse the JSON
-        const data = JSON.parse(responseText);
+          if (data.events && Array.isArray(data.events)) {
+            const transcript = data.events
+              .filter((event: any) => event.segs)
+              .map((event: any) => event.segs.map((seg: any) => seg.utf8).join(""))
+              .join(" ");
 
-        if (data.events && Array.isArray(data.events)) {
-          const transcript = data.events
-            .filter((event: any) => event.segs)
-            .map((event: any) => event.segs.map((seg: any) => seg.utf8).join(""))
-            .join(" ");
-
-          if (transcript.trim()) {
-            console.log(`✅ [TIMEDTEXT] Success! Transcript found in language: ${lang}`);
-            console.log(`✅ [TIMEDTEXT] Transcript length: ${transcript.length} characters`);
-            console.log(`✅ [TIMEDTEXT] Preview (first 200 chars):`, transcript.substring(0, 200));
-            return transcript;
-          } else {
-            console.log(`⚠️ [TIMEDTEXT] Empty transcript received for language: ${lang}`);
+            if (transcript.trim()) {
+              console.log(`✅ [TIMEDTEXT] Success with fallback method! Language: ${lang}`);
+              console.log(`✅ [TIMEDTEXT] Length: ${transcript.length} characters`);
+              return transcript;
+            }
           }
-        } else {
-          console.log(`⚠️ [TIMEDTEXT] No events array in response for language: ${lang}`);
         }
-      } else {
-        console.log(`⚠️ [TIMEDTEXT] Non-OK response status ${response.status} for language: ${lang}`);
       }
     } catch (err) {
-      console.log(`❌ [TIMEDTEXT] Failed to fetch for lang ${lang}:`, err instanceof Error ? err.message : String(err));
+      console.log(`❌ [TIMEDTEXT] Fallback failed for ${lang}:`, err instanceof Error ? err.message : String(err));
       continue;
     }
   }
 
-  console.error(`❌ [TIMEDTEXT] All language attempts failed. No transcript available.`);
+  console.error(`❌ [TIMEDTEXT] All extraction attempts failed`);
   throw new Error("No transcript available via timedtext");
 }
 
@@ -266,61 +353,72 @@ function isValidTranscript(text: string): { valid: boolean; reason?: string } {
   return { valid: true };
 }
 
-// Ultimate fallback: Use Claude with Web Capability
-async function fetchTranscriptWithClaudeWeb(videoUrl: string, metadata: VideoMetadata | null): Promise<string> {
-  console.log("🌐 [CLAUDE_WEB] Using Claude Sonnet 4.5 with web capability to extract transcript...");
-  console.log("🌐 [CLAUDE_WEB] Video URL:", videoUrl);
+// Ultimate fallback: Use Claude to create notes from available metadata
+async function fetchTranscriptWithClaudeFallback(videoUrl: string, metadata: VideoMetadata | null): Promise<string> {
+  console.log("🌐 [CLAUDE_FALLBACK] Using Claude to generate content from available metadata...");
+  console.log("🌐 [CLAUDE_FALLBACK] Video URL:", videoUrl);
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "anthropic-beta": "web-search-2025-01-21", // Enable web search capability
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5-20250929",
-        max_tokens: 4000,
-        web_search: {
-          enabled: true, // Enable web search
+    // If we have metadata with description, use that to create meaningful content
+    if (metadata && metadata.description && metadata.description.length > 200) {
+      console.log("🌐 [CLAUDE_FALLBACK] Using video metadata and description");
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
         },
-        messages: [
-          {
-            role: "user",
-            content: `Extract the full video transcript/captions from this YouTube video: ${videoUrl}
+        body: JSON.stringify({
+          model: "claude-sonnet-4-5-20250929",
+          max_tokens: 4000,
+          messages: [
+            {
+              role: "user",
+              content: `I have a YouTube video that doesn't have accessible captions. Please help me create comprehensive study notes based on the available information.
 
-Video Title: ${metadata?.title || "Unknown"}
-${metadata?.description ? `Description: ${metadata.description.substring(0, 300)}...` : ""}
+Video Title: ${metadata.title}
+Channel: ${metadata.channelTitle}
+Duration: ${metadata.duration}
+Published: ${metadata.publishedAt}
+Views: ${metadata.viewCount}
 
-Please find and extract the complete transcript/captions for this video. Return ONLY the transcript text without any additional commentary, explanations, or apologies.`,
-          },
-        ],
-      }),
-    });
+Description:
+${metadata.description}
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Claude API error: ${error}`);
+${metadata.chapters && metadata.chapters.length > 0 ? `\nVideo Chapters:\n${metadata.chapters.map((c) => `${c.time}: ${c.title}`).join("\n")}` : ""}
+
+${metadata.tags && metadata.tags.length > 0 ? `\nTags: ${metadata.tags.join(", ")}` : ""}
+
+Based on the title, description, and chapter information, please create detailed study notes. Explain what this video is likely about, the main topics it covers, and key concepts that students should understand. Make it educational and comprehensive.
+
+Return a detailed explanation of what this video covers (at least 500 words).`,
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Claude API error: ${error}`);
+      }
+
+      const result = await response.json();
+      const content = result.content && result.content[0] && result.content[0].text ? result.content[0].text : "";
+
+      console.log(`🌐 [CLAUDE_FALLBACK] Generated content from metadata, length: ${content.length}`);
+
+      if (content && content.length > 200) {
+        console.log("✅ [CLAUDE_FALLBACK] Successfully generated content from metadata");
+        return content;
+      }
     }
 
-    const result = await response.json();
-    const transcriptText = result.content && result.content[0] && result.content[0].text ? result.content[0].text : "";
-
-    console.log(`🌐 [CLAUDE_WEB] Received response, length: ${transcriptText.length}`);
-    console.log(`🌐 [CLAUDE_WEB] Preview (first 200 chars):`, transcriptText.substring(0, 200));
-
-    if (!transcriptText || transcriptText.length < 100) {
-      console.log(`❌ [CLAUDE_WEB] Insufficient content received`);
-      throw new Error("Claude web extraction returned insufficient content");
-    }
-
-    console.log("✅ [CLAUDE_WEB] Transcript extracted using Claude web capability");
-    return transcriptText;
+    throw new Error("Insufficient metadata to generate content");
   } catch (error) {
     console.error(
-      "❌ [CLAUDE_WEB] Claude web extraction failed:",
+      "❌ [CLAUDE_FALLBACK] Failed to generate content:",
       error instanceof Error ? error.message : String(error),
     );
     throw error;
@@ -546,7 +644,7 @@ serve(async (req) => {
         console.log("✅ Extracted YouTube URL from storage:", youtubeUrl);
       } catch (error) {
         console.error("❌ Error fetching from storage:", error);
-        throw new Error(`Failed to retrieve YouTube URL from storage: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(`Failed to retrieve YouTube URL from storage: ${error.message}`);
       }
     }
 
@@ -619,7 +717,7 @@ serve(async (req) => {
 
     try {
       // Method 1: Try timedtext API (most reliable free method)
-      console.log(`📥 [EXTRACTION] Attempting Method 1: Timedtext API`);
+      console.log(`📥 [EXTRACTION] Attempting Method 1: Timedtext API with caption track detection`);
       transcript = await fetchTranscriptFromTimedtext(videoId, language);
       extractionMethod = "timedtext";
       console.log(`✅ [EXTRACTION] Method 1 succeeded: Timedtext API`);
@@ -630,16 +728,21 @@ serve(async (req) => {
       );
 
       try {
-        // Method 2: Ultimate fallback - Claude with web capability
-        console.log(`📥 [EXTRACTION] Attempting Method 2: Claude Web Capability`);
-        transcript = await fetchTranscriptWithClaudeWeb(youtubeUrl, metadata);
-        extractionMethod = "claude_web";
-        console.log(`✅ [EXTRACTION] Method 2 succeeded: Claude Web Capability`);
+        // Method 2: Fallback - Use Claude with available metadata
+        console.log(`📥 [EXTRACTION] Attempting Method 2: Claude with metadata`);
+        transcript = await fetchTranscriptWithClaudeFallback(youtubeUrl, metadata);
+        extractionMethod = "claude_metadata";
+        console.log(`✅ [EXTRACTION] Method 2 succeeded: Generated content from metadata`);
       } catch (claudeError) {
         console.error("❌ [EXTRACTION] All extraction methods failed");
+        console.error(
+          "Timedtext error:",
+          timedtextError instanceof Error ? timedtextError.message : String(timedtextError),
+        );
+        console.error("Claude error:", claudeError instanceof Error ? claudeError.message : String(claudeError));
 
-        // Step 4: Better error handling - fail with clear message
-        const errorMessage = `Could not extract captions from this video. The video may not have captions available in Hindi or English. Please try a different video or enable captions on YouTube.`;
+        // Better error message based on what we tried
+        const errorMessage = `Could not extract captions from this video. The video may not have captions available in Hindi or English, or the captions may be disabled. Please try a different video with enabled captions.`;
 
         await supabase
           .from("study_notes")
