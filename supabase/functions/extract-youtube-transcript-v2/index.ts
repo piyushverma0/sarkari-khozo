@@ -1,8 +1,9 @@
 // Extract YouTube Transcript V2 - Enhanced with YouTube Data API V3 + Claude Sonnet 4.5
-// Triple fallback: YouTube API → Timedtext API → Claude with Web Capability
+// Uses youtube-transcript package + Claude for comprehensive study notes
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { YoutubeTranscript } from "https://esm.sh/youtube-transcript@1.0.6";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY"); // Optional, falls back if not set
@@ -155,155 +156,101 @@ function extractChaptersFromDescription(description: string): Array<{ time: stri
   return chapters;
 }
 
-// Get available caption tracks for a video
-async function getAvailableCaptionTracks(videoId: string): Promise<Array<{ lang: string; name: string; url: string }>> {
-  console.log(`🔍 [CAPTIONS] Fetching available caption tracks for video: ${videoId}`);
+// Primary method: Fetch transcript using youtube-transcript package
+async function fetchTranscriptWithPackage(
+  videoId: string,
+  languageCode: string = "en",
+): Promise<{ text: string; timestampedText: string; timestamps: Array<{ time: string; text: string }> }> {
+  console.log(`🔍 [TRANSCRIPT] Starting transcript extraction for video: ${videoId}`);
+  console.log(`🔍 [TRANSCRIPT] User preferred language: ${languageCode}`);
 
   try {
-    // Fetch the video page to extract caption track information
-    const videoPageUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    const response = await fetch(videoPageUrl);
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch video page: ${response.status}`);
-    }
-
-    const html = await response.text();
-
-    // Extract captionTracks from the page source
-    // Look for "captionTracks" in the ytInitialPlayerResponse
-    const captionTracksMatch = html.match(/"captionTracks":(\[.*?\])/);
-
-    if (!captionTracksMatch) {
-      console.log(`⚠️ [CAPTIONS] No caption tracks found in video page`);
-      return [];
-    }
-
-    const captionTracks = JSON.parse(captionTracksMatch[1]);
-    console.log(`✅ [CAPTIONS] Found ${captionTracks.length} caption tracks`);
-
-    return captionTracks.map((track: any) => ({
-      lang: track.languageCode,
-      name: track.name?.simpleText || track.languageCode,
-      url: track.baseUrl,
-    }));
-  } catch (error) {
-    console.log(
-      `❌ [CAPTIONS] Failed to fetch caption tracks:`,
-      error instanceof Error ? error.message : String(error),
-    );
-    return [];
-  }
-}
-
-// Fallback: Fetch transcript using YouTube's timedtext API
-async function fetchTranscriptFromTimedtext(videoId: string, languageCode: string = "en"): Promise<string> {
-  console.log(`🔍 [TIMEDTEXT] Starting transcript extraction for video: ${videoId}`);
-  console.log(`🔍 [TIMEDTEXT] User preferred language: ${languageCode}`);
-
-  // First, try to get available caption tracks
-  const captionTracks = await getAvailableCaptionTracks(videoId);
-
-  if (captionTracks.length > 0) {
-    console.log(
-      `🔍 [TIMEDTEXT] Available caption tracks:`,
-      captionTracks.map((t) => `${t.lang} (${t.name})`),
-    );
-
-    // Prioritize based on user language preference
-    const preferredLangs =
+    // Try to fetch transcript with language preference
+    const langCodes =
       languageCode === "hi" || languageCode === "hindi"
         ? ["hi", "hi-IN", "en", "en-US"]
         : ["en", "en-US", languageCode, "hi", "hi-IN"];
 
-    // Try to find a matching caption track
-    for (const prefLang of preferredLangs) {
-      const track = captionTracks.find((t) => t.lang === prefLang || t.lang.startsWith(prefLang + "-"));
+    let transcriptData: any[] = [];
+    let usedLang = "";
 
-      if (track) {
-        console.log(`🔍 [TIMEDTEXT] Using caption track: ${track.lang} (${track.name})`);
-        console.log(`🔍 [TIMEDTEXT] Caption URL: ${track.url.substring(0, 100)}...`);
+    for (const lang of langCodes) {
+      try {
+        console.log(`🔍 [TRANSCRIPT] Attempting language: ${lang}`);
+        transcriptData = await YoutubeTranscript.fetchTranscript(videoId, {
+          lang: lang,
+        });
 
-        try {
-          // Fetch the captions using the direct URL with json3 format
-          const captionUrl = track.url + "&fmt=json3";
-          const response = await fetch(captionUrl);
-
-          if (response.ok) {
-            const responseText = await response.text();
-            console.log(`🔍 [TIMEDTEXT] Response length: ${responseText.length}`);
-
-            if (responseText && responseText.trim().length > 0) {
-              const data = JSON.parse(responseText);
-
-              if (data.events && Array.isArray(data.events)) {
-                const transcript = data.events
-                  .filter((event: any) => event.segs)
-                  .map((event: any) => event.segs.map((seg: any) => seg.utf8).join(""))
-                  .join(" ");
-
-                if (transcript.trim()) {
-                  console.log(`✅ [TIMEDTEXT] Success! Transcript extracted`);
-                  console.log(`✅ [TIMEDTEXT] Length: ${transcript.length} characters`);
-                  console.log(`✅ [TIMEDTEXT] Preview: ${transcript.substring(0, 200)}`);
-                  return transcript;
-                }
-              }
-            }
-          }
-        } catch (err) {
-          console.log(
-            `❌ [TIMEDTEXT] Failed to fetch caption track ${track.lang}:`,
-            err instanceof Error ? err.message : String(err),
-          );
-          continue;
+        if (transcriptData && transcriptData.length > 0) {
+          usedLang = lang;
+          console.log(`✅ [TRANSCRIPT] Success! Found transcript in language: ${lang}`);
+          break;
         }
+      } catch (err) {
+        console.log(`⚠️ [TRANSCRIPT] Language ${lang} not available, trying next...`);
+        continue;
       }
     }
-  }
 
-  // Fallback to old method if caption tracks not found
-  console.log(`🔍 [TIMEDTEXT] Trying fallback method with direct timedtext API`);
-
-  const langCodes =
-    languageCode === "hi" || languageCode === "hindi"
-      ? ["hi", "hi-IN", "en", "en-US", "auto"]
-      : ["en", "en-US", languageCode, "hi", "hi-IN", "auto"];
-
-  for (const lang of langCodes) {
-    try {
-      console.log(`🔍 [TIMEDTEXT] Attempting language: ${lang}`);
-      const transcriptUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=json3`;
-      const response = await fetch(transcriptUrl);
-
-      if (response.ok) {
-        const responseText = await response.text();
-
-        if (responseText && responseText.trim().length > 0) {
-          const data = JSON.parse(responseText);
-
-          if (data.events && Array.isArray(data.events)) {
-            const transcript = data.events
-              .filter((event: any) => event.segs)
-              .map((event: any) => event.segs.map((seg: any) => seg.utf8).join(""))
-              .join(" ");
-
-            if (transcript.trim()) {
-              console.log(`✅ [TIMEDTEXT] Success with fallback method! Language: ${lang}`);
-              console.log(`✅ [TIMEDTEXT] Length: ${transcript.length} characters`);
-              return transcript;
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.log(`❌ [TIMEDTEXT] Fallback failed for ${lang}:`, err instanceof Error ? err.message : String(err));
-      continue;
+    // If no language worked, try without language specification
+    if (transcriptData.length === 0) {
+      console.log(`🔍 [TRANSCRIPT] Attempting to fetch default transcript...`);
+      transcriptData = await YoutubeTranscript.fetchTranscript(videoId);
+      usedLang = "auto";
     }
-  }
 
-  console.error(`❌ [TIMEDTEXT] All extraction attempts failed`);
-  throw new Error("No transcript available via timedtext");
+    if (!transcriptData || transcriptData.length === 0) {
+      throw new Error("No transcript data available");
+    }
+
+    // Process the transcript data
+    const timestamps: Array<{ time: string; text: string }> = [];
+    const textParts: string[] = [];
+    const timestampedParts: string[] = [];
+
+    for (const entry of transcriptData) {
+      const text = entry.text.trim();
+      if (text) {
+        textParts.push(text);
+
+        // Format timestamp as MM:SS or HH:MM:SS
+        const seconds = Math.floor(entry.offset / 1000);
+        const timeStr = formatTimestamp(seconds);
+        timestamps.push({ time: timeStr, text });
+        timestampedParts.push(`[${timeStr}] ${text}`);
+      }
+    }
+
+    const fullText = textParts.join(" ");
+    const timestampedText = timestampedParts.join("\n");
+
+    console.log(`✅ [TRANSCRIPT] Successfully extracted transcript`);
+    console.log(`✅ [TRANSCRIPT] Language: ${usedLang}`);
+    console.log(`✅ [TRANSCRIPT] Length: ${fullText.length} characters`);
+    console.log(`✅ [TRANSCRIPT] Segments: ${timestamps.length}`);
+    console.log(`✅ [TRANSCRIPT] Preview: ${fullText.substring(0, 200)}`);
+
+    return {
+      text: fullText,
+      timestampedText,
+      timestamps,
+    };
+  } catch (error) {
+    console.error(`❌ [TRANSCRIPT] Extraction failed:`, error instanceof Error ? error.message : String(error));
+    throw error;
+  }
+}
+
+// Helper: Format seconds to timestamp string
+function formatTimestamp(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  }
+  return `${minutes}:${secs.toString().padStart(2, "0")}`;
 }
 
 // Step 3: Validate transcript content
@@ -425,20 +372,26 @@ Return a detailed explanation of what this video covers (at least 500 words).`,
   }
 }
 
-// Process transcript with Claude for enhanced notes
+// Process transcript with Claude for comprehensive structured study notes
 async function processTranscriptWithClaude(
   transcript: string,
+  timestampedTranscript: string,
+  timestamps: Array<{ time: string; text: string }>,
   metadata: VideoMetadata | null,
+  videoUrl: string,
   language: string,
 ): Promise<{
   summary: string;
   keyPoints: string[];
   topics: string[];
-  structuredContent: any; // JSON object with sections array
+  structuredContent: any;
 }> {
-  console.log("📝 Processing transcript with Claude Sonnet 4.5...");
+  console.log("📝 Processing transcript with Claude Sonnet 4.5 for comprehensive study notes...");
 
   try {
+    // Build time-stamped index from timestamps
+    const timeIndex = buildTimeIndex(timestamps, metadata);
+
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -448,50 +401,127 @@ async function processTranscriptWithClaude(
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-5-20250929",
-        max_tokens: 8000,
+        max_tokens: 16000,
         messages: [
           {
             role: "user",
-            content: `You are an expert study notes generator for Indian students preparing for school, college, government exams and competitive tests. Process this YouTube video transcript and create comprehensive study notes.
+            content: `Transform this YouTube video transcript into comprehensive study notes for Indian students preparing for exams.
 
-${
-  metadata
-    ? `Video Title: ${metadata.title}
-Channel: ${metadata.channelTitle}
-${metadata.chapters && metadata.chapters.length > 0 ? `\nChapters:\n${metadata.chapters.map((c) => `- ${c.time}: ${c.title}`).join("\n")}` : ""}`
-    : ""
-}
+VIDEO METADATA:
+Title: ${metadata?.title || "YouTube Video"}
+Video Link: ${videoUrl}
+Duration: ${metadata?.duration || "N/A"}
+Channel: ${metadata?.channelTitle || "Unknown"}
+Description: ${metadata?.description?.substring(0, 500) || "N/A"}
+${metadata?.chapters && metadata.chapters.length > 0 ? `\nVideo Chapters:\n${metadata.chapters.map((c) => `- [${c.time}] ${c.title}`).join("\n")}` : ""}
 
-Transcript:
-${transcript.substring(0, 50000)} ${transcript.length > 50000 ? "...(truncated)" : ""}
+TRANSCRIPT WITH TIMESTAMPS:
+${timestampedTranscript.substring(0, 40000)}${timestampedTranscript.length > 40000 ? "\n...(transcript continues)" : ""}
 
-Return VALID JSON with this EXACT structure:
+CREATE COMPREHENSIVE STRUCTURED NOTES WITH:
+
+1. **Executive Summary** (3-4 paragraphs)
+   - Main topic and purpose (include video title with link: [${metadata?.title}](${videoUrl}))
+   - Key takeaways
+   - Target audience and learning level
+
+2. **Learning Objectives**
+   - What students will learn from this content
+   - Skills and knowledge developed
+   - Expected outcomes
+
+3. **Detailed Content Sections** (based on content flow and chapters)
+   Format each section as:
+   ## Section Title
+
+   ### 🔑 Key Concepts
+   - Concept explanations with **bold** for important terms
+
+   ### 📌 Important Points
+   - Detailed bullet points
+   - Use ⚡ for key points, 💡 for tips, ⚠️ for warnings
+
+   ### 💼 Examples/Applications
+   - Real-world applications
+   - Practical use cases
+
+   ---
+
+4. **Key Terms Glossary**
+   - Important technical terms with clear definitions
+   - Format: **Term**: Definition
+
+5. **Quick Review Questions**
+   - 5-10 self-assessment questions with answers
+   - Focus on key concepts and practical application
+
+6. **Additional Resources & Related Topics**
+   - Topics to explore further
+   - Recommended study areas
+
+7. **Time-Stamped Content Index**
+${timeIndex}
+
+FORMAT REQUIREMENTS:
+✓ Use Markdown formatting throughout
+✓ Include code blocks (triple backticks) for technical content
+✓ Create tables for comparisons when relevant
+✓ Add emoji markers: ⚡ Key Point, 💡 Tip, ⚠️ Warning, 📌 Important, 🔑 Concept
+✓ Keep paragraphs concise (3-4 sentences max)
+✓ Use **bold** for important terms
+✓ Include numbered lists for sequential processes
+✓ Add horizontal rules (---) between major sections
+✓ Link back to video with timestamps where relevant: [Watch at MM:SS](${videoUrl}&t=XXXs)
+
+OUTPUT AS VALID JSON (NO MARKDOWN OUTSIDE JSON):
 {
-  "summary": "3-5 paragraph detailed summary",
-  "keyPoints": ["point 1", "point 2", ...],
-  "topics": ["topic1", "topic2", ...],
+  "summary": "Executive summary with [video title](link) in first paragraph...",
+  "keyPoints": ["⚡ Point 1 with emoji", "📌 Point 2", ...],
+  "topics": ["topic1", "topic2", "topic3", ...],
   "structuredContent": {
     "sections": [
       {
-        "title": "Main Section Title",
-        "content": "Markdown content for this section. Use **bold** for important terms, bullet points for lists, and keep paragraphs under 4 lines."
+        "title": "Learning Objectives",
+        "content": "## Learning Objectives\\n\\n- Objective 1\\n- Objective 2\\n...",
+        "timestamp": "00:00"
       },
       {
-        "title": "Another Section",
-        "content": "More markdown content here..."
+        "title": "Section Name",
+        "content": "## Section Name\\n\\n### 🔑 Key Concepts\\n\\nMarkdown formatted content...\\n\\n### 📌 Important Points\\n\\n- Point 1\\n- Point 2\\n\\n---",
+        "timestamp": "02:30"
+      },
+      {
+        "title": "Key Terms Glossary",
+        "content": "## 📚 Key Terms Glossary\\n\\n**Term 1**: Definition\\n**Term 2**: Definition\\n..."
+      },
+      {
+        "title": "Review Questions",
+        "content": "## ✅ Review Questions\\n\\n1. **Question 1**\\n   - Answer\\n\\n2. **Question 2**\\n   - Answer\\n..."
+      },
+      {
+        "title": "Additional Resources",
+        "content": "## 📖 Additional Resources\\n\\n- Resource 1\\n- Resource 2\\n..."
+      },
+      {
+        "title": "Time-Stamped Index",
+        "content": "${timeIndex.replace(/\n/g, "\\n")}"
       }
     ]
   }
 }
 
-IMPORTANT RULES:
-1. Return ONLY valid JSON, no extra text
-2. structuredContent MUST have "sections" array
-3. Each section MUST have "title" and "content"
-4. Use markdown in content: **bold**, *italic*, bullet points (-)
-5. Keep paragraphs under 4 lines
-6. Include 8-12 key points
-7. Language: ${language === "en" ? "English" : language}`,
+CRITICAL RULES:
+1. Return ONLY valid JSON - no markdown blocks, no backticks around JSON
+2. Escape all quotes and newlines properly in JSON strings
+3. structuredContent MUST have "sections" array
+4. Each section MUST have "title" and "content"
+5. Include video link in summary first paragraph
+6. Add emojis to key points for visual appeal
+7. Include all 6 required sections (Learning Objectives, Content, Glossary, Questions, Resources, Index)
+8. Language: ${language === "hi" ? "Hindi" : language === "en" ? "English" : language}
+9. Make it comprehensive - this should be exam-ready study material
+
+Return the JSON now:`,
           },
         ],
       }),
@@ -503,13 +533,21 @@ IMPORTANT RULES:
     }
 
     const result = await response.json();
-    const responseText = result.content && result.content[0] && result.content[0].text ? result.content[0].text : "{}";
+    let responseText = result.content && result.content[0] && result.content[0].text ? result.content[0].text : "{}";
+
+    // Clean up response - remove markdown code blocks if present
+    responseText = responseText
+      .replace(/^```json\s*/i, "")
+      .replace(/\s*```\s*$/i, "")
+      .trim();
+
+    console.log(`📝 Claude response length: ${responseText.length} characters`);
+    console.log(`📝 Response preview: ${responseText.substring(0, 200)}...`);
 
     try {
-      // Parse JSON response
       const parsed = JSON.parse(responseText);
 
-      // Validate structuredContent has the right format
+      // Validate and fix structure if needed
       if (
         !parsed.structuredContent ||
         !parsed.structuredContent.sections ||
@@ -520,52 +558,143 @@ IMPORTANT RULES:
           sections: [
             {
               title: "Content",
-              content: parsed.structuredContent || responseText,
+              content:
+                typeof parsed.structuredContent === "string"
+                  ? parsed.structuredContent
+                  : responseText.substring(0, 10000),
             },
           ],
         };
       }
 
-      return {
-        summary: parsed.summary || responseText,
-        keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints : [],
-        topics: Array.isArray(parsed.topics) ? parsed.topics : [],
+      // Ensure all required fields exist
+      const finalResult = {
+        summary:
+          parsed.summary ||
+          `Study notes for: ${metadata?.title || "YouTube Video"}\n\n${transcript.substring(0, 500)}...`,
+        keyPoints:
+          Array.isArray(parsed.keyPoints) && parsed.keyPoints.length > 0
+            ? parsed.keyPoints
+            : ["⚡ Review the video content for key insights"],
+        topics: Array.isArray(parsed.topics) && parsed.topics.length > 0 ? parsed.topics : extractTopics(metadata),
         structuredContent: parsed.structuredContent,
       };
+
+      console.log("✅ Successfully parsed Claude response");
+      console.log(`✅ Sections: ${finalResult.structuredContent.sections.length}`);
+      console.log(`✅ Key points: ${finalResult.keyPoints.length}`);
+      console.log(`✅ Topics: ${finalResult.topics.length}`);
+
+      return finalResult;
     } catch (parseError) {
-      // If JSON parsing fails, create minimal structure
-      console.log("❌ Claude response was not valid JSON, creating fallback structure");
-      return {
-        summary: responseText.substring(0, 2000),
-        keyPoints: [],
-        topics: [],
-        structuredContent: {
-          sections: [
-            {
-              title: "Content",
-              content: responseText,
-            },
-          ],
-        },
-      };
+      console.error(
+        "❌ Claude response was not valid JSON:",
+        parseError instanceof Error ? parseError.message : String(parseError),
+      );
+      console.log("📄 Raw response:", responseText.substring(0, 500));
+
+      // Create comprehensive fallback structure
+      return createFallbackStructure(transcript, timestampedTranscript, metadata, videoUrl);
     }
   } catch (error) {
-    console.error("Claude processing failed:", error instanceof Error ? error.message : String(error));
-    // Return basic structure even if processing fails
-    return {
-      summary: transcript.substring(0, 1000) + "...",
-      keyPoints: [],
-      topics: [],
-      structuredContent: {
-        sections: [
-          {
-            title: "Raw Content",
-            content: transcript,
-          },
-        ],
-      },
-    };
+    console.error("❌ Claude processing failed:", error instanceof Error ? error.message : String(error));
+    return createFallbackStructure(transcript, timestampedTranscript, metadata, videoUrl);
   }
+}
+
+// Helper: Build time-stamped index from timestamps
+function buildTimeIndex(timestamps: Array<{ time: string; text: string }>, metadata: VideoMetadata | null): string {
+  const index: string[] = ["## 🕐 Time-Stamped Content Index\n"];
+
+  // Add chapters if available
+  if (metadata?.chapters && metadata.chapters.length > 0) {
+    index.push("### Video Chapters\n");
+    for (const chapter of metadata.chapters) {
+      index.push(`- [${chapter.time}] ${chapter.title}`);
+    }
+    index.push("\n### Content Timeline\n");
+  }
+
+  // Sample timestamps at intervals (every 30 seconds or significant points)
+  const sampleInterval = Math.max(1, Math.floor(timestamps.length / 20)); // Max 20 entries
+  for (let i = 0; i < timestamps.length; i += sampleInterval) {
+    const entry = timestamps[i];
+    const preview = entry.text.substring(0, 60);
+    index.push(`- [${entry.time}] ${preview}${entry.text.length > 60 ? "..." : ""}`);
+  }
+
+  return index.join("\n");
+}
+
+// Helper: Extract topics from metadata
+function extractTopics(metadata: VideoMetadata | null): string[] {
+  const topics: string[] = [];
+
+  if (metadata?.tags && metadata.tags.length > 0) {
+    topics.push(...metadata.tags.slice(0, 10));
+  }
+
+  if (metadata?.categoryId) {
+    topics.push(`Category ${metadata.categoryId}`);
+  }
+
+  if (topics.length === 0) {
+    topics.push("Educational Content", "Study Material");
+  }
+
+  return topics;
+}
+
+// Helper: Create fallback structure when JSON parsing fails
+function createFallbackStructure(
+  transcript: string,
+  timestampedTranscript: string,
+  metadata: VideoMetadata | null,
+  videoUrl: string,
+): {
+  summary: string;
+  keyPoints: string[];
+  topics: string[];
+  structuredContent: any;
+} {
+  console.log("📝 Creating fallback structure...");
+
+  const summary = `# ${metadata?.title || "YouTube Video Study Notes"}
+
+[Watch Video](${videoUrl})
+
+This content covers the key concepts presented in the video "${metadata?.title}". The transcript has been extracted and is available for study.
+
+Channel: ${metadata?.channelTitle || "Unknown"}
+Duration: ${metadata?.duration || "N/A"}
+
+${transcript.substring(0, 500)}...`;
+
+  return {
+    summary,
+    keyPoints: [
+      "⚡ Review the full transcript below",
+      "📌 Watch the video for complete understanding",
+      "💡 Take notes on key concepts mentioned",
+    ],
+    topics: extractTopics(metadata),
+    structuredContent: {
+      sections: [
+        {
+          title: "Video Information",
+          content: `## Video Information\n\n**Title**: ${metadata?.title || "YouTube Video"}\n\n**Link**: [Watch Video](${videoUrl})\n\n**Channel**: ${metadata?.channelTitle || "Unknown"}\n\n**Duration**: ${metadata?.duration || "N/A"}`,
+        },
+        {
+          title: "Full Transcript",
+          content: `## 📝 Full Transcript\n\n${timestampedTranscript.substring(0, 15000)}${timestampedTranscript.length > 15000 ? "\n\n...(transcript continues)" : ""}`,
+        },
+        {
+          title: "Study Tips",
+          content: `## 💡 Study Tips\n\n- Watch the video alongside these notes\n- Pause and take your own notes at key moments\n- Review the time-stamped transcript to find specific topics\n- Practice explaining concepts in your own words`,
+        },
+      ],
+    },
+  };
 }
 
 serve(async (req) => {
@@ -644,7 +773,7 @@ serve(async (req) => {
         console.log("✅ Extracted YouTube URL from storage:", youtubeUrl);
       } catch (error) {
         console.error("❌ Error fetching from storage:", error);
-        throw new Error(`Failed to retrieve YouTube URL from storage: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(`Failed to retrieve YouTube URL from storage: ${error.message}`);
       }
     }
 
@@ -710,35 +839,41 @@ serve(async (req) => {
       })
       .eq("id", note_id);
 
-    // Step 3: Fetch transcript (triple fallback strategy)
+    // Step 3: Fetch transcript using youtube-transcript package
     console.log(`📥 [EXTRACTION] Starting transcript extraction for video: ${videoId}`);
     let transcript: string;
+    let timestampedTranscript: string;
+    let timestamps: Array<{ time: string; text: string }>;
     let extractionMethod: string;
+    let confidenceScore = 1.0; // High confidence for package extraction
 
     try {
-      // Method 1: Try timedtext API (most reliable free method)
-      console.log(`📥 [EXTRACTION] Attempting Method 1: Timedtext API with caption track detection`);
-      transcript = await fetchTranscriptFromTimedtext(videoId, language);
-      extractionMethod = "timedtext";
-      console.log(`✅ [EXTRACTION] Method 1 succeeded: Timedtext API`);
-    } catch (timedtextError) {
+      // Method 1: Use youtube-transcript package (most reliable)
+      console.log(`📥 [EXTRACTION] Attempting Method 1: youtube-transcript package`);
+      const transcriptData = await fetchTranscriptWithPackage(videoId, language);
+      transcript = transcriptData.text;
+      timestampedTranscript = transcriptData.timestampedText;
+      timestamps = transcriptData.timestamps;
+      extractionMethod = "youtube-transcript-package";
+      console.log(`✅ [EXTRACTION] Method 1 succeeded: youtube-transcript package`);
+    } catch (packageError) {
       console.log(
-        "⚠️ [EXTRACTION] Method 1 failed - Timedtext extraction:",
-        timedtextError instanceof Error ? timedtextError.message : String(timedtextError),
+        "⚠️ [EXTRACTION] Method 1 failed - youtube-transcript package:",
+        packageError instanceof Error ? packageError.message : String(packageError),
       );
 
       try {
-        // Method 2: Fallback - Use Claude with available metadata
+        // Method 2: Fallback - Generate content from metadata
         console.log(`📥 [EXTRACTION] Attempting Method 2: Claude with metadata`);
         transcript = await fetchTranscriptWithClaudeFallback(youtubeUrl, metadata);
+        timestampedTranscript = transcript; // No timestamps available
+        timestamps = [];
         extractionMethod = "claude_metadata";
+        confidenceScore = 0.5; // Lower confidence for metadata-based generation
         console.log(`✅ [EXTRACTION] Method 2 succeeded: Generated content from metadata`);
       } catch (claudeError) {
         console.error("❌ [EXTRACTION] All extraction methods failed");
-        console.error(
-          "Timedtext error:",
-          timedtextError instanceof Error ? timedtextError.message : String(timedtextError),
-        );
+        console.error("Package error:", packageError instanceof Error ? packageError.message : String(packageError));
         console.error("Claude error:", claudeError instanceof Error ? claudeError.message : String(claudeError));
 
         // Better error message based on what we tried
@@ -757,7 +892,7 @@ serve(async (req) => {
       }
     }
 
-    // Step 3: Validate transcript before processing
+    // Validate transcript before processing
     const validation = isValidTranscript(transcript);
     if (!validation.valid) {
       console.error(`❌ [EXTRACTION] Transcript validation failed: ${validation.reason}`);
@@ -776,8 +911,11 @@ serve(async (req) => {
       throw new Error(errorMessage);
     }
 
-    console.log(`✅ [EXTRACTION] Transcript successfully extracted and validated via ${extractionMethod}`);
+    console.log(`✅ [EXTRACTION] Transcript successfully extracted and validated`);
+    console.log(`✅ [EXTRACTION] Method: ${extractionMethod}`);
+    console.log(`✅ [EXTRACTION] Confidence: ${(confidenceScore * 100).toFixed(0)}%`);
     console.log(`✅ [EXTRACTION] Transcript length: ${transcript.length} characters`);
+    console.log(`✅ [EXTRACTION] Timestamps: ${timestamps.length} segments`);
 
     // Calculate word count and reading time
     const wordCount = transcript.split(/\s+/).filter((w) => w.length > 0).length;
@@ -802,7 +940,14 @@ serve(async (req) => {
       })
       .eq("id", note_id);
 
-    const processed = await processTranscriptWithClaude(transcript, metadata, language);
+    const processed = await processTranscriptWithClaude(
+      transcript,
+      timestampedTranscript,
+      timestamps,
+      metadata,
+      youtubeUrl,
+      language,
+    );
 
     console.log("✅ Claude processing complete");
 
@@ -844,6 +989,7 @@ serve(async (req) => {
         success: true,
         note_id,
         extraction_method: extractionMethod,
+        confidence_score: confidenceScore,
         metadata: metadata
           ? {
               title: metadata.title,
@@ -853,11 +999,18 @@ serve(async (req) => {
               chapters: metadata.chapters?.length || 0,
             }
           : { title: videoTitle },
-        transcript_length: transcript.length,
-        word_count: wordCount,
-        estimated_read_time: estimatedReadTime,
-        key_points_count: processed.keyPoints.length,
-        topics_count: processed.topics.length,
+        transcript_stats: {
+          length: transcript.length,
+          word_count: wordCount,
+          estimated_read_time: estimatedReadTime,
+          timestamp_segments: timestamps.length,
+          has_timestamps: timestamps.length > 0,
+        },
+        content_stats: {
+          key_points_count: processed.keyPoints.length,
+          topics_count: processed.topics.length,
+          sections_count: processed.structuredContent?.sections?.length || 0,
+        },
       }),
       {
         status: 200,
