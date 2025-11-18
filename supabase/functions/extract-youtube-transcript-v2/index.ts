@@ -177,7 +177,17 @@ async function fetchTranscriptFromTimedtext(videoId: string, languageCode: strin
       console.log(`🔍 [TIMEDTEXT] Response status for ${lang}:`, response.status);
 
       if (response.ok) {
-        const data = await response.json();
+        // Get response text first to check if it's empty
+        const responseText = await response.text();
+        console.log(`🔍 [TIMEDTEXT] Response length for ${lang}:`, responseText.length);
+
+        if (!responseText || responseText.trim().length === 0) {
+          console.log(`⚠️ [TIMEDTEXT] Empty response for language: ${lang}`);
+          continue;
+        }
+
+        // Try to parse the JSON
+        const data = JSON.parse(responseText);
 
         if (data.events && Array.isArray(data.events)) {
           const transcript = data.events
@@ -196,6 +206,8 @@ async function fetchTranscriptFromTimedtext(videoId: string, languageCode: strin
         } else {
           console.log(`⚠️ [TIMEDTEXT] No events array in response for language: ${lang}`);
         }
+      } else {
+        console.log(`⚠️ [TIMEDTEXT] Non-OK response status ${response.status} for language: ${lang}`);
       }
     } catch (err) {
       console.log(`❌ [TIMEDTEXT] Failed to fetch for lang ${lang}:`, err instanceof Error ? err.message : String(err));
@@ -266,26 +278,23 @@ async function fetchTranscriptWithClaudeWeb(videoUrl: string, metadata: VideoMet
         "Content-Type": "application/json",
         "x-api-key": ANTHROPIC_API_KEY,
         "anthropic-version": "2023-06-01",
+        "anthropic-beta": "web-search-2025-01-21", // Enable web search capability
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-5-20250929",
         max_tokens: 4000,
+        web_search: {
+          enabled: true, // Enable web search
+        },
         messages: [
           {
             role: "user",
-            content: `Please visit this YouTube video and extract the full transcript/captions if available: ${videoUrl}
+            content: `Extract the full video transcript/captions from this YouTube video: ${videoUrl}
 
-${
-  metadata
-    ? `Video Title: ${metadata.title}
-Channel: ${metadata.channelTitle}
-Description: ${metadata.description.substring(0, 500)}...`
-    : ""
-}
+Video Title: ${metadata?.title || "Unknown"}
+${metadata?.description ? `Description: ${metadata.description.substring(0, 300)}...` : ""}
 
-If a transcript is available, extract and return it in full. If no transcript is available, provide a easy to understand detailed summary of the video content based on the title, description, and any other visible information on the page.
-
-Return ONLY the transcript text or summary, without any additional commentary.`,
+Please find and extract the complete transcript/captions for this video. Return ONLY the transcript text without any additional commentary, explanations, or apologies.`,
           },
         ],
       }),
@@ -537,7 +546,7 @@ serve(async (req) => {
         console.log("✅ Extracted YouTube URL from storage:", youtubeUrl);
       } catch (error) {
         console.error("❌ Error fetching from storage:", error);
-        throw new Error(`Failed to retrieve YouTube URL from storage: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(`Failed to retrieve YouTube URL from storage: ${error.message}`);
       }
     }
 
