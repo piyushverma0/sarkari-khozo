@@ -1,9 +1,8 @@
 // Extract YouTube Transcript V2 - Enhanced with YouTube Data API V3 + Claude Sonnet 4.5
-// Uses youtube-transcript package + Claude for comprehensive study notes
+// Uses custom Deno-compatible transcript extraction + Claude for comprehensive study notes
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { YoutubeTranscript } from "https://esm.sh/youtube-transcript@1.0.6";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY"); // Optional, falls back if not set
@@ -773,7 +772,7 @@ serve(async (req) => {
         console.log("✅ Extracted YouTube URL from storage:", youtubeUrl);
       } catch (error) {
         console.error("❌ Error fetching from storage:", error);
-        throw new Error(`Failed to retrieve YouTube URL from storage: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(`Failed to retrieve YouTube URL from storage: ${error.message}`);
       }
     }
 
