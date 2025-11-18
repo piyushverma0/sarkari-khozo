@@ -546,7 +546,7 @@ serve(async (req) => {
         console.log("✅ Extracted YouTube URL from storage:", youtubeUrl);
       } catch (error) {
         console.error("❌ Error fetching from storage:", error);
-        throw new Error(`Failed to retrieve YouTube URL from storage: ${error.message}`);
+        throw new Error(`Failed to retrieve YouTube URL from storage: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 
