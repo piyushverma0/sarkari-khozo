@@ -172,6 +172,9 @@ verify_jwt = false
 [functions.scrape-news-sources]
 verify_jwt = false
 
+[functions.scrape-by-category]
+verify_jwt = false
+
 [functions.get-discovery-feed]
 verify_jwt = false
 
