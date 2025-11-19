@@ -17,6 +17,8 @@ interface SummarizeRequest {
   note_id: string;
   raw_content: string;
   language: string;
+  video_url?: string;
+  video_title?: string;
 }
 
 serve(async (req) => {
@@ -26,7 +28,7 @@ serve(async (req) => {
   }
 
   try {
-    const { note_id, raw_content, language }: SummarizeRequest = await req.json();
+    const { note_id, raw_content, language, video_url, video_title }: SummarizeRequest = await req.json();
 
     if (!note_id || !raw_content) {
       return new Response(JSON.stringify({ error: "note_id and raw_content are required" }), {
@@ -232,6 +234,23 @@ Remember: Return ONLY the JSON object, nothing else.`;
 
     console.log("Structured content generated:", Object.keys(structuredContent));
 
+    // Add video source section ONLY if video_url is provided
+    // This keeps PDF and article notes unchanged
+    if (video_url && structuredContent.sections) {
+      console.log("📺 Adding video source section to top of structured content");
+      
+      const sourceSection = {
+        title: "📺 Source Video",
+        content: `[${video_title || 'Watch on YouTube'}](${video_url})`,
+        priority: "high" as const
+      };
+      
+      // Prepend source section to the beginning
+      structuredContent.sections.unshift(sourceSection);
+      
+      console.log(`✅ Video source added: ${video_title || 'YouTube Video'}`);
+    }
+
     // Update progress
     await supabase
       .from("study_notes")
@@ -253,6 +272,7 @@ Remember: Return ONLY the JSON object, nothing else.`;
         processing_status: "completed",
         processing_progress: 100,
         processing_error: null,
+        source_url: video_url || null,
       })
       .eq("id", note_id);
 

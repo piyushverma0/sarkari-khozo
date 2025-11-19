@@ -392,38 +392,24 @@ Create detailed educational study notes explaining what this video covers. Make 
   return content;
 }
 
-// Validate transcript
+// Validate transcript - simplified to avoid false positives
 function isValidTranscript(text: string): { valid: boolean; reason?: string } {
   console.log(`🔍 [VALIDATION] Validating transcript, length: ${text.length}`);
 
-  if (text.length < 100) {
+  // Empty check
+  if (!text || text.trim().length === 0) {
+    return { valid: false, reason: "Transcript is empty" };
+  }
+
+  // Minimum length check
+  if (text.trim().length < 100) {
     return { valid: false, reason: "Transcript too short (< 100 characters)" };
   }
 
-  const lowerText = text.toLowerCase();
-  
-  // Check first 500 chars for system-like error keywords
-  const head = lowerText.slice(0, 500);
-  const errorKeywords = ["could not", "cannot", "failed to", "not available", "access denied"];
-
-  for (const keyword of errorKeywords) {
-    if (head.includes(keyword)) {
-      return { valid: false, reason: `Contains error keyword near start: "${keyword}"` };
-    }
-  }
-
-  // Special check for "unable to" - only flag if it appears with system-related words
-  if (
-    lowerText.includes("unable to") &&
-    (lowerText.includes("access") || lowerText.includes("fetch") || 
-     lowerText.includes("load") || lowerText.includes("get transcript") ||
-     lowerText.includes("retrieve"))
-  ) {
-    return { valid: false, reason: 'Contains system-like error: "unable to" with access/fetch context' };
-  }
-
-  if (text.trim().startsWith("<")) {
-    return { valid: false, reason: "Appears to be HTML/XML" };
+  // Only check for obvious HTML error pages
+  const trimmed = text.trim();
+  if (trimmed.startsWith("<html") || trimmed.startsWith("<?xml") || trimmed.startsWith("<!DOCTYPE")) {
+    return { valid: false, reason: "Transcript appears to be an HTML error page" };
   }
 
   console.log(`✅ [VALIDATION] Transcript is valid`);
@@ -612,6 +598,8 @@ serve(async (req) => {
           note_id,
           raw_content: transcript,
           language: language || "en",
+          video_url: youtubeUrl,
+          video_title: metadata?.title || null,
         }),
       });
 
