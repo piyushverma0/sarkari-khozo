@@ -94,7 +94,8 @@ Find 4-5 articles. Sources: PIB, Gazette notifications, ministry portals`
 
 async function discoverCategory(
   category: string, 
-  currentDate: string
+  currentDate: string,
+  maxArticles: number = 4
 ): Promise<Array<{ url: string; headline: string; published_date: string; source_name: string; category: string }>> {
   
   const categoryPrompt = CATEGORY_PROMPTS[category as keyof typeof CATEGORY_PROMPTS];
@@ -106,6 +107,8 @@ async function discoverCategory(
   const fullPrompt = `CURRENT DATE: ${currentDate}
 
 ${categoryPrompt}
+
+IMPORTANT: Return ONLY ${maxArticles} high-quality, recent articles. Focus on quality over quantity.
 
 Return a JSON array with:
 - url: Full article URL
@@ -166,25 +169,60 @@ serve(async (req) => {
   }
 
   try {
-    const { categories } = await req.json();
+    const { categories } = await req.json().catch(() => ({}));
     const currentDate = new Date().toISOString().split('T')[0];
-
-    console.log(`🎯 Starting category-specific scraping for: ${categories?.join(', ') || 'all'}`);
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Default to high-priority categories if none specified
-    const targetCategories = categories || [
+    // Query current category distribution to balance content
+    const { data: categoryCounts } = await supabase
+      .from('discovery_stories')
+      .select('category')
+      .eq('is_active', true);
+
+    const countByCategory = (categoryCounts || []).reduce((acc: Record<string, number>, row: { category: string }) => {
+      acc[row.category] = (acc[row.category] || 0) + 1;
+      return acc;
+    }, {});
+
+    console.log('📊 Current category distribution:', countByCategory);
+
+    // All available categories
+    const allCategories = [
       'current-affairs',
       'international', 
       'education',
       'diplomatic',
       'exams',
-      'jobs'
+      'jobs',
+      'schemes',
+      'policies'
     ];
+
+    // Sort categories by count (prioritize underrepresented ones)
+    const sortedCategories = allCategories.sort((a, b) => {
+      const countA = countByCategory[a] || 0;
+      const countB = countByCategory[b] || 0;
+      return countA - countB;
+    });
+
+    // Use provided categories or select balanced set
+    let targetCategories: string[];
+    if (categories && categories.length > 0) {
+      targetCategories = categories;
+    } else {
+      // Prioritize underrepresented categories: take top 5 lowest + 1-2 from others
+      targetCategories = [
+        ...sortedCategories.slice(0, 5),  // 5 most underrepresented
+        ...sortedCategories.slice(5, 7)   // 2 from the rest
+      ];
+    }
+
+    console.log(`🎯 Starting balanced scraping for: ${targetCategories.join(', ')}`);
+    console.log('📈 Priority order (least to most represented):', sortedCategories.map(c => `${c}(${countByCategory[c] || 0})`).join(', '));
 
     const allArticles: Array<{ 
       url: string; 
@@ -194,9 +232,20 @@ serve(async (req) => {
       category: string 
     }> = [];
 
-    // Search each category separately
+    // Search each category separately with limits
     for (const category of targetCategories) {
-      const articles = await discoverCategory(category, currentDate);
+      const currentCount = countByCategory[category] || 0;
+      
+      // Adjust article limit based on current representation
+      let maxArticles = 4; // default
+      if (currentCount > 30) {
+        maxArticles = 2; // reduce for overrepresented categories
+      } else if (currentCount < 10) {
+        maxArticles = 5; // boost for underrepresented categories
+      }
+
+      console.log(`📝 Scraping ${category} (current: ${currentCount}, max new: ${maxArticles})`);
+      const articles = await discoverCategory(category, currentDate, maxArticles);
       allArticles.push(...articles);
     }
 
