@@ -117,9 +117,9 @@ serve(async (req) => {
         }
 
         // Check priority threshold
-        const priorityOrder = { LOW: 1, MEDIUM: 2, HIGH: 3, URGENT: 4 };
-        const userThreshold = priorityOrder[user.priority_threshold] || 2;
-        const storyPriority = priorityOrder[priority] || 2;
+        const priorityOrder: Record<string, number> = { LOW: 1, MEDIUM: 2, HIGH: 3, URGENT: 4 };
+        const userThreshold = priorityOrder[user.priority_threshold as string] || 2;
+        const storyPriority = priorityOrder[priority as string] || 2;
 
         if (storyPriority < userThreshold) {
           continue; // Story priority is below user's threshold
@@ -203,7 +203,8 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("Error notifying new stories:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
