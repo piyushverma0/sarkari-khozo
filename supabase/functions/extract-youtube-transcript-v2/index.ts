@@ -306,6 +306,8 @@ Channel: ${metadata?.channelTitle || "Unknown"}
 
 Extract the full transcript/captions from the video. If captions are not available, provide a comprehensive summary based on what you can see in the video description and any available information.
 
+IMPORTANT: Return ONLY the extracted content. Do not use phrases like "I cannot access", "I am unable to", or "I don't have the ability to". Always provide the best-effort content you can extract. If you truly cannot access the video, return an empty response rather than an explanation.
+
 Return the transcript in a clean, readable format with timestamps if available.`,
           },
         ],
@@ -398,13 +400,26 @@ function isValidTranscript(text: string): { valid: boolean; reason?: string } {
     return { valid: false, reason: "Transcript too short (< 100 characters)" };
   }
 
-  const errorKeywords = ["could not", "cannot", "error", "failed to", "unable to", "not available", "access denied"];
   const lowerText = text.toLowerCase();
+  
+  // Check first 500 chars for system-like error keywords
+  const head = lowerText.slice(0, 500);
+  const errorKeywords = ["could not", "cannot", "failed to", "not available", "access denied"];
 
   for (const keyword of errorKeywords) {
-    if (lowerText.includes(keyword)) {
-      return { valid: false, reason: `Contains error keyword: "${keyword}"` };
+    if (head.includes(keyword)) {
+      return { valid: false, reason: `Contains error keyword near start: "${keyword}"` };
     }
+  }
+
+  // Special check for "unable to" - only flag if it appears with system-related words
+  if (
+    lowerText.includes("unable to") &&
+    (lowerText.includes("access") || lowerText.includes("fetch") || 
+     lowerText.includes("load") || lowerText.includes("get transcript") ||
+     lowerText.includes("retrieve"))
+  ) {
+    return { valid: false, reason: 'Contains system-like error: "unable to" with access/fetch context' };
   }
 
   if (text.trim().startsWith("<")) {
@@ -540,10 +555,38 @@ serve(async (req) => {
     }
     }
 
-    // Validate
-    const validation = isValidTranscript(transcript);
+    // Validate with fallback
+    let validation = isValidTranscript(transcript);
     if (!validation.valid) {
-      throw new Error(`Invalid transcript: ${validation.reason}`);
+      console.log("⚠️ Transcript failed validation:", validation.reason);
+      console.log("⚠️ Transcript preview (first 300 chars):", transcript.slice(0, 300));
+
+      // If we haven't yet used metadata-based generation, try it as a last resort
+      if (extractionMethod !== "metadata") {
+        try {
+          console.log("📥 Trying metadata-based generation as fallback after validation failure...");
+          transcript = await generateContentFromMetadata(youtubeUrl, metadata);
+          timestampedTranscript = transcript;
+          segments = [];
+          extractionMethod = "metadata";
+          confidenceScore = 0.5;
+
+          validation = isValidTranscript(transcript);
+          if (!validation.valid) {
+            throw new Error(`Invalid transcript after metadata fallback: ${validation.reason}`);
+          }
+          console.log("✅ Fallback metadata-based content validated successfully");
+        } catch (fallbackError) {
+          console.error("❌ Metadata fallback also failed:", fallbackError instanceof Error ? fallbackError.message : String(fallbackError));
+          throw new Error(
+            validation.reason?.includes("system-like error")
+              ? "No transcript available for this video: captions disabled and AI could not access content."
+              : `Invalid transcript: ${validation.reason}`,
+          );
+        }
+      } else {
+        throw new Error(`Invalid transcript: ${validation.reason}`);
+      }
     }
 
     console.log(`✅ Validated - ${transcript.length} chars, ${segments.length} segments`);
