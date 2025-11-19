@@ -43,7 +43,7 @@ async function sendFCMNotification(
       return false;
     }
 
-    // Construct FCM message
+    // Construct FCM message with enhanced data payload
     const message = {
       message: {
         token: fcmToken,
@@ -57,6 +57,7 @@ async function sendFCMNotification(
           notification: {
             sound: "default",
             channelId: "news_updates",
+            clickAction: "OPEN_STORY_DETAIL",
           },
         },
       },
@@ -297,15 +298,28 @@ serve(async (req) => {
           continue;
         }
 
-        // Send to all user's devices
+        // Send to all user's devices with enhanced metadata
         let sentToAnyDevice = false;
         for (const tokenData of fcmTokens) {
-          const success = await sendFCMNotification(tokenData.fcm_token, notification.title, notification.message, {
+          // Extract metadata for deep linking
+          const metadata = notification.metadata || {};
+          const fcmData: Record<string, string> = {
             notification_id: notification.id,
-            application_id: notification.application_id,
+            application_id: notification.application_id || "",
             type: notification.type,
             priority: notification.priority,
-          });
+            story_id: metadata.story_id || "",
+            category: metadata.category || "",
+            deep_link: metadata.deep_link || "",
+            source_url: metadata.source_url || "",
+          };
+
+          const success = await sendFCMNotification(
+            tokenData.fcm_token,
+            notification.title,
+            notification.message,
+            fcmData,
+          );
 
           if (success) {
             sentToAnyDevice = true;
@@ -331,7 +345,7 @@ serve(async (req) => {
       } catch (error) {
         console.error(`Failed to deliver notification ${notification.id}:`, error);
         results.failed++;
-        results.errors.push(`${notification.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        results.errors.push(`${notification.id}: ${error.message}`);
 
         // Mark notification as failed
         await supabaseClient
@@ -341,7 +355,7 @@ serve(async (req) => {
             updated_at: new Date().toISOString(),
             metadata: {
               ...notification.metadata,
-              error: error instanceof Error ? error.message : 'Unknown error',
+              error: error.message,
               failed_at: new Date().toISOString(),
             },
           })
@@ -359,26 +373,9 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("Error sending pending notifications:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
   }
 });
-
-// ============================================================
-// CRON JOB SETUP INSTRUCTIONS
-// ============================================================
-// 1. Deploy this function: supabase functions deploy send-pending-notifications
-// 2. Set environment variable:
-//    supabase secrets set FIREBASE_SERVICE_ACCOUNT='{"type":"service_account","project_id":"...",...}'
-// 3. Set up a cron job in Supabase Dashboard:
-//    - Go to Database > Cron Jobs (pg_cron extension)
-//    - Create new cron job:
-//      Name: send-pending-notifications
-//      Schedule: */15 * * * * (every 15 minutes)
-//      SQL: SELECT net.http_post(
-//             url:='https://YOUR_PROJECT.supabase.co/functions/v1/send-pending-notifications',
-//             headers:='{"Authorization": "Bearer YOUR_SERVICE_ROLE_KEY", "Content-Type": "application/json"}'::jsonb
-//           ) AS request_id;
-// ============================================================
