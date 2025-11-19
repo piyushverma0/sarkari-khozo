@@ -226,7 +226,8 @@ Remember: Return ONLY the JSON object, nothing else.`;
     } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      throw new Error(`Failed to parse summary: ${parseError.message}`);
+      const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
+      throw new Error(`Failed to parse summary: ${errorMessage}`);
     }
 
     console.log("Structured content generated:", Object.keys(structuredContent));
@@ -285,11 +286,12 @@ Remember: Return ONLY the JSON object, nothing else.`;
       if (body.note_id) {
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+        const errorMessage = error instanceof Error ? error.message : "Summary generation failed";
         await supabase
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: error.message || "Summary generation failed",
+            processing_error: errorMessage,
           })
           .eq("id", body.note_id);
       }
@@ -297,7 +299,8 @@ Remember: Return ONLY the JSON object, nothing else.`;
       console.error("Failed to update error status:", e);
     }
 
-    return new Response(JSON.stringify({ error: error.message }), {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
