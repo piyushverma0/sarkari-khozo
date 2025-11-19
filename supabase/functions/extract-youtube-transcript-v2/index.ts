@@ -3,7 +3,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import YoutubeTranscript from "npm:youtube-transcript@1.2.1";
+import { YoutubeTranscript } from "jsr:@fbehrens/youtube-transcript@1.0.2";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY");
@@ -135,9 +135,11 @@ async function fetchTranscriptWithYoutubeTranscript(
   console.log(`📦 [NPM_PACKAGE] Video ID: ${videoId}`);
 
   try {
-    const transcriptData = await YoutubeTranscript.fetchTranscript(videoId);
+    // Fetch with textOnly: false to get structured TranscriptResponse[]
+    const transcriptData = await YoutubeTranscript.fetchTranscript(videoId, { textOnly: false });
     
-    if (!transcriptData || transcriptData.length === 0) {
+    // Type guard: ensure we got an array, not a string
+    if (typeof transcriptData === 'string' || !Array.isArray(transcriptData) || transcriptData.length === 0) {
       throw new Error("No transcript data returned from youtube-transcript package");
     }
 

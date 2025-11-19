@@ -1,6 +1,0 @@
-{
-  "nodeModulesDir": "auto",
-  "imports": {
-    "youtube-transcript": "npm:youtube-transcript@1.2.1"
-  }
-}
