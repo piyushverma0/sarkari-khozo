@@ -376,6 +376,7 @@ export type Database = {
           is_active: boolean | null
           is_featured: boolean | null
           key_takeaways: string[] | null
+          last_notified_at: string | null
           notified: boolean | null
           published_date: string | null
           region: string | null
@@ -414,6 +415,7 @@ export type Database = {
           is_active?: boolean | null
           is_featured?: boolean | null
           key_takeaways?: string[] | null
+          last_notified_at?: string | null
           notified?: boolean | null
           published_date?: string | null
           region?: string | null
@@ -452,6 +454,7 @@ export type Database = {
           is_active?: boolean | null
           is_featured?: boolean | null
           key_takeaways?: string[] | null
+          last_notified_at?: string | null
           notified?: boolean | null
           published_date?: string | null
           region?: string | null
