@@ -50,7 +50,7 @@ serve(async (req) => {
       .eq("id", note_id);
 
     // Build the prompt
-    const prompt = `You are an expert study assistant specializing in Indian government subjects, curriculums, exams, jobs, and educational content. Transform the following text into simple, easy language, clean, well-structured study notes optimized for quick learning and exam preparation.
+    const prompt = `You are an expert study assistant specializing in Indian government exams, jobs, and educational content. Transform the following text into clean, well-structured study notes optimized for learning and exam preparation.
 
 CRITICAL REQUIREMENTS:
 1. Create clear hierarchical sections with descriptive headings
@@ -226,9 +226,7 @@ Remember: Return ONLY the JSON object, nothing else.`;
     } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      throw new Error(
-        `Failed to parse summary: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
-      );
+      throw new Error(`Failed to parse summary: ${parseError.message}`);
     }
 
     console.log("Structured content generated:", Object.keys(structuredContent));
@@ -291,7 +289,7 @@ Remember: Return ONLY the JSON object, nothing else.`;
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: error instanceof Error ? error.message : "Summary generation failed",
+            processing_error: error.message || "Summary generation failed",
           })
           .eq("id", body.note_id);
       }
@@ -299,7 +297,7 @@ Remember: Return ONLY the JSON object, nothing else.`;
       console.error("Failed to update error status:", e);
     }
 
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
