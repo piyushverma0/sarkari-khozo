@@ -145,10 +145,10 @@ serve(async (req) => {
         // Create notification for this user
         const notification = {
           user_id: user.user_id,
-          application_id: "", // No specific application for discover stories
+          application_id: null, // No specific application for discover stories
           title: notificationTitle,
           message: notificationMessage,
-          type: "NEW_OPPORTUNITY",
+          notification_type: "NEW_OPPORTUNITY",
           notification_channel: priority === "HIGH" ? "URGENT" : "GENERAL",
           priority: priority,
           scheduled_for: new Date().toISOString(),
@@ -170,9 +170,12 @@ serve(async (req) => {
 
         const { error: insertError } = await supabaseClient.from("application_notifications").insert(notification);
 
-        if (!insertError) {
+        if (insertError) {
+          console.error(`Failed to insert notification for user ${user.user_id}:`, insertError);
+        } else {
           usersNotifiedForStory++;
           results.notificationsCreated++;
+          console.log(`✅ Created notification for user ${user.user_id}`);
         }
       } catch (error) {
         console.error(`Error creating notification for user ${user.user_id}:`, error);
