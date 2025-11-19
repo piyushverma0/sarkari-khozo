@@ -215,25 +215,27 @@ serve(async (req) => {
     // Process each notification
     for (const notification of pendingNotifications) {
       try {
-        // Check if user still has this application tracked
-        const { data: application, error: appError } = await supabaseClient
-          .from("applications")
-          .select("id")
-          .eq("id", notification.application_id)
-          .maybeSingle();
+        // Check if user still has this application tracked (only if notification is linked to an application)
+        if (notification.application_id) {
+          const { data: application, error: appError } = await supabaseClient
+            .from("applications")
+            .select("id")
+            .eq("id", notification.application_id)
+            .maybeSingle();
 
-        // If application was deleted, cancel the notification
-        if (!application) {
-          await supabaseClient
-            .from("application_notifications")
-            .update({
-              delivery_status: "CANCELLED",
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", notification.id);
+          // If application was deleted, cancel the notification
+          if (!application) {
+            await supabaseClient
+              .from("application_notifications")
+              .update({
+                delivery_status: "CANCELLED",
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", notification.id);
 
-          console.log(`Cancelled notification ${notification.id} - application no longer exists`);
-          continue;
+            console.log(`Cancelled notification ${notification.id} - application no longer exists`);
+            continue;
+          }
         }
 
         // Get user's notification preferences
