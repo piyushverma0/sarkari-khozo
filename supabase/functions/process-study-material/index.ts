@@ -1,5 +1,5 @@
 // Process Study Material - Upload and initiate processing
-// Handles: PDF, DOCX, YouTube URLs, Web URLs, Google Drive links
+// Handles: PDF, DOCX, YouTube URLs, Web URLs, Google Drive links, Audio Lectures
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
@@ -14,7 +14,7 @@ const corsHeaders = {
 };
 
 interface ProcessRequest {
-  source_type: "pdf" | "docx" | "youtube" | "url" | "google_drive";
+  source_type: "pdf" | "docx" | "youtube" | "url" | "google_drive" | "audio";
   source_url?: string;
   file_data?: string; // Base64 encoded file
   file_name?: string;
@@ -50,15 +50,33 @@ serve(async (req) => {
         // Convert base64 to binary
         const binaryData = Uint8Array.from(atob(file_data), (c) => c.charCodeAt(0));
 
+        // Determine content type based on source type and file extension
+        let contentType = "application/octet-stream";
+        if (source_type === "pdf") {
+          contentType = "application/pdf";
+        } else if (source_type === "docx") {
+          contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        } else if (source_type === "audio") {
+          // Detect audio format from file extension
+          const ext = file_name.toLowerCase().split(".").pop();
+          contentType =
+            ext === "mp3"
+              ? "audio/mpeg"
+              : ext === "m4a"
+                ? "audio/mp4"
+                : ext === "wav"
+                  ? "audio/wav"
+                  : ext === "aac"
+                    ? "audio/aac"
+                    : "audio/mpeg";
+        }
+
         // Upload to Supabase Storage
         const storagePath = `${user_id}/${Date.now()}_${file_name}`;
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from("study-materials")
           .upload(storagePath, binaryData, {
-            contentType:
-              source_type === "pdf"
-                ? "application/pdf"
-                : "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            contentType,
             upsert: false,
           });
 
@@ -76,7 +94,7 @@ serve(async (req) => {
         console.log("File uploaded to:", storageUrl);
       } catch (uploadErr) {
         console.error("File upload failed:", uploadErr);
-        return new Response(JSON.stringify({ error: "File upload failed", details: uploadErr instanceof Error ? uploadErr.message : String(uploadErr) }), {
+        return new Response(JSON.stringify({ error: "File upload failed", details: uploadErr.message }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -134,7 +152,9 @@ serve(async (req) => {
             ? "extract-docx-content"
             : source_type === "youtube"
               ? "extract-youtube-transcript-v2" // Use enhanced v2 function
-              : "extract-web-content";
+              : source_type === "audio"
+                ? "process-audio-lecture"
+                : "extract-web-content";
 
       // Update status to extracting
       await supabase
@@ -183,7 +203,7 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Error in process-study-material:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
