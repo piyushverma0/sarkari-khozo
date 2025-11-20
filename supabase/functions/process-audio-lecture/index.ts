@@ -53,14 +53,17 @@ serve(async (req) => {
       })
       .eq('id', note_id)
 
-    // Step 1: Download audio file
-    console.log('📥 Downloading audio file...')
-    const audioResponse = await fetch(source_url)
-    if (!audioResponse.ok) {
-      throw new Error(`Failed to download audio: ${audioResponse.statusText}`)
+    // Step 1: Download audio file from storage using authenticated client
+    console.log('📥 Downloading audio file from storage...')
+    const { data: audioData, error: downloadError } = await supabase.storage
+      .from('study-materials')
+      .download(source_url) // source_url is now the storage path
+    
+    if (downloadError || !audioData) {
+      throw new Error(`Failed to download audio: ${downloadError?.message || 'No data'}`)
     }
-
-    const audioBuffer = await audioResponse.arrayBuffer()
+    
+    const audioBuffer = await audioData.arrayBuffer()
     const audioSizeBytes = audioBuffer.byteLength
     console.log(`📊 Audio size: ${(audioSizeBytes / 1024 / 1024).toFixed(2)} MB`)
 

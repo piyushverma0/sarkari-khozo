@@ -85,12 +85,9 @@ serve(async (req) => {
           throw new Error(`Failed to upload file: ${uploadError.message}`);
         }
 
-        // Get public URL
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("study-materials").getPublicUrl(storagePath);
-
-        storageUrl = publicUrl;
+        // Store the storage path instead of public URL for audio files
+        // This allows authenticated downloads in edge functions
+        storageUrl = storagePath;
         console.log("File uploaded to:", storageUrl);
       } catch (uploadErr) {
         console.error("File upload failed:", uploadErr);
