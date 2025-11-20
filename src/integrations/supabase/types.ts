@@ -1294,6 +1294,9 @@ export type Database = {
           processing_progress: number | null
           processing_status: string | null
           raw_content: string | null
+          source_audio_duration: number | null
+          source_audio_file_size: number | null
+          source_audio_format: string | null
           source_filename: string | null
           source_type: string
           source_url: string | null
@@ -1302,6 +1305,8 @@ export type Database = {
           summary: string | null
           tags: string[] | null
           title: string
+          transcription_confidence: number | null
+          transcription_method: string | null
           updated_at: string | null
           user_id: string
           word_count: number | null
@@ -1334,6 +1339,9 @@ export type Database = {
           processing_progress?: number | null
           processing_status?: string | null
           raw_content?: string | null
+          source_audio_duration?: number | null
+          source_audio_file_size?: number | null
+          source_audio_format?: string | null
           source_filename?: string | null
           source_type: string
           source_url?: string | null
@@ -1342,6 +1350,8 @@ export type Database = {
           summary?: string | null
           tags?: string[] | null
           title: string
+          transcription_confidence?: number | null
+          transcription_method?: string | null
           updated_at?: string | null
           user_id: string
           word_count?: number | null
@@ -1374,6 +1384,9 @@ export type Database = {
           processing_progress?: number | null
           processing_status?: string | null
           raw_content?: string | null
+          source_audio_duration?: number | null
+          source_audio_file_size?: number | null
+          source_audio_format?: string | null
           source_filename?: string | null
           source_type?: string
           source_url?: string | null
@@ -1382,6 +1395,8 @@ export type Database = {
           summary?: string | null
           tags?: string[] | null
           title?: string
+          transcription_confidence?: number | null
+          transcription_method?: string | null
           updated_at?: string | null
           user_id?: string
           word_count?: number | null
