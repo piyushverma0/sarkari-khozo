@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
-import logo from "@/assets/logo.jpg";
+import logo from "@/assets/logo.png";
 import { NotificationCenter } from "./NotificationCenter";
 import { LanguageSwitcher } from "@/i18n/LanguageSwitcher";
 import { useT } from "@/i18n/Trans";

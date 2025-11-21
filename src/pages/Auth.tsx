@@ -3,16 +3,22 @@ import { useNavigate } from "react-router-dom";
 import LoginForm from "@/components/auth/LoginForm";
 import SignupForm from "@/components/auth/SignupForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import logo from "@/assets/logo.png";
+
 const Auth = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string>("login");
+  
   const handleAuthSuccess = () => {
     navigate("/");
   };
-  return <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 px-4">
+  
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-2">Welcome to Sarkari Khozo  </h1>
+          <img src={logo} alt="Sarkari Khozo Logo" className="h-20 w-auto mx-auto mb-6" />
+          <h1 className="text-4xl font-bold mb-2">Welcome to Sarkari Khozo</h1>
           <p className="text-muted-foreground">Track and manage your applications</p>
         </div>
 
@@ -31,6 +37,8 @@ const Auth = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </div>;
+    </div>
+  );
 };
+
 export default Auth;
