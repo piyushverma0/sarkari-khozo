@@ -1600,6 +1600,7 @@ export type Database = {
           audio_script_hindi: Json | null
           created_at: string | null
           current_language: string | null
+          edit_permissions: string | null
           estimated_read_time: number | null
           folder_id: string | null
           has_audio: boolean | null
@@ -1607,9 +1608,12 @@ export type Database = {
           has_quiz: boolean | null
           has_translation: boolean | null
           id: string
+          is_collaborative: boolean | null
           is_favorite: boolean | null
           key_points: string[] | null
           last_accessed_at: string | null
+          last_edited_at: string | null
+          last_edited_by: string | null
           original_language: string | null
           processing_error: string | null
           processing_progress: number | null
@@ -1630,6 +1634,7 @@ export type Database = {
           transcription_method: string | null
           updated_at: string | null
           user_id: string
+          version_number: number | null
           word_count: number | null
         }
         Insert: {
@@ -1645,6 +1650,7 @@ export type Database = {
           audio_script_hindi?: Json | null
           created_at?: string | null
           current_language?: string | null
+          edit_permissions?: string | null
           estimated_read_time?: number | null
           folder_id?: string | null
           has_audio?: boolean | null
@@ -1652,9 +1658,12 @@ export type Database = {
           has_quiz?: boolean | null
           has_translation?: boolean | null
           id?: string
+          is_collaborative?: boolean | null
           is_favorite?: boolean | null
           key_points?: string[] | null
           last_accessed_at?: string | null
+          last_edited_at?: string | null
+          last_edited_by?: string | null
           original_language?: string | null
           processing_error?: string | null
           processing_progress?: number | null
@@ -1675,6 +1684,7 @@ export type Database = {
           transcription_method?: string | null
           updated_at?: string | null
           user_id: string
+          version_number?: number | null
           word_count?: number | null
         }
         Update: {
@@ -1690,6 +1700,7 @@ export type Database = {
           audio_script_hindi?: Json | null
           created_at?: string | null
           current_language?: string | null
+          edit_permissions?: string | null
           estimated_read_time?: number | null
           folder_id?: string | null
           has_audio?: boolean | null
@@ -1697,9 +1708,12 @@ export type Database = {
           has_quiz?: boolean | null
           has_translation?: boolean | null
           id?: string
+          is_collaborative?: boolean | null
           is_favorite?: boolean | null
           key_points?: string[] | null
           last_accessed_at?: string | null
+          last_edited_at?: string | null
+          last_edited_by?: string | null
           original_language?: string | null
           processing_error?: string | null
           processing_progress?: number | null
@@ -1720,6 +1734,7 @@ export type Database = {
           transcription_method?: string | null
           updated_at?: string | null
           user_id?: string
+          version_number?: number | null
           word_count?: number | null
         }
         Relationships: [
