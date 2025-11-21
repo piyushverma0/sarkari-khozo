@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_explanations: {
+        Row: {
+          cache_hits: number | null
+          context_after: string | null
+          context_before: string | null
+          created_at: string | null
+          explanation_json: Json | null
+          explanation_text: string
+          id: string
+          language: string | null
+          last_accessed_at: string | null
+          model_version: string | null
+          note_id: string | null
+          selected_text: string
+          user_id: string | null
+        }
+        Insert: {
+          cache_hits?: number | null
+          context_after?: string | null
+          context_before?: string | null
+          created_at?: string | null
+          explanation_json?: Json | null
+          explanation_text: string
+          id?: string
+          language?: string | null
+          last_accessed_at?: string | null
+          model_version?: string | null
+          note_id?: string | null
+          selected_text: string
+          user_id?: string | null
+        }
+        Update: {
+          cache_hits?: number | null
+          context_after?: string | null
+          context_before?: string | null
+          created_at?: string | null
+          explanation_json?: Json | null
+          explanation_text?: string
+          id?: string
+          language?: string | null
+          last_accessed_at?: string | null
+          model_version?: string | null
+          note_id?: string | null
+          selected_text?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_explanations_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "study_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       application_notifications: {
         Row: {
           application_id: string | null
@@ -357,6 +413,50 @@ export type Database = {
           },
         ]
       }
+      collaborative_quiz_sessions: {
+        Row: {
+          created_at: string | null
+          end_time: string | null
+          host_user_id: string | null
+          id: string
+          note_id: string | null
+          session_type: string
+          settings: Json | null
+          start_time: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          end_time?: string | null
+          host_user_id?: string | null
+          id?: string
+          note_id?: string | null
+          session_type: string
+          settings?: Json | null
+          start_time?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          end_time?: string | null
+          host_user_id?: string | null
+          id?: string
+          note_id?: string | null
+          session_type?: string
+          settings?: Json | null
+          start_time?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaborative_quiz_sessions_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "study_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discovery_stories: {
         Row: {
           category: string
@@ -654,6 +754,88 @@ export type Database = {
         }
         Relationships: []
       }
+      note_collaborators: {
+        Row: {
+          accepted_at: string | null
+          collaborator_id: string | null
+          id: string
+          invitation_status: string | null
+          invited_at: string | null
+          note_id: string | null
+          owner_id: string | null
+          permission_level: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          collaborator_id?: string | null
+          id?: string
+          invitation_status?: string | null
+          invited_at?: string | null
+          note_id?: string | null
+          owner_id?: string | null
+          permission_level: string
+        }
+        Update: {
+          accepted_at?: string | null
+          collaborator_id?: string | null
+          id?: string
+          invitation_status?: string | null
+          invited_at?: string | null
+          note_id?: string | null
+          owner_id?: string | null
+          permission_level?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_collaborators_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "study_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      note_edit_history: {
+        Row: {
+          edit_type: string | null
+          edited_at: string | null
+          id: string
+          new_content: string | null
+          note_id: string | null
+          previous_content: string | null
+          section_id: string
+          user_id: string | null
+        }
+        Insert: {
+          edit_type?: string | null
+          edited_at?: string | null
+          id?: string
+          new_content?: string | null
+          note_id?: string | null
+          previous_content?: string | null
+          section_id: string
+          user_id?: string | null
+        }
+        Update: {
+          edit_type?: string | null
+          edited_at?: string | null
+          id?: string
+          new_content?: string | null
+          note_id?: string | null
+          previous_content?: string | null
+          section_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_edit_history_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "study_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       note_flashcards: {
         Row: {
           answer: string
@@ -774,6 +956,53 @@ export type Database = {
             columns: ["parent_folder_id"]
             isOneToOne: false
             referencedRelation: "note_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      note_highlights: {
+        Row: {
+          color: string
+          created_at: string | null
+          end_offset: number
+          id: string
+          note_id: string | null
+          section_id: string
+          start_offset: number
+          text_content: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          color: string
+          created_at?: string | null
+          end_offset: number
+          id?: string
+          note_id?: string | null
+          section_id: string
+          start_offset: number
+          text_content: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          color?: string
+          created_at?: string | null
+          end_offset?: number
+          id?: string
+          note_id?: string | null
+          section_id?: string
+          start_offset?: number
+          text_content?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_highlights_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "study_notes"
             referencedColumns: ["id"]
           },
         ]
@@ -1202,6 +1431,98 @@ export type Database = {
           },
         ]
       }
+      session_answers: {
+        Row: {
+          answer_text: string | null
+          answered_at: string | null
+          id: string
+          is_correct: boolean | null
+          participant_id: string | null
+          question_id: string | null
+          session_id: string | null
+          time_taken_ms: number | null
+        }
+        Insert: {
+          answer_text?: string | null
+          answered_at?: string | null
+          id?: string
+          is_correct?: boolean | null
+          participant_id?: string | null
+          question_id?: string | null
+          session_id?: string | null
+          time_taken_ms?: number | null
+        }
+        Update: {
+          answer_text?: string | null
+          answered_at?: string | null
+          id?: string
+          is_correct?: boolean | null
+          participant_id?: string | null
+          question_id?: string | null
+          session_id?: string | null
+          time_taken_ms?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_answers_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "session_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_answers_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "collaborative_quiz_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_participants: {
+        Row: {
+          correct_answers: number | null
+          current_streak: number | null
+          id: string
+          joined_at: string | null
+          last_answer_at: string | null
+          score: number | null
+          session_id: string | null
+          total_answers: number | null
+          user_id: string | null
+        }
+        Insert: {
+          correct_answers?: number | null
+          current_streak?: number | null
+          id?: string
+          joined_at?: string | null
+          last_answer_at?: string | null
+          score?: number | null
+          session_id?: string | null
+          total_answers?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          correct_answers?: number | null
+          current_streak?: number | null
+          id?: string
+          joined_at?: string | null
+          last_answer_at?: string | null
+          score?: number | null
+          session_id?: string | null
+          total_answers?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_participants_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "collaborative_quiz_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       story_scraping_sources: {
         Row: {
           avg_articles_per_scrape: number | null
@@ -1448,6 +1769,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_connections: {
+        Row: {
+          created_at: string | null
+          friend_id: string | null
+          id: string
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          friend_id?: string | null
+          id?: string
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          friend_id?: string | null
+          id?: string
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       user_daily_notification_count: {
         Row: {
