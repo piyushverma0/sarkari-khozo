@@ -16,59 +16,54 @@ export type Database = {
     Tables: {
       ai_explanations: {
         Row: {
-          cache_hits: number | null
-          context_after: string | null
-          context_before: string | null
           created_at: string | null
-          explanation_json: Json | null
-          explanation_text: string
+          difficulty_level: string
+          estimated_read_time: string
+          exam_tips: string[] | null
+          examples: Json | null
+          explanation: string
           id: string
-          language: string | null
-          last_accessed_at: string | null
-          model_version: string | null
-          note_id: string | null
-          selected_text: string
-          user_id: string | null
+          key_points: string[]
+          last_used_at: string | null
+          related_info: Json | null
+          text_content: string
+          text_hash: string
+          updated_at: string | null
+          usage_count: number | null
         }
         Insert: {
-          cache_hits?: number | null
-          context_after?: string | null
-          context_before?: string | null
           created_at?: string | null
-          explanation_json?: Json | null
-          explanation_text: string
+          difficulty_level: string
+          estimated_read_time: string
+          exam_tips?: string[] | null
+          examples?: Json | null
+          explanation: string
           id?: string
-          language?: string | null
-          last_accessed_at?: string | null
-          model_version?: string | null
-          note_id?: string | null
-          selected_text: string
-          user_id?: string | null
+          key_points?: string[]
+          last_used_at?: string | null
+          related_info?: Json | null
+          text_content: string
+          text_hash: string
+          updated_at?: string | null
+          usage_count?: number | null
         }
         Update: {
-          cache_hits?: number | null
-          context_after?: string | null
-          context_before?: string | null
           created_at?: string | null
-          explanation_json?: Json | null
-          explanation_text?: string
+          difficulty_level?: string
+          estimated_read_time?: string
+          exam_tips?: string[] | null
+          examples?: Json | null
+          explanation?: string
           id?: string
-          language?: string | null
-          last_accessed_at?: string | null
-          model_version?: string | null
-          note_id?: string | null
-          selected_text?: string
-          user_id?: string | null
+          key_points?: string[]
+          last_used_at?: string | null
+          related_info?: Json | null
+          text_content?: string
+          text_hash?: string
+          updated_at?: string | null
+          usage_count?: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "ai_explanations_note_id_fkey"
-            columns: ["note_id"]
-            isOneToOne: false
-            referencedRelation: "study_notes"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       application_notifications: {
         Row: {
@@ -2118,6 +2113,10 @@ export type Database = {
       get_user_daily_count: { Args: { p_user_id: string }; Returns: number }
       increment_daily_notification_count: {
         Args: { p_user_id: string }
+        Returns: undefined
+      }
+      increment_explanation_usage: {
+        Args: { explanation_id: string }
         Returns: undefined
       }
       notify_approaching_deadlines: { Args: never; Returns: undefined }
