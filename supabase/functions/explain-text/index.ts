@@ -1,45 +1,110 @@
 // Explain Text - AI-powered text explanations with web search
 // Uses Claude Sonnet 4.5 with web capability for comprehensive explanations
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// Helper function to generate hash for caching
+async function generateTextHash(text: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text.trim().toLowerCase());
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  return hashHex;
 }
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 interface ExplainTextRequest {
-  text: string
-  context?: string // Optional context from the note
-  note_id?: string // Optional note ID for logging
-  user_id?: string // Optional user ID for logging
+  text: string;
+  context?: string; // Optional context from the note
+  note_id?: string; // Optional note ID for logging
+  user_id?: string; // Optional user ID for logging
 }
 
 serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const { text, context, note_id, user_id }: ExplainTextRequest = await req.json()
+    const { text, context, note_id, user_id }: ExplainTextRequest = await req.json();
 
     if (!text || text.trim().length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'Text is required' }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
+      return new Response(JSON.stringify({ error: "Text is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log('Explaining text:', text.substring(0, 100))
+    console.log("Explaining text:", text.substring(0, 100));
+
+    // Initialize Supabase client
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Generate hash for caching
+    const textHash = await generateTextHash(text);
+    console.log("Text hash generated:", textHash.substring(0, 16) + "...");
+
+    // Check if we have a cached explanation
+    try {
+      const { data: cachedExplanation, error: cacheError } = await supabase
+        .from("ai_explanations")
+        .select("*")
+        .eq("text_hash", textHash)
+        .single();
+
+      if (cachedExplanation && !cacheError) {
+        console.log("Cache hit! Returning cached explanation");
+
+        // Increment usage count asynchronously (don't wait)
+        supabase
+          .rpc("increment_explanation_usage", {
+            explanation_id: cachedExplanation.id,
+          })
+          .then(() => {
+            console.log("Usage count incremented");
+          })
+          .catch((err) => {
+            console.error("Failed to increment usage count:", err);
+          });
+
+        // Return cached result
+        return new Response(
+          JSON.stringify({
+            success: true,
+            selected_text: text,
+            explanation: cachedExplanation.explanation,
+            key_points: cachedExplanation.key_points,
+            examples: cachedExplanation.examples || [],
+            related_info: cachedExplanation.related_info,
+            exam_tips: cachedExplanation.exam_tips || [],
+            difficulty_level: cachedExplanation.difficulty_level,
+            estimated_read_time: cachedExplanation.estimated_read_time,
+            cached: true,
+            usage_count: cachedExplanation.usage_count,
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      } else {
+        console.log("Cache miss. Generating new explanation...");
+      }
+    } catch (cacheCheckError) {
+      console.error("Cache check failed:", cacheCheckError);
+      // Continue to generate new explanation
+    }
 
     // Build the explanation prompt
     const prompt = `You are an expert educator specializing in Indian government exams, jobs, and educational content. A student has selected the following text and wants a clear, comprehensive explanation.
@@ -47,7 +112,7 @@ serve(async (req) => {
 SELECTED TEXT:
 "${text}"
 
-${context ? `\nCONTEXT (from study note):\n${context.substring(0, 1000)}` : ''}
+${context ? `\nCONTEXT (from study note):\n${context.substring(0, 1000)}` : ""}
 
 EXPLANATION REQUIREMENTS:
 1. **Clear Definition**: Start with a simple, clear explanation of what this is
@@ -111,134 +176,142 @@ IMPORTANT: Use the web_search tool if the text mentions:
 
 Current Date: ${new Date().toISOString()}
 
-Remember: Return ONLY the JSON object.`
+Remember: Return ONLY the JSON object.`;
 
     // Call Claude API with web search capability
-    console.log('Calling Claude API with web search...')
-    const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
+    console.log("Calling Claude API with web search...");
+    const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
+        "Content-Type": "application/json",
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5-20250929',
+        model: "claude-sonnet-4-5-20250929",
         max_tokens: 4096,
         temperature: 0.3,
-        system: 'You are an expert educator creating beautiful, comprehensive explanations. Always return valid JSON without markdown formatting or code blocks.',
+        system:
+          "You are an expert educator creating beautiful, comprehensive explanations. Always return valid JSON without markdown formatting or code blocks.",
         messages: [
           {
-            role: 'user',
-            content: prompt
-          }
+            role: "user",
+            content: prompt,
+          },
         ],
         tools: [
           {
-            name: 'web_search',
-            description: 'Search the web for current information about government exams, jobs, schemes, and official updates',
+            name: "web_search",
+            description:
+              "Search the web for current information about government exams, jobs, schemes, and official updates",
             input_schema: {
-              type: 'object',
+              type: "object",
               properties: {
                 query: {
-                  type: 'string',
-                  description: 'The search query to find relevant information'
-                }
+                  type: "string",
+                  description: "The search query to find relevant information",
+                },
               },
-              required: ['query']
-            }
-          }
-        ]
-      })
-    })
+              required: ["query"],
+            },
+          },
+        ],
+      }),
+    });
 
     if (!anthropicResponse.ok) {
-      const errorText = await anthropicResponse.text()
-      console.error('Claude API error:', errorText)
-      throw new Error(`Claude API error: ${errorText}`)
+      const errorText = await anthropicResponse.text();
+      console.error("Claude API error:", errorText);
+      throw new Error(`Claude API error: ${errorText}`);
     }
 
-    const anthropicData = await anthropicResponse.json()
-    console.log('Claude explanation generation complete')
+    const anthropicData = await anthropicResponse.json();
+    console.log("Claude explanation generation complete");
 
     // Extract response text (handle tool use if present)
-    let responseText = ''
+    let responseText = "";
     if (anthropicData.content && anthropicData.content.length > 0) {
       for (const block of anthropicData.content) {
-        if (block.type === 'text') {
-          responseText += block.text
+        if (block.type === "text") {
+          responseText += block.text;
         }
       }
     }
 
     if (!responseText.trim()) {
-      throw new Error('Empty response from Claude')
+      throw new Error("Empty response from Claude");
     }
 
     // Clean up response (remove markdown code blocks if present)
-    let cleanedJson = responseText.trim()
-    if (cleanedJson.startsWith('```json')) {
-      cleanedJson = cleanedJson.replace(/^```json\s*/, '').replace(/\s*```$/, '')
-    } else if (cleanedJson.startsWith('```')) {
-      cleanedJson = cleanedJson.replace(/^```\s*/, '').replace(/\s*```$/, '')
+    let cleanedJson = responseText.trim();
+    if (cleanedJson.startsWith("```json")) {
+      cleanedJson = cleanedJson.replace(/^```json\s*/, "").replace(/\s*```$/, "");
+    } else if (cleanedJson.startsWith("```")) {
+      cleanedJson = cleanedJson.replace(/^```\s*/, "").replace(/\s*```$/, "");
     }
 
     // Parse JSON
-    let explanationData
+    let explanationData;
     try {
-      explanationData = JSON.parse(cleanedJson)
+      explanationData = JSON.parse(cleanedJson);
     } catch (parseError) {
-      console.error('Failed to parse JSON:', parseError)
-      console.error('Response text:', responseText.substring(0, 500))
-      const errorMessage = parseError instanceof Error ? parseError.message : 'Unknown parsing error'
-      throw new Error(`Failed to parse explanation: ${errorMessage}`)
+      console.error("Failed to parse JSON:", parseError);
+      console.error("Response text:", responseText.substring(0, 500));
+      throw new Error(`Failed to parse explanation: ${parseError.message}`);
     }
 
-    console.log('Explanation generated successfully')
+    console.log("Explanation generated successfully");
 
-    // Optional: Log usage to database for analytics
-    if (note_id && user_id) {
-      try {
-        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    // Cache the explanation for future use
+    try {
+      const { error: insertError } = await supabase.from("ai_explanations").insert({
+        text_hash: textHash,
+        text_content: text.substring(0, 1000), // Store first 1000 chars
+        explanation: explanationData.explanation,
+        key_points: explanationData.key_points || [],
+        examples: explanationData.examples || [],
+        related_info: explanationData.related_info,
+        exam_tips: explanationData.exam_tips || [],
+        difficulty_level: explanationData.difficulty_level,
+        estimated_read_time: explanationData.estimated_read_time,
+        usage_count: 1,
+      });
 
-        // You could add a table to track explanation usage
-        // await supabase.from('explanation_logs').insert({
-        //   note_id,
-        //   user_id,
-        //   text_snippet: text.substring(0, 200),
-        //   created_at: new Date().toISOString()
-        // })
-      } catch (logError) {
-        console.error('Failed to log usage:', logError)
-        // Don't fail the request if logging fails
+      if (insertError) {
+        console.error("Failed to cache explanation:", insertError);
+        // Continue anyway - caching failure shouldn't break the response
+      } else {
+        console.log("Explanation cached successfully");
       }
+    } catch (cacheError) {
+      console.error("Cache insert error:", cacheError);
+      // Continue anyway
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         selected_text: text,
-        ...explanationData
+        ...explanationData,
+        cached: false,
       }),
       {
         status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
-
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (error) {
-    console.error('Error in explain-text:', error)
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred'
+    console.error("Error in explain-text:", error);
 
     return new Response(
       JSON.stringify({
-        error: errorMessage,
-        success: false
+        error: error.message,
+        success: false,
       }),
       {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
-})
+});
