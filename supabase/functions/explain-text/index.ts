@@ -71,12 +71,14 @@ serve(async (req) => {
           .rpc("increment_explanation_usage", {
             explanation_id: cachedExplanation.id,
           })
-          .then(() => {
-            console.log("Usage count incremented");
-          })
-          .catch((err) => {
-            console.error("Failed to increment usage count:", err);
-          });
+          .then(
+            () => {
+              console.log("Usage count incremented");
+            },
+            (err: unknown) => {
+              console.error("Failed to increment usage count:", err);
+            }
+          );
 
         // Return cached result
         return new Response(
@@ -257,7 +259,8 @@ Remember: Return ONLY the JSON object.`;
     } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      throw new Error(`Failed to parse explanation: ${parseError.message}`);
+      const errorMessage = parseError instanceof Error ? parseError.message : "Unknown error";
+      throw new Error(`Failed to parse explanation: ${errorMessage}`);
     }
 
     console.log("Explanation generated successfully");
@@ -302,10 +305,11 @@ Remember: Return ONLY the JSON object.`;
     );
   } catch (error) {
     console.error("Error in explain-text:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
     return new Response(
       JSON.stringify({
-        error: error.message,
+        error: errorMessage,
         success: false,
       }),
       {
