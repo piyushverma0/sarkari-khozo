@@ -410,34 +410,34 @@ export type Database = {
       }
       collaboration_invites: {
         Row: {
-          created_at: string | null
-          created_by: string | null
+          created_at: string
+          created_by: string
           expires_at: string
           invite_code: string
           max_uses: number | null
-          note_id: string | null
+          note_id: string
           permission: string
-          used_count: number | null
+          used_count: number
         }
         Insert: {
-          created_at?: string | null
-          created_by?: string | null
+          created_at?: string
+          created_by: string
           expires_at: string
           invite_code?: string
           max_uses?: number | null
-          note_id?: string | null
+          note_id: string
           permission: string
-          used_count?: number | null
+          used_count?: number
         }
         Update: {
-          created_at?: string | null
-          created_by?: string | null
+          created_at?: string
+          created_by?: string
           expires_at?: string
           invite_code?: string
           max_uses?: number | null
-          note_id?: string | null
+          note_id?: string
           permission?: string
-          used_count?: number | null
+          used_count?: number
         }
         Relationships: [
           {
@@ -639,6 +639,50 @@ export type Database = {
         }
         Relationships: []
       }
+      edit_history: {
+        Row: {
+          created_at: string
+          description: string | null
+          edit_type: string
+          id: string
+          new_content: string | null
+          note_id: string
+          old_content: string | null
+          section_path: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          edit_type: string
+          id?: string
+          new_content?: string | null
+          note_id: string
+          old_content?: string | null
+          section_path?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          edit_type?: string
+          id?: string
+          new_content?: string | null
+          note_id?: string
+          old_content?: string | null
+          section_path?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edit_history_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "study_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       indian_blocks: {
         Row: {
           created_at: string | null
@@ -818,24 +862,39 @@ export type Database = {
       }
       note_collaborators: {
         Row: {
-          added_at: string | null
-          added_by: string | null
+          accepted_at: string | null
+          created_at: string
+          id: string
+          invited_at: string
+          invited_by: string
           note_id: string
           permission: string
+          status: string
+          updated_at: string
           user_id: string
         }
         Insert: {
-          added_at?: string | null
-          added_by?: string | null
+          accepted_at?: string | null
+          created_at?: string
+          id?: string
+          invited_at?: string
+          invited_by: string
           note_id: string
           permission: string
+          status?: string
+          updated_at?: string
           user_id: string
         }
         Update: {
-          added_at?: string | null
-          added_by?: string | null
+          accepted_at?: string | null
+          created_at?: string
+          id?: string
+          invited_at?: string
+          invited_by?: string
           note_id?: string
           permission?: string
+          status?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
@@ -1838,6 +1897,53 @@ export type Database = {
           },
         ]
       }
+      text_highlights: {
+        Row: {
+          color: string
+          created_at: string
+          end_offset: number
+          id: string
+          note: string | null
+          note_id: string
+          start_offset: number
+          text_content: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color: string
+          created_at?: string
+          end_offset: number
+          id?: string
+          note?: string | null
+          note_id: string
+          start_offset: number
+          text_content: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          end_offset?: number
+          id?: string
+          note?: string | null
+          note_id?: string
+          start_offset?: number
+          text_content?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "text_highlights_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "study_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_connections: {
         Row: {
           created_at: string | null
@@ -2126,6 +2232,7 @@ export type Database = {
         }
         Returns: number
       }
+      cleanup_expired_invites: { Args: never; Returns: undefined }
       create_default_note_folders: {
         Args: { p_user_id: string }
         Returns: undefined
@@ -2207,6 +2314,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      use_collaboration_invite: {
+        Args: { p_invite_code: string }
+        Returns: {
+          is_valid: boolean
+          message: string
+          note_id: string
+          permission: string
+        }[]
       }
     }
     Enums: {
