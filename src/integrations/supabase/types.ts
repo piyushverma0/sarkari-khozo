@@ -2276,6 +2276,10 @@ export type Database = {
       }
       get_notification_stats: { Args: { p_user_id: string }; Returns: Json }
       get_user_daily_count: { Args: { p_user_id: string }; Returns: number }
+      has_note_access: {
+        Args: { p_note_id: string; p_user_id: string }
+        Returns: boolean
+      }
       increment_daily_notification_count: {
         Args: { p_user_id: string }
         Returns: undefined
@@ -2283,6 +2287,18 @@ export type Database = {
       increment_explanation_usage: {
         Args: { explanation_id: string }
         Returns: undefined
+      }
+      is_active_collaborator: {
+        Args: { p_note_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      is_admin_collaborator: {
+        Args: { p_note_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      is_note_owner: {
+        Args: { p_note_id: string; p_user_id: string }
+        Returns: boolean
       }
       notify_approaching_deadlines: { Args: never; Returns: undefined }
       reset_daily_notification_counts: { Args: never; Returns: undefined }
