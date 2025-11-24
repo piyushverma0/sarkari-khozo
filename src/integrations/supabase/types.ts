@@ -683,6 +683,33 @@ export type Database = {
           },
         ]
       }
+      friendships: {
+        Row: {
+          created_at: string
+          friend_id: string
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          friend_id: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          friend_id?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       indian_blocks: {
         Row: {
           created_at: string | null
@@ -2265,6 +2292,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      get_mutual_friends_count: {
+        Args: { p_friend_id: string; p_user_id: string }
+        Returns: number
       }
       get_notes_count_by_folder: {
         Args: { p_user_id: string }
