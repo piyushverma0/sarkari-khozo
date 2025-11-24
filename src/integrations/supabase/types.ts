@@ -408,6 +408,47 @@ export type Database = {
           },
         ]
       }
+      collaboration_invites: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          expires_at: string
+          invite_code: string
+          max_uses: number | null
+          note_id: string | null
+          permission: string
+          used_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          expires_at: string
+          invite_code?: string
+          max_uses?: number | null
+          note_id?: string | null
+          permission: string
+          used_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string
+          invite_code?: string
+          max_uses?: number | null
+          note_id?: string | null
+          permission?: string
+          used_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaboration_invites_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "study_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collaborative_quiz_sessions: {
         Row: {
           created_at: string | null
@@ -445,6 +486,32 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "collaborative_quiz_sessions_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "study_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collaborator_presence: {
+        Row: {
+          last_seen: string | null
+          note_id: string
+          user_id: string
+        }
+        Insert: {
+          last_seen?: string | null
+          note_id: string
+          user_id: string
+        }
+        Update: {
+          last_seen?: string | null
+          note_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaborator_presence_note_id_fkey"
             columns: ["note_id"]
             isOneToOne: false
             referencedRelation: "study_notes"
@@ -751,34 +818,25 @@ export type Database = {
       }
       note_collaborators: {
         Row: {
-          accepted_at: string | null
-          collaborator_id: string | null
-          id: string
-          invitation_status: string | null
-          invited_at: string | null
-          note_id: string | null
-          owner_id: string | null
-          permission_level: string
+          added_at: string | null
+          added_by: string | null
+          note_id: string
+          permission: string
+          user_id: string
         }
         Insert: {
-          accepted_at?: string | null
-          collaborator_id?: string | null
-          id?: string
-          invitation_status?: string | null
-          invited_at?: string | null
-          note_id?: string | null
-          owner_id?: string | null
-          permission_level: string
+          added_at?: string | null
+          added_by?: string | null
+          note_id: string
+          permission: string
+          user_id: string
         }
         Update: {
-          accepted_at?: string | null
-          collaborator_id?: string | null
-          id?: string
-          invitation_status?: string | null
-          invited_at?: string | null
-          note_id?: string | null
-          owner_id?: string | null
-          permission_level?: string
+          added_at?: string | null
+          added_by?: string | null
+          note_id?: string
+          permission?: string
+          user_id?: string
         }
         Relationships: [
           {
