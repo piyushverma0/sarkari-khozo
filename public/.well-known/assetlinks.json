@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.sarkarikhozo.app",
+      "sha256_cert_fingerprints": [
+        "99D55C36E6FCC12980B3728E213178CF6AE10E5E36A8F82CF860ABD4F5D5E656"
+      ]
+    }
+  }
+]
