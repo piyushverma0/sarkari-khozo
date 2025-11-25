@@ -67,14 +67,16 @@ serve(async (req) => {
         console.log("Cache hit! Returning cached explanation");
 
         // Increment usage count asynchronously (don't wait)
-        void supabase
+        supabase
           .rpc("increment_explanation_usage", {
             explanation_id: cachedExplanation.id,
           })
-          .then(
-            () => console.log("Usage count incremented"),
-            (err) => console.error("Failed to increment usage count:", err)
-          );
+          .then(() => {
+            console.log("Usage count incremented");
+          })
+          .catch((err) => {
+            console.error("Failed to increment usage count:", err);
+          });
 
         // Return cached result
         return new Response(
@@ -105,68 +107,46 @@ serve(async (req) => {
     }
 
     // Build the explanation prompt
-    const prompt = `You are an expert educator specializing in Indian government exams, jobs, and educational content. A student has selected the following text and wants a clear, comprehensive explanation.
+    const prompt = `You are an expert educator creating concise, well-formatted explanations for students preparing for Indian government exams and jobs.
 
 SELECTED TEXT:
 "${text}"
 
-${context ? `\nCONTEXT (from study note):\n${context.substring(0, 1000)}` : ""}
+${context ? `\nCONTEXT:\n${context.substring(0, 800)}` : ""}
 
-EXPLANATION REQUIREMENTS:
-1. **Clear Definition**: Start with a simple, clear explanation of what this is
-2. **Detailed Breakdown**: Explain key concepts, terms, or processes mentioned
-3. **Real-World Context**: Provide relevant examples or applications
-4. **Exam Relevance**: If applicable, explain how this relates to exams/jobs
-5. **Key Points**: Summarize the most important things to remember
-6. **Related Information**: Include relevant context such as:
-   - Common patterns or variations
-   - Important guidelines or rules
-   - Typical scenarios or applications
-   - Key considerations to remember
+INSTRUCTIONS:
+1. Keep explanation **concise** and **focused** - match depth to the complexity of the selected text
+2. For simple terms: 2-3 sentences. For complex topics: 1-2 short paragraphs max
+3. Use rich markdown formatting:
+   - **Bold** for key terms and important concepts
+   - *Italic* for emphasis
+   - ==Highlight== for critical information
+   - Tables for comparisons (use markdown table syntax)
+   - Math formulas: LaTeX format like $E=mc^2$ or $$\\frac{a}{b}$$
+   - Chemistry: H₂O, CO₂ (use subscripts)
+   - Regex patterns: \`/[a-z]+/\` (use code syntax)
+4. Provide 2-3 key points maximum
+5. Add 1-2 examples only if helpful
+6. Include exam tips only if relevant to exams/jobs
+7. Keep language simple and student-friendly
 
-FORMATTING:
-- Use clear headings and sections
-- Highlight important terms with **bold**
-- Use bullet points for lists
-- Include examples where helpful
-- Keep language simple and student-friendly
-- Add ==highlights== for critical information
-
-OUTPUT FORMAT: Return ONLY valid JSON (no markdown):
+OUTPUT FORMAT - Return ONLY valid JSON:
 {
-  "explanation": "Main explanation text with markdown formatting",
-  "key_points": [
-    "Key point 1",
-    "Key point 2",
-    "Key point 3"
-  ],
-  "examples": [
-    {
-      "title": "Example 1 title",
-      "description": "Example description"
-    }
-  ],
-  "related_info": {
-    "current_updates": "Any recent changes or updates (if found via web search)",
-    "official_links": [
-      {
-        "title": "Link title",
-        "url": "https://...",
-        "description": "What this link contains"
-      }
-    ]
-  },
-  "exam_tips": [
-    "Tip 1 for exams",
-    "Tip 2 for remembering this"
-  ],
+  "explanation": "Concise explanation (2-3 sentences for simple terms, 1-2 paragraphs for complex topics). Use **bold**, *italic*, ==highlights==, tables, formulas, etc.",
+  "key_points": ["2-3 essential points only"],
+  "examples": [{"title": "Title", "description": "Brief description"}],
+  "related_info": {"current_updates": "Only if relevant", "official_links": []},
+  "exam_tips": ["Only if exam-relevant"],
   "difficulty_level": "beginner" | "intermediate" | "advanced",
-  "estimated_read_time": "X minutes"
+  "estimated_read_time": "1-2 min"
 }
 
-Current Date: ${new Date().toISOString()}
+Date: ${new Date().toISOString()}
 
-IMPORTANT: Return ONLY the JSON object, no additional text or markdown.`;
+IMPORTANT:
+- Return ONLY the JSON object
+- Keep explanations concise - quality over quantity
+- Use rich formatting for better readability`;
 
     // Call Claude API
     console.log("Calling Claude API...");
@@ -179,10 +159,10 @@ IMPORTANT: Return ONLY the JSON object, no additional text or markdown.`;
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-5-20250929",
-        max_tokens: 4096,
+        max_tokens: 2048,
         temperature: 0.3,
         system:
-          "You are an expert educator creating beautiful, comprehensive explanations. Always return valid JSON without markdown formatting or code blocks.",
+          "You are an expert educator creating concise, beautifully formatted explanations. Use rich markdown (bold, italic, highlights, tables, formulas). Keep responses focused and appropriate to query complexity. Always return valid JSON without markdown code blocks.",
         messages: [
           {
             role: "user",
@@ -230,8 +210,7 @@ IMPORTANT: Return ONLY the JSON object, no additional text or markdown.`;
     } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      const errorMessage = parseError instanceof Error ? parseError.message : "Unknown parsing error";
-      throw new Error(`Failed to parse explanation: ${errorMessage}`);
+      throw new Error(`Failed to parse explanation: ${parseError.message}`);
     }
 
     console.log("Explanation generated successfully");
@@ -276,11 +255,10 @@ IMPORTANT: Return ONLY the JSON object, no additional text or markdown.`;
     );
   } catch (error) {
     console.error("Error in explain-text:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
 
     return new Response(
       JSON.stringify({
-        error: errorMessage,
+        error: error.message,
         success: false,
       }),
       {
