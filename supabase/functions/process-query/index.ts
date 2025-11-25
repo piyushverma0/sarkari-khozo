@@ -88,8 +88,22 @@ CRITICAL DATE EXTRACTION RULES (HIGHEST PRIORITY):
      "fee_structure": "Fee details",
      "documents_required": ["Document 1", "Document 2"],
      "application_steps": ["Step 1", "Step 2"],
-     "application_guidance": "Detailed guidance on how to apply",
-     "deadline_reminders": ["Reminder 1", "Reminder 2"]
+     "application_guidance": {
+       "online_steps": ["Step 1", "Step 2"],
+       "csc_applicable": true | false,
+       "csc_guidance": "Instructions for CSC",
+       "state_officials_applicable": true | false,
+       "state_officials_guidance": "Instructions for state officials",
+       "helpline": "Phone number",
+       "email": "Email address",
+       "estimated_time": "Time estimate"
+     },
+     "deadline_reminders": [
+       {
+         "days_before": 7,
+         "message": "Reminder message"
+       }
+     ]
    }
 
 CRITICAL: You MUST use web_search tool to get CURRENT dates from official sources. Do not rely on training data.
@@ -237,6 +251,45 @@ Your output will be parsed directly as JSON, so any extra text will cause parsin
 
       const applicationData = JSON.parse(jsonText);
 
+      // Sanitize application_guidance field
+      if (applicationData.application_guidance) {
+        if (typeof applicationData.application_guidance === "string") {
+          // Convert string to proper object format
+          applicationData.application_guidance = {
+            online_steps: applicationData.application_guidance ? [applicationData.application_guidance] : [],
+            csc_applicable: false,
+            csc_guidance: "",
+            state_officials_applicable: false,
+            state_officials_guidance: "",
+            helpline: "",
+            email: "",
+            estimated_time: "",
+          };
+        } else if (typeof applicationData.application_guidance !== "object") {
+          // Invalid type, set to null
+          applicationData.application_guidance = null;
+        }
+      }
+
+      // Sanitize deadline_reminders field
+      if (applicationData.deadline_reminders) {
+        if (Array.isArray(applicationData.deadline_reminders)) {
+          // Check if array contains strings instead of objects
+          applicationData.deadline_reminders = applicationData.deadline_reminders.map((item: any) => {
+            if (typeof item === "string") {
+              return {
+                days_before: 7,
+                message: item,
+              };
+            }
+            return item;
+          });
+        } else {
+          // Invalid type, set to empty array
+          applicationData.deadline_reminders = [];
+        }
+      }
+
       return new Response(JSON.stringify(applicationData), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -258,7 +311,7 @@ Your output will be parsed directly as JSON, so any extra text will cause parsin
     }
   } catch (error) {
     console.error("Error in process-query:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
