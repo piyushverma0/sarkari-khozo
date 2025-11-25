@@ -97,7 +97,32 @@ Current Date: ${new Date().toISOString()}`,
       },
     ];
 
-    const systemPrompt = `You are an expert at extracting information about Indian government applications, exams, jobs, and schemes. Return ONLY valid JSON.`;
+    const systemPrompt = `You are an expert at extracting information about Indian government applications, exams, jobs, and schemes.
+
+CRITICAL OUTPUT FORMAT REQUIREMENT:
+- Return ONLY a valid JSON object, nothing else
+- Do NOT include any explanatory text before or after the JSON
+- Do NOT include phrases like "here's the information" or "based on the available data"
+- Output the raw JSON directly without markdown code blocks if possible
+- If you must use code blocks, use only: \`\`\`json ... \`\`\`
+
+Example of CORRECT output:
+{
+  "title": "...",
+  "description": "...",
+  ...
+}
+
+Example of INCORRECT output:
+Based on the available information, here's what I found:
+\`\`\`json
+{
+  "title": "...",
+  ...
+}
+\`\`\`
+
+Your output will be parsed directly as JSON, so any extra text will cause parsing errors.`;
 
     let finalResponse = "";
     let iterationCount = 0;
@@ -195,12 +220,19 @@ Current Date: ${new Date().toISOString()}`,
 
     // Parse the JSON response from Claude
     try {
-      // Remove markdown code blocks if present
+      // Extract JSON from response (handle various formats)
       let jsonText = finalResponse.trim();
-      if (jsonText.startsWith("```json")) {
-        jsonText = jsonText.replace(/^```json\s*/, "").replace(/\s*```$/, "");
-      } else if (jsonText.startsWith("```")) {
-        jsonText = jsonText.replace(/^```\s*/, "").replace(/\s*```$/, "");
+
+      // Try to extract JSON from markdown code blocks first
+      const jsonBlockMatch = jsonText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+      if (jsonBlockMatch) {
+        jsonText = jsonBlockMatch[1].trim();
+      } else {
+        // If no code block, try to find JSON object directly
+        const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          jsonText = jsonMatch[0];
+        }
       }
 
       const applicationData = JSON.parse(jsonText);
@@ -226,7 +258,7 @@ Current Date: ${new Date().toISOString()}`,
     }
   } catch (error) {
     console.error("Error in process-query:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
