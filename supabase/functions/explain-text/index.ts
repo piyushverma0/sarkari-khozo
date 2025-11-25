@@ -67,16 +67,14 @@ serve(async (req) => {
         console.log("Cache hit! Returning cached explanation");
 
         // Increment usage count asynchronously (don't wait)
-        supabase
+        void supabase
           .rpc("increment_explanation_usage", {
             explanation_id: cachedExplanation.id,
           })
-          .then(() => {
-            console.log("Usage count incremented");
-          })
-          .catch((err) => {
-            console.error("Failed to increment usage count:", err);
-          });
+          .then(
+            () => console.log("Usage count incremented"),
+            (err) => console.error("Failed to increment usage count:", err)
+          );
 
         // Return cached result
         return new Response(
@@ -232,7 +230,8 @@ IMPORTANT: Return ONLY the JSON object, no additional text or markdown.`;
     } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      throw new Error(`Failed to parse explanation: ${parseError.message}`);
+      const errorMessage = parseError instanceof Error ? parseError.message : "Unknown parsing error";
+      throw new Error(`Failed to parse explanation: ${errorMessage}`);
     }
 
     console.log("Explanation generated successfully");
@@ -277,10 +276,11 @@ IMPORTANT: Return ONLY the JSON object, no additional text or markdown.`;
     );
   } catch (error) {
     console.error("Error in explain-text:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
 
     return new Response(
       JSON.stringify({
-        error: error.message,
+        error: errorMessage,
         success: false,
       }),
       {
