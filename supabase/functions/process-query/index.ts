@@ -234,6 +234,21 @@ Your output will be parsed directly as JSON, so any extra text will cause parsin
 
     // Parse the JSON response from Claude
     try {
+      // Check if we got a response
+      if (!finalResponse || finalResponse.trim().length === 0) {
+        console.error("No response received from Claude after tool use loop");
+        return new Response(
+          JSON.stringify({
+            error: "Unable to process query",
+            message: "No response received from AI. Please try again or rephrase your query.",
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
       // Extract JSON from response (handle various formats)
       let jsonText = finalResponse.trim();
 
@@ -247,6 +262,21 @@ Your output will be parsed directly as JSON, so any extra text will cause parsin
         if (jsonMatch) {
           jsonText = jsonMatch[0];
         }
+      }
+
+      // Validate we have JSON to parse
+      if (!jsonText || jsonText.length === 0) {
+        console.error("No JSON found in response:", finalResponse);
+        return new Response(
+          JSON.stringify({
+            error: "Invalid response format",
+            message: "Unable to extract information. Please try again with a more specific query.",
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
 
       const applicationData = JSON.parse(jsonText);
@@ -290,6 +320,31 @@ Your output will be parsed directly as JSON, so any extra text will cause parsin
         }
       }
 
+      // Ensure all array fields are properly initialized
+      if (!Array.isArray(applicationData.application_steps)) {
+        applicationData.application_steps = [];
+      }
+      if (!Array.isArray(applicationData.documents_required)) {
+        applicationData.documents_required = [];
+      }
+      if (!Array.isArray(applicationData.deadline_reminders)) {
+        applicationData.deadline_reminders = [];
+      }
+      if (applicationData.active_opportunities && !Array.isArray(applicationData.active_opportunities)) {
+        applicationData.active_opportunities = [];
+      }
+      if (applicationData.expired_opportunities && !Array.isArray(applicationData.expired_opportunities)) {
+        applicationData.expired_opportunities = [];
+      }
+
+      // Ensure application_guidance.online_steps is an array
+      if (
+        applicationData.application_guidance?.online_steps &&
+        !Array.isArray(applicationData.application_guidance.online_steps)
+      ) {
+        applicationData.application_guidance.online_steps = [];
+      }
+
       return new Response(JSON.stringify(applicationData), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -311,12 +366,9 @@ Your output will be parsed directly as JSON, so any extra text will cause parsin
     }
   } catch (error) {
     console.error("Error in process-query:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
