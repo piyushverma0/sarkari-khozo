@@ -71,14 +71,12 @@ serve(async (req) => {
           .rpc("increment_explanation_usage", {
             explanation_id: cachedExplanation.id,
           })
-          .then(
-            () => {
-              console.log("Usage count incremented");
-            },
-            (err: unknown) => {
-              console.error("Failed to increment usage count:", err);
-            }
-          );
+          .then(() => {
+            console.log("Usage count incremented");
+          })
+          .catch((err) => {
+            console.error("Failed to increment usage count:", err);
+          });
 
         // Return cached result
         return new Response(
@@ -122,12 +120,11 @@ EXPLANATION REQUIREMENTS:
 3. **Real-World Context**: Provide relevant examples or applications
 4. **Exam Relevance**: If applicable, explain how this relates to exams/jobs
 5. **Key Points**: Summarize the most important things to remember
-6. **Related Information**: Use web search to find and include:
-   - Current updates or changes
-   - Official guidelines or rules
-   - Recent notifications or amendments
-   - Important deadlines or dates (if applicable)
-   - Links to official sources
+6. **Related Information**: Include relevant context such as:
+   - Common patterns or variations
+   - Important guidelines or rules
+   - Typical scenarios or applications
+   - Key considerations to remember
 
 FORMATTING:
 - Use clear headings and sections
@@ -169,19 +166,12 @@ OUTPUT FORMAT: Return ONLY valid JSON (no markdown):
   "estimated_read_time": "X minutes"
 }
 
-IMPORTANT: Use the web_search tool if the text mentions:
-- Specific government exams or jobs
-- Dates, deadlines, or notifications
-- Rules, regulations, or eligibility criteria
-- Official schemes or policies
-- Current events or recent updates
-
 Current Date: ${new Date().toISOString()}
 
-Remember: Return ONLY the JSON object.`;
+IMPORTANT: Return ONLY the JSON object, no additional text or markdown.`;
 
-    // Call Claude API with web search capability
-    console.log("Calling Claude API with web search...");
+    // Call Claude API
+    console.log("Calling Claude API...");
     const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -199,23 +189,6 @@ Remember: Return ONLY the JSON object.`;
           {
             role: "user",
             content: prompt,
-          },
-        ],
-        tools: [
-          {
-            name: "web_search",
-            description:
-              "Search the web for current information about government exams, jobs, schemes, and official updates",
-            input_schema: {
-              type: "object",
-              properties: {
-                query: {
-                  type: "string",
-                  description: "The search query to find relevant information",
-                },
-              },
-              required: ["query"],
-            },
           },
         ],
       }),
@@ -259,8 +232,7 @@ Remember: Return ONLY the JSON object.`;
     } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      const errorMessage = parseError instanceof Error ? parseError.message : "Unknown error";
-      throw new Error(`Failed to parse explanation: ${errorMessage}`);
+      throw new Error(`Failed to parse explanation: ${parseError.message}`);
     }
 
     console.log("Explanation generated successfully");
@@ -305,11 +277,10 @@ Remember: Return ONLY the JSON object.`;
     );
   } catch (error) {
     console.error("Error in explain-text:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
     return new Response(
       JSON.stringify({
-        error: errorMessage,
+        error: error.message,
         success: false,
       }),
       {
