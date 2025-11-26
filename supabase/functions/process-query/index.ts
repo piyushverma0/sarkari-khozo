@@ -84,6 +84,16 @@ CRITICAL DATE EXTRACTION RULES (HIGHEST PRIORITY):
        "date_source": "URL",
        "last_verified": "ISO timestamp"
      },
+     "statistics": {
+       "vacancies": number | null,
+       "expected_applicants": number | null,
+       "previous_year_applicants": number | null,
+       "competition_ratio": "X:1" | null,
+       "competition_level": "LOW" | "MEDIUM" | "HIGH" | null,
+       "statistics_source": "URL where statistics were found" | null,
+       "statistics_confidence": "verified" | "estimated" | "unavailable",
+       "year": number
+     },
      "eligibility": "Eligibility criteria",
      "fee_structure": "Fee details",
      "documents_required": ["Document 1", "Document 2"],
@@ -105,6 +115,14 @@ CRITICAL DATE EXTRACTION RULES (HIGHEST PRIORITY):
        }
      ]
    }
+
+5. STATISTICS EXTRACTION (IMPORTANT):
+   - Look for vacancy counts in official notifications, PDFs, and government portals
+   - Check previous year statistics on sarkariresult.com, testbook.com, careers360.com
+   - Extract competition ratio if available (e.g., "100:1" means 100 applicants per vacancy)
+   - Calculate competition_level: LOW (<50:1), MEDIUM (50-100:1), HIGH (>100:1)
+   - If statistics not available, set statistics_confidence to "unavailable" and all numeric fields to null
+   - Always include the statistics object even if data is unavailable
 
 CRITICAL: You MUST use web_search tool to get CURRENT dates from official sources. Do not rely on training data.
 Current Date: ${new Date().toISOString()}`,
@@ -366,8 +384,7 @@ Your output will be parsed directly as JSON, so any extra text will cause parsin
     }
   } catch (error) {
     console.error("Error in process-query:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
