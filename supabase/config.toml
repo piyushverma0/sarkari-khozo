@@ -234,3 +234,6 @@ verify_jwt = true
 
 [functions.extract-application]
 verify_jwt = false
+
+[functions.extract-statistics]
+verify_jwt = false
