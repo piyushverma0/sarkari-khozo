@@ -2,8 +2,7 @@
 // Model: Claude Sonnet 4.5 with web search
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
+import { callClaude, logClaudeUsage } from "../_shared/claude-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,64 +33,70 @@ serve(async (req) => {
 
     console.log("Extracting application:", title, url, type);
 
+    const currentDate = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
+    const currentYear = new Date().getFullYear();
+
     // Different prompts based on type
+    const systemPrompt = `You are an expert at extracting information about Indian government applications, exams, jobs, and schemes.
+
+CRITICAL RULES:
+1. Return ONLY valid JSON - no markdown, no explanations, just JSON
+2. Use web_search to find accurate, current information
+3. All dates must be verified and in YYYY-MM-DD format
+4. Filter out expired opportunities`;
+
     const userPrompt =
       type === "organization"
-        ? `You are an expert on Indian government recruitment and schemes.
-
-Organization: "${title}"
+        ? `Organization: "${title}"
 Website: ${url}
+Current Date: ${currentDate}
+Current Year: ${currentYear}
 
 Task: Find ALL CURRENTLY ACTIVE exams, jobs, or schemes from this organization.
 
 CRITICAL DEADLINE FILTERING:
 - ONLY return opportunities that are CURRENTLY OPEN or have UPCOMING deadlines
 - DO NOT include opportunities whose application deadlines have already passed
-- Current Date: ${new Date().toISOString()}
-- Filter out any exam/job/scheme with application_end date before today
+- Current Date: ${currentDate}
+- Filter out any exam/job/scheme with application_end date before ${currentDate}
 
-Search the official website and return a list of ALL active opportunities with:
-- Title
-- Description
-- Application start/end dates
-- Exam date (if applicable)
-- Official notification URL
-- Eligibility
+Search the official website and return a list of ALL active opportunities.
 
-Return JSON:
+Return ONLY this JSON (no markdown, no code blocks):
 {
   "organization_name": "${title}",
   "organization_url": "${url}",
   "active_opportunities": [
     {
-      "title": "...",
-      "description": "...",
-      "url": "...",
+      "title": "Full exam/job name",
+      "description": "Clear description (2-3 sentences)",
+      "url": "Direct URL to the opportunity",
       "important_dates": {
         "application_start": "YYYY-MM-DD",
         "application_end": "YYYY-MM-DD",
         "exam_date": "YYYY-MM-DD"
       },
-      "eligibility": "..."
+      "eligibility": "Eligibility criteria"
     }
   ]
 }
 
-CRITICAL: Use web_search to find CURRENT active opportunities.
-Current Date: ${new Date().toISOString()}`
-        : `You are an expert at extracting information about Indian government applications, exams, jobs, and schemes.
-
-Application: "${title}"
+CRITICAL: Use web_search to find CURRENT active opportunities with accurate dates.`
+        : `Application: "${title}"
 URL: ${url}
+Current Date: ${currentDate}
+Current Year: ${currentYear}
 
-CRITICAL DATE EXTRACTION RULES (HIGHEST PRIORITY):
+Task: Extract complete details about this application/exam/job/scheme.
+
+CRITICAL DATE EXTRACTION RULES:
 1. Search official website: ${url}
 2. Cross-check with: sarkariresult.com, testbook.com, careers360.com
 3. Look for official notification PDFs
-4. Current Date: ${new Date().toISOString()}
-5. VERIFY that application_end date is in the FUTURE (not expired)
+4. VERIFY that application_end date is in the FUTURE (not expired)
+5. Current Date: ${currentDate}
 
-Extract complete details and return JSON:
+Return ONLY this JSON (no markdown, no code blocks):
 {
   "title": "${title}",
   "description": "Detailed description",
@@ -112,7 +117,7 @@ Extract complete details and return JSON:
     "previous_year_applicants": number | null,
     "competition_ratio": "X:1" | null,
     "competition_level": "LOW" | "MEDIUM" | "HIGH" | null,
-    "statistics_source": "URL where statistics were found" | null,
+    "statistics_source": "URL" | null,
     "statistics_confidence": "verified" | "estimated" | "unavailable",
     "year": number
   },
@@ -147,76 +152,36 @@ STATISTICS EXTRACTION (MANDATORY):
 - If statistics unavailable after thorough search, set statistics_confidence to "unavailable" and numeric fields to null
 - ALWAYS include the statistics object in response, even if data is unavailable
 
-CRITICAL: Use web_search to get CURRENT accurate dates and statistics.
-Current Date: ${new Date().toISOString()}`;
+CRITICAL: Use web_search to get CURRENT accurate dates and statistics.`;
 
-    // Call Anthropic API
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5-20250929",
-        max_tokens: 4096,
-        temperature: 0.3,
-        system: `You are an expert at extracting information about Indian government applications, exams, jobs, and schemes. Return ONLY valid JSON.`,
-        messages: [
-          {
-            role: "user",
-            content: userPrompt,
-          },
-        ],
-        tools: [
-          {
-            name: "web_search",
-            description: "Search the web for current information",
-            input_schema: {
-              type: "object",
-              properties: {
-                query: {
-                  type: "string",
-                  description: "The search query",
-                },
-              },
-              required: ["query"],
-            },
-          },
-        ],
-      }),
+    // Call Claude API using shared client
+    const response = await callClaude({
+      systemPrompt,
+      userPrompt,
+      enableWebSearch: true,
+      maxWebSearchUses: 15, // Increased for better accuracy
+      temperature: 0.3,
+      maxTokens: 4096,
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error("Anthropic API error:", error);
-      return new Response(JSON.stringify({ error: "Failed to extract application", details: error }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    logClaudeUsage("extract-application", response.tokensUsed, response.webSearchUsed);
+    console.log("Claude response received, parsing JSON...");
 
-    const data = await response.json();
-    console.log("Anthropic response:", JSON.stringify(data, null, 2));
-
-    // Extract final text
-    let finalResponse = "";
-    if (data.content) {
-      for (const block of data.content) {
-        if (block.type === "text") {
-          finalResponse = block.text;
-        }
-      }
-    }
-
-    // Parse JSON
+    // Parse JSON response with robust extraction
     try {
-      let jsonText = finalResponse.trim();
+      let jsonText = response.content.trim();
+
+      // Remove markdown code blocks if present
       if (jsonText.startsWith("```json")) {
         jsonText = jsonText.replace(/^```json\s*/, "").replace(/\s*```$/, "");
       } else if (jsonText.startsWith("```")) {
         jsonText = jsonText.replace(/^```\s*/, "").replace(/\s*```$/, "");
+      }
+
+      // Try to find JSON object or array in the response
+      const jsonMatch = jsonText.match(/\{[\s\S]*\}/) || jsonText.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        jsonText = jsonMatch[0];
       }
 
       const result = JSON.parse(jsonText);
@@ -265,13 +230,14 @@ Current Date: ${new Date().toISOString()}`;
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (parseError) {
-      console.error("Failed to parse response:", parseError);
-      console.error("Response text:", finalResponse);
+      console.error("Failed to parse Claude response:", parseError);
+      console.error("Raw response:", response.content);
 
       return new Response(
         JSON.stringify({
           error: "Failed to parse application data",
-          raw_response: finalResponse,
+          details: parseError instanceof Error ? parseError.message : "Unknown parse error",
+          raw_response: response.content.substring(0, 500), // First 500 chars for debugging
         }),
         {
           status: 500,
@@ -281,8 +247,7 @@ Current Date: ${new Date().toISOString()}`;
     }
   } catch (error) {
     console.error("Error in extract-application:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
