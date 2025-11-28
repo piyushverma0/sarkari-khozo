@@ -44,6 +44,12 @@ Website: ${url}
 
 Task: Find ALL CURRENTLY ACTIVE exams, jobs, or schemes from this organization.
 
+CRITICAL DEADLINE FILTERING:
+- ONLY return opportunities that are CURRENTLY OPEN or have UPCOMING deadlines
+- DO NOT include opportunities whose application deadlines have already passed
+- Current Date: ${new Date().toISOString()}
+- Filter out any exam/job/scheme with application_end date before today
+
 Search the official website and return a list of ALL active opportunities with:
 - Title
 - Description
@@ -82,6 +88,8 @@ CRITICAL DATE EXTRACTION RULES (HIGHEST PRIORITY):
 1. Search official website: ${url}
 2. Cross-check with: sarkariresult.com, testbook.com, careers360.com
 3. Look for official notification PDFs
+4. Current Date: ${new Date().toISOString()}
+5. VERIFY that application_end date is in the FUTURE (not expired)
 
 Extract complete details and return JSON:
 {
@@ -130,14 +138,16 @@ Extract complete details and return JSON:
   ]
 }
 
-STATISTICS EXTRACTION:
+STATISTICS EXTRACTION (MANDATORY):
+- ALWAYS extract and include statistics for EVERY exam/job/scheme
 - Search official notification PDFs for vacancy counts
 - Check previous year statistics on sarkariresult.com, testbook.com, careers360.com
 - Extract competition ratio and calculate competition_level: LOW (<50:1), MEDIUM (50-100:1), HIGH (>100:1)
-- If statistics unavailable, set statistics_confidence to "unavailable" and numeric fields to null
-- Always include the statistics object
+- For exams: search for "exam name + statistics", "exam name + cut off", "exam name + previous year data"
+- If statistics unavailable after thorough search, set statistics_confidence to "unavailable" and numeric fields to null
+- ALWAYS include the statistics object in response, even if data is unavailable
 
-CRITICAL: Use web_search to get CURRENT accurate dates.
+CRITICAL: Use web_search to get CURRENT accurate dates and statistics.
 Current Date: ${new Date().toISOString()}`;
 
     // Call Anthropic API
@@ -271,8 +281,7 @@ Current Date: ${new Date().toISOString()}`;
     }
   } catch (error) {
     console.error("Error in extract-application:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
