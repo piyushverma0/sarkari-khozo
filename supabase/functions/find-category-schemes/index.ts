@@ -129,7 +129,7 @@ Return 4-6 HIGH-QUALITY, VERIFIED results.`;
       maxTokens: 4096,
     });
 
-    logClaudeUsage("find-category-schemes", response.tokensUsed, response.webSearchUsed);
+    logClaudeUsage("find-category-schemes", response.tokensUsed, response.webSearchUsed ?? false);
     console.log("Claude response received, parsing JSON...");
 
     // Parse JSON response with robust extraction
