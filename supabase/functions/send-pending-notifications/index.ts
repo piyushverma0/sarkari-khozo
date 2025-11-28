@@ -43,22 +43,19 @@ async function sendFCMNotification(
       return false;
     }
 
-    // Construct FCM message with enhanced data payload
+    // Construct FCM message as DATA-ONLY (no notification field)
+    // This ensures onMessageReceived() is ALWAYS called, even when app is in background
+    // See: https://firebase.google.com/docs/cloud-messaging/android/receive#handling_messages
     const message = {
       message: {
         token: fcmToken,
-        notification: {
+        data: {
+          ...data,
           title: title,
           body: body,
         },
-        data: data,
         android: {
           priority: "high",
-          notification: {
-            sound: "default",
-            channelId: "news_updates",
-            clickAction: "OPEN_STORY_DETAIL",
-          },
         },
       },
     };
