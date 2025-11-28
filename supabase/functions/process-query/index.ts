@@ -363,6 +363,70 @@ Your output will be parsed directly as JSON, so any extra text will cause parsin
         applicationData.application_guidance.online_steps = [];
       }
 
+      // CRITICAL FIX: Convert all dates to ISO 8601 format with timezone
+      // Android app uses Instant.parse() which requires format: "YYYY-MM-DDTHH:mm:ssZ"
+      if (applicationData.important_dates) {
+        console.log("Processing important_dates:", JSON.stringify(applicationData.important_dates));
+
+        const dateFields = [
+          "application_start",
+          "application_end",
+          "admit_card_date",
+          "exam_date",
+          "result_date",
+          "correction_window_start",
+          "correction_window_end",
+        ];
+
+        for (const field of dateFields) {
+          const dateValue = applicationData.important_dates[field];
+          if (
+            dateValue &&
+            dateValue !== "Not yet announced" &&
+            dateValue !== "TBA" &&
+            dateValue !== "To be announced"
+          ) {
+            try {
+              // If it's already in ISO format, keep it
+              if (dateValue.includes("T") && dateValue.includes("Z")) {
+                console.log(`${field} already in ISO format: ${dateValue}`);
+                continue;
+              }
+
+              // Convert YYYY-MM-DD or other formats to ISO 8601
+              // Use UTC midnight for date-only values
+              const dateOnly = dateValue.match(/^\d{4}-\d{2}-\d{2}$/);
+              if (dateOnly) {
+                applicationData.important_dates[field] = `${dateValue}T00:00:00Z`;
+                console.log(`✓ Converted ${field}: ${dateValue} -> ${applicationData.important_dates[field]}`);
+              } else {
+                // Try parsing other date formats
+                const parsedDate = new Date(dateValue);
+                if (!isNaN(parsedDate.getTime())) {
+                  applicationData.important_dates[field] = parsedDate.toISOString();
+                  console.log(`✓ Converted ${field}: ${dateValue} -> ${applicationData.important_dates[field]}`);
+                } else {
+                  console.warn(`⚠️ Unable to parse date for ${field}: ${dateValue}`);
+                }
+              }
+            } catch (e) {
+              console.error(`❌ Error converting date for ${field}:`, e);
+            }
+          } else if (dateValue) {
+            console.log(`Skipping ${field}: ${dateValue} (placeholder text)`);
+          }
+        }
+
+        // Add last_verified timestamp if not present
+        if (!applicationData.important_dates.last_verified) {
+          applicationData.important_dates.last_verified = new Date().toISOString();
+        }
+
+        console.log("Final important_dates:", JSON.stringify(applicationData.important_dates));
+      } else {
+        console.warn("⚠️ No important_dates found in application data");
+      }
+
       return new Response(JSON.stringify(applicationData), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -384,8 +448,7 @@ Your output will be parsed directly as JSON, so any extra text will cause parsin
     }
   } catch (error) {
     console.error("Error in process-query:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
