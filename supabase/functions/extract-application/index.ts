@@ -186,6 +186,20 @@ CRITICAL: Use web_search to get CURRENT accurate dates and statistics.`;
 
       const result = JSON.parse(jsonText);
 
+      // Sanitize organization response fields
+      if (type === "organization") {
+        // Ensure required fields are present
+        if (!result.organization_name) {
+          result.organization_name = title; // Use provided title as fallback
+        }
+        if (!result.organization_url) {
+          result.organization_url = url; // Use provided url as fallback
+        }
+        if (!result.active_opportunities || !Array.isArray(result.active_opportunities)) {
+          result.active_opportunities = []; // Default to empty array if missing
+        }
+      }
+
       // Sanitize application_guidance field
       if (result.application_guidance) {
         if (typeof result.application_guidance === "string") {
@@ -247,8 +261,7 @@ CRITICAL: Use web_search to get CURRENT accurate dates and statistics.`;
     }
   } catch (error) {
     console.error("Error in extract-application:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
