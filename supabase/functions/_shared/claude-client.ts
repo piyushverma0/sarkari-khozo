@@ -54,10 +54,8 @@ export async function callClaude(options: ClaudeCallOptions): Promise<ClaudeResp
 
   if (tools.length > 0) {
     requestBody.tools = tools
-    if (forceWebSearch) {
-      // Explicitly force web search tool to be used
-      requestBody.tool_choice = { type: 'tool', name: 'web_search' }
-    }
+    // Note: tool_choice doesn't apply to server-side tools like web_search
+    // Web search is triggered by the prompt asking for current information
   }
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -90,9 +88,16 @@ export async function callClaude(options: ClaudeCallOptions): Promise<ClaudeResp
     }
   }
 
-  // Check if web search was used
-  if (data.stop_reason === 'tool_use' || data.stop_reason === 'end_turn') {
-    webSearchUsed = data.content?.some((block: any) => block.type === 'tool_use') || false
+  // Check if web search was used - look for server_tool_use type
+  webSearchUsed = data.content?.some((block: any) => 
+    block.type === 'server_tool_use' || 
+    block.type === 'web_search_tool_result' ||
+    block.type === 'tool_use'
+  ) || false
+  
+  // Log web search usage details if available
+  if (data.usage?.server_tool_use?.web_search_requests) {
+    console.log(`🔍 Web search requests made: ${data.usage.server_tool_use.web_search_requests}`)
   }
 
   return {
