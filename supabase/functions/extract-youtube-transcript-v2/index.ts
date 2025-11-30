@@ -1,9 +1,10 @@
-// Extract YouTube Transcript V2 - Enhanced with YouTube Data API V3 + Claude Sonnet 4.5
-// Quad extraction strategy: youtube-transcript → Timedtext API → Claude Web Capability → Metadata
+// Extract YouTube Transcript V2 - Enhanced with Innertube API + Claude Web Search
+// Quad extraction strategy: Innertube API → youtube-transcript → Claude Web Search → Metadata
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { YoutubeTranscript } from "jsr:@fbehrens/youtube-transcript@1.0.2";
+import { callClaude, logClaudeUsage } from "../_shared/claude-client.ts";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY");
@@ -127,7 +128,137 @@ function formatTimestamp(seconds: number): string {
   return `${minutes}:${secs.toString().padStart(2, "0")}`;
 }
 
-// ✅ METHOD 1: Use youtube-transcript npm package (Primary)
+// ✅ METHOD 1: Innertube API - Extract from ytInitialPlayerResponse (Most Reliable)
+async function fetchTranscriptWithInnertube(
+  videoId: string,
+  preferredLang: string = "en"
+): Promise<{ segments: TranscriptSegment[]; text: string; timestampedText: string }> {
+  console.log(`🔧 [INNERTUBE] Starting Innertube API extraction for video: ${videoId}`);
+  console.log(`🔧 [INNERTUBE] Preferred language: ${preferredLang}`);
+
+  try {
+    // Step 1: Fetch YouTube watch page
+    const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    console.log(`🔧 [INNERTUBE] Fetching watch page: ${watchUrl}`);
+    
+    const response = await fetch(watchUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch watch page: ${response.status}`);
+    }
+
+    const html = await response.text();
+    console.log(`🔧 [INNERTUBE] Watch page fetched, length: ${html.length}`);
+
+    // Step 2: Extract ytInitialPlayerResponse JSON
+    const playerResponseMatch = html.match(/var ytInitialPlayerResponse = ({.+?});/);
+    if (!playerResponseMatch) {
+      throw new Error("Could not find ytInitialPlayerResponse in page HTML");
+    }
+
+    const playerResponse = JSON.parse(playerResponseMatch[1]);
+    console.log(`🔧 [INNERTUBE] Successfully parsed ytInitialPlayerResponse`);
+
+    // Step 3: Get caption tracks
+    const captionTracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    
+    if (!captionTracks || !Array.isArray(captionTracks) || captionTracks.length === 0) {
+      throw new Error("No caption tracks available for this video");
+    }
+
+    console.log(`🔧 [INNERTUBE] Found ${captionTracks.length} caption tracks`);
+    
+    // Find best matching language
+    let selectedTrack = captionTracks.find((track: any) => 
+      track.languageCode === preferredLang || track.languageCode.startsWith(preferredLang)
+    );
+    
+    // Fallback to English
+    if (!selectedTrack) {
+      selectedTrack = captionTracks.find((track: any) => 
+        track.languageCode === "en" || track.languageCode.startsWith("en")
+      );
+    }
+    
+    // Fallback to first available
+    if (!selectedTrack) {
+      selectedTrack = captionTracks[0];
+    }
+
+    console.log(`🔧 [INNERTUBE] Selected track language: ${selectedTrack.languageCode}`);
+
+    // Step 4: Fetch transcript from signed baseUrl
+    const transcriptUrl = selectedTrack.baseUrl + "&fmt=json3";
+    console.log(`🔧 [INNERTUBE] Fetching transcript from signed URL`);
+    
+    const transcriptResponse = await fetch(transcriptUrl);
+    if (!transcriptResponse.ok) {
+      throw new Error(`Failed to fetch transcript: ${transcriptResponse.status}`);
+    }
+
+    const transcriptData = await transcriptResponse.json();
+    console.log(`🔧 [INNERTUBE] Transcript data received`);
+
+    // Step 5: Parse JSON3 format
+    if (!transcriptData.events || !Array.isArray(transcriptData.events)) {
+      throw new Error("Invalid transcript data format");
+    }
+
+    const segments: TranscriptSegment[] = [];
+    const textParts: string[] = [];
+    const timestampedParts: string[] = [];
+
+    for (const event of transcriptData.events) {
+      if (event.segs && event.tStartMs !== undefined) {
+        const text = event.segs
+          .map((seg: any) => seg.utf8)
+          .filter((t: string) => t && t.trim())
+          .join("")
+          .trim();
+
+        if (text) {
+          const startSeconds = Math.floor(event.tStartMs / 1000);
+          const timeStr = formatTimestamp(startSeconds);
+
+          segments.push({
+            time: timeStr,
+            text: text,
+            startSeconds: startSeconds,
+          });
+
+          textParts.push(text);
+          timestampedParts.push(`[${timeStr}] ${text}`);
+        }
+      }
+    }
+
+    if (segments.length === 0) {
+      throw new Error("No valid segments extracted from transcript");
+    }
+
+    const fullText = textParts.join(" ");
+    const timestampedText = timestampedParts.join("\n");
+
+    console.log(`✅ [INNERTUBE] Success! Extracted ${segments.length} segments`);
+    console.log(`✅ [INNERTUBE] Total text length: ${fullText.length} characters`);
+
+    return {
+      segments,
+      text: fullText,
+      timestampedText,
+    };
+  } catch (error) {
+    console.error(`❌ [INNERTUBE] Failed:`, error instanceof Error ? error.message : String(error));
+    throw error;
+  }
+}
+
+// ✅ METHOD 2: Use youtube-transcript npm package (Secondary)
 async function fetchTranscriptWithYoutubeTranscript(
   videoId: string
 ): Promise<{ segments: TranscriptSegment[]; text: string; timestampedText: string }> {
@@ -187,13 +318,13 @@ async function fetchTranscriptWithYoutubeTranscript(
   }
 }
 
-// ✅ METHOD 2: Fetch transcript using YouTube Timedtext API
+// ✅ METHOD 3 (DEPRECATED): Fetch transcript using YouTube Timedtext API - Kept for backward compatibility
 async function fetchTranscriptFromTimedtext(
   videoId: string,
   languageCode: string = "en",
 ): Promise<{ segments: TranscriptSegment[]; text: string; timestampedText: string }> {
-  console.log(`🔍 [TIMEDTEXT] Starting transcript extraction for video: ${videoId}`);
-  console.log(`🔍 [TIMEDTEXT] User preferred language: ${languageCode}`);
+  console.log(`🔍 [TIMEDTEXT_DEPRECATED] Starting transcript extraction for video: ${videoId}`);
+  console.log(`🔍 [TIMEDTEXT_DEPRECATED] User preferred language: ${languageCode}`);
 
   const langCodes =
     languageCode === "hi" || languageCode === "hindi"
@@ -280,61 +411,66 @@ async function fetchTranscriptFromTimedtext(
   throw new Error("No transcript available via timedtext API");
 }
 
-// ✅ METHOD 3: Use Claude Web Capability to extract transcript (fallback)
+// ✅ METHOD 4: Use Claude Sonnet 4.5 with Web Search to extract transcript
 async function fetchTranscriptWithClaudeWeb(videoUrl: string, metadata: VideoMetadata | null): Promise<string> {
-  console.log("🌐 [CLAUDE_WEB] Using Claude web capability to extract transcript...");
-  console.log("🌐 [CLAUDE_WEB] Video URL:", videoUrl);
+  console.log("🌐 [CLAUDE_WEB_SEARCH] Using Claude Sonnet 4.5 with web search to extract transcript...");
+  console.log("🌐 [CLAUDE_WEB_SEARCH] Video URL:", videoUrl);
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5-20250929",
-        max_tokens: 8000,
-        messages: [
-          {
-            role: "user",
-            content: `Please visit this YouTube video and extract the transcript/captions for me: ${videoUrl}
+    const systemPrompt = `You are a YouTube transcript extractor. Your job is to search for and extract the full transcript/captions from YouTube videos using web search.
 
-Video Title: ${metadata?.title || "Unknown"}
-Channel: ${metadata?.channelTitle || "Unknown"}
+CRITICAL INSTRUCTIONS:
+1. Use web search to find the video and its transcript
+2. Extract the COMPLETE transcript with timestamps if available
+3. Return ONLY the transcript content - no explanations or apologies
+4. If you cannot find a transcript, provide a detailed summary based on what you find
+5. Format the transcript clearly and readably`;
 
-Extract the full transcript/captions from the video. If captions are not available, provide a comprehensive summary based on what you can see in the video description and any available information.
+    const userPrompt = `Search for and extract the transcript/captions from this YouTube video:
 
-IMPORTANT: Return ONLY the extracted content. Do not use phrases like "I cannot access", "I am unable to", or "I don't have the ability to". Always provide the best-effort content you can extract. If you truly cannot access the video, return an empty response rather than an explanation.
+Video URL: ${videoUrl}
+${metadata ? `Title: ${metadata.title}
+Channel: ${metadata.channelTitle}
+Description preview: ${metadata.description.substring(0, 500)}...` : ""}
 
-Return the transcript in a clean, readable format with timestamps if available.`,
-          },
-        ],
-      }),
+Use web search to:
+1. Find this specific video
+2. Locate and extract its full transcript/captions
+3. Return the transcript with timestamps if available
+
+Return the complete transcript content only.`;
+
+    const result = await callClaude({
+      systemPrompt,
+      userPrompt,
+      enableWebSearch: true,
+      forceWebSearch: true,
+      maxWebSearchUses: 5,
+      maxTokens: 8000,
+      temperature: 0.3,
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Claude Web API error: ${error}`);
+    logClaudeUsage("extract-youtube-transcript-v2/fetchTranscriptWithClaudeWeb", result.tokensUsed, result.webSearchUsed);
+
+    if (!result.webSearchUsed) {
+      console.warn("⚠️ [CLAUDE_WEB_SEARCH] Web search was not used - may have insufficient results");
     }
 
-    const result = await response.json();
-    const content = result.content?.[0]?.text || "";
-
-    if (content.length < 200) {
-      throw new Error("Claude web extraction returned insufficient content");
+    if (result.content.length < 200) {
+      throw new Error("Claude web search extraction returned insufficient content");
     }
 
-    console.log(`✅ [CLAUDE_WEB] Extracted ${content.length} characters via web capability`);
-    return content;
+    console.log(`✅ [CLAUDE_WEB_SEARCH] Extracted ${result.content.length} characters using web search`);
+    console.log(`✅ [CLAUDE_WEB_SEARCH] Web search used: ${result.webSearchUsed}`);
+    
+    return result.content;
   } catch (error) {
-    console.error("❌ [CLAUDE_WEB] Failed:", error instanceof Error ? error.message : String(error));
+    console.error("❌ [CLAUDE_WEB_SEARCH] Failed:", error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
 
-// METHOD 4: Generate content from metadata (last resort)
+// METHOD 5: Generate content from metadata (last resort)
 async function generateContentFromMetadata(videoUrl: string, metadata: VideoMetadata | null): Promise<string> {
   console.log("🌐 [CLAUDE_METADATA] Generating content from metadata...");
 
@@ -475,8 +611,8 @@ serve(async (req) => {
 
     await supabase.from("study_notes").update({ processing_progress: 30 }).eq("id", note_id);
 
-    // ✅ TRIPLE EXTRACTION STRATEGY
-    console.log("📥 Starting triple-fallback transcript extraction...");
+    // ✅ QUAD EXTRACTION STRATEGY - NEW FALLBACK ORDER
+    console.log("📥 Starting quad-fallback transcript extraction with improved reliability...");
 
     let transcript: string;
     let timestampedTranscript: string;
@@ -485,60 +621,60 @@ serve(async (req) => {
     let confidenceScore: number;
 
     try {
-      // METHOD 1: youtube-transcript npm package (best quality, with timestamps)
-      console.log("📥 Method 1: youtube-transcript package");
-      const result = await fetchTranscriptWithYoutubeTranscript(videoId);
+      // METHOD 1: Innertube API (most reliable, direct from YouTube)
+      console.log("📥 Method 1: Innertube API (signed URLs)");
+      const result = await fetchTranscriptWithInnertube(videoId, language || "en");
       transcript = result.text;
       timestampedTranscript = result.timestampedText;
       segments = result.segments;
-      extractionMethod = "youtube-transcript";
+      extractionMethod = "innertube-api";
       confidenceScore = 1.0;
-      console.log("✅ Method 1 succeeded!");
-    } catch (npmError) {
+      console.log("✅ Method 1 (Innertube) succeeded!");
+    } catch (innertubeError) {
       console.log(
-        "⚠️ Method 1 failed:",
-        npmError instanceof Error ? npmError.message : String(npmError),
+        "⚠️ Method 1 (Innertube) failed:",
+        innertubeError instanceof Error ? innertubeError.message : String(innertubeError)
       );
 
       try {
-        // METHOD 2: Timedtext API (fallback with timestamps)
-        console.log("📥 Method 2: Timedtext API");
-        const result = await fetchTranscriptFromTimedtext(videoId, language || "en");
+        // METHOD 2: youtube-transcript npm package
+        console.log("📥 Method 2: youtube-transcript npm package");
+        const result = await fetchTranscriptWithYoutubeTranscript(videoId);
         transcript = result.text;
         timestampedTranscript = result.timestampedText;
         segments = result.segments;
-        extractionMethod = "timedtext";
-        confidenceScore = 0.9;
-        console.log("✅ Method 2 succeeded!");
-      } catch (timedtextError) {
+        extractionMethod = "youtube-transcript-npm";
+        confidenceScore = 0.95;
+        console.log("✅ Method 2 (NPM Package) succeeded!");
+      } catch (npmError) {
         console.log(
-          "⚠️ Method 2 failed:",
-          timedtextError instanceof Error ? timedtextError.message : String(timedtextError),
+          "⚠️ Method 2 (NPM Package) failed:",
+          npmError instanceof Error ? npmError.message : String(npmError)
         );
 
+        try {
+          // METHOD 3: Claude Sonnet 4.5 with Web Search
+          console.log("📥 Method 3: Claude Sonnet 4.5 with web search");
+          transcript = await fetchTranscriptWithClaudeWeb(youtubeUrl, metadata);
+          timestampedTranscript = transcript;
+          extractionMethod = "claude-web-search";
+          confidenceScore = 0.85;
+          console.log("✅ Method 3 (Claude Web Search) succeeded!");
+        } catch (claudeWebError) {
+          console.log(
+            "⚠️ Method 3 (Claude Web Search) failed:",
+            claudeWebError instanceof Error ? claudeWebError.message : String(claudeWebError)
+          );
 
-      try {
-        // METHOD 3: Claude Web Capability (AI extraction, no timestamps)
-        console.log("📥 Method 3: Claude Web Capability");
-        transcript = await fetchTranscriptWithClaudeWeb(youtubeUrl, metadata);
-        timestampedTranscript = transcript;
-        segments = [];
-        extractionMethod = "claude-web";
-        confidenceScore = 0.8;
-        console.log("✅ Method 3 succeeded!");
-      } catch (webError) {
-        console.log("⚠️ Method 3 failed:", webError instanceof Error ? webError.message : String(webError));
-
-        // METHOD 4: Metadata-based generation (last resort)
-        console.log("📥 Method 4: Metadata-based generation");
-        transcript = await generateContentFromMetadata(youtubeUrl, metadata);
-        timestampedTranscript = transcript;
-        segments = [];
-        extractionMethod = "metadata";
-        confidenceScore = 0.5;
-        console.log("✅ Method 4 succeeded!");
+          // METHOD 4: Metadata-based generation (last resort)
+          console.log("📥 Method 4: Metadata-based generation (last resort)");
+          transcript = await generateContentFromMetadata(youtubeUrl, metadata);
+          timestampedTranscript = transcript;
+          extractionMethod = "metadata-generated";
+          confidenceScore = 0.5;
+          console.log("✅ Method 4 (Metadata) succeeded - this is AI-generated content, not a real transcript");
+        }
       }
-    }
     }
 
     // Validate with fallback
@@ -548,13 +684,13 @@ serve(async (req) => {
       console.log("⚠️ Transcript preview (first 300 chars):", transcript.slice(0, 300));
 
       // If we haven't yet used metadata-based generation, try it as a last resort
-      if (extractionMethod !== "metadata") {
+      if (extractionMethod !== "metadata-generated") {
         try {
           console.log("📥 Trying metadata-based generation as fallback after validation failure...");
           transcript = await generateContentFromMetadata(youtubeUrl, metadata);
           timestampedTranscript = transcript;
           segments = [];
-          extractionMethod = "metadata";
+          extractionMethod = "metadata-generated";
           confidenceScore = 0.5;
 
           validation = isValidTranscript(transcript);
