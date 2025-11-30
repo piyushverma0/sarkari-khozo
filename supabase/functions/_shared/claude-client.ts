@@ -55,7 +55,8 @@ export async function callClaude(options: ClaudeCallOptions): Promise<ClaudeResp
   if (tools.length > 0) {
     requestBody.tools = tools
     if (forceWebSearch) {
-      requestBody.tool_choice = { type: 'any' }
+      // Explicitly force web search tool to be used
+      requestBody.tool_choice = { type: 'tool', name: 'web_search' }
     }
   }
 
