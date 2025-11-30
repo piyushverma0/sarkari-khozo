@@ -302,33 +302,47 @@ async function fetchTranscriptWithYoutubeTranscriptIO(
   console.log(`🌐 [TRANSCRIPT_IO] Video ID: ${videoId}`);
 
   try {
-    const apiUrl = `https://youtube-transcript.io/api/transcript?videoId=${videoId}`;
+    const apiKey = Deno.env.get('YOUTUBE_TRANSCRIPT_IO_API_KEY');
+    if (!apiKey) {
+      throw new Error('YOUTUBE_TRANSCRIPT_IO_API_KEY not configured');
+    }
+
+    const apiUrl = 'https://www.youtube-transcript.io/api/transcripts';
     console.log(`🌐 [TRANSCRIPT_IO] Fetching from: ${apiUrl}`);
     
     const response = await fetch(apiUrl, {
+      method: 'POST',
       headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; StudyNotesApp/1.0)",
+        'Authorization': `Basic ${apiKey}`,
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ ids: [videoId] }),
     });
 
     if (!response.ok) {
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After');
+        throw new Error(`Rate limited. Retry after: ${retryAfter} seconds`);
+      }
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
     
-    if (!data || !Array.isArray(data) || data.length === 0) {
+    // Response format: array of video objects
+    if (!Array.isArray(data) || data.length === 0 || !data[0].transcript) {
       throw new Error("No transcript data returned from youtube-transcript.io");
     }
 
-    console.log(`🌐 [TRANSCRIPT_IO] Retrieved ${data.length} transcript segments`);
+    const transcript = data[0].transcript;
+    console.log(`🌐 [TRANSCRIPT_IO] Retrieved ${transcript.length} transcript segments`);
 
     const segments: TranscriptSegment[] = [];
     const textParts: string[] = [];
     const timestampedParts: string[] = [];
 
-    for (const item of data) {
-      const startSeconds = Math.floor((item.start || 0) / 1000);
+    for (const item of transcript) {
+      const startSeconds = Math.floor(item.offset || 0);
       const timeStr = formatTimestamp(startSeconds);
       const text = (item.text || "").trim();
 
