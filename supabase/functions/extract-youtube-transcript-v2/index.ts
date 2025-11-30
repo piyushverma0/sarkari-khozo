@@ -145,6 +145,8 @@ async function fetchTranscriptWithInnertube(
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept-Language": "en-US,en;q=0.9",
+        "Cookie": "CONSENT=YES+cb.20240101-00-p0.en+FX+000; PREF=f6=40000000&tz=UTC",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
     });
 
@@ -175,10 +177,30 @@ async function fetchTranscriptWithInnertube(
     const playerResponse = JSON.parse(playerResponseMatch[1]);
     console.log(`🔧 [INNERTUBE] Successfully parsed ytInitialPlayerResponse`);
 
-    // Step 3: Get caption tracks
-    const captionTracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    // Step 3: Get caption tracks - try multiple paths
+    let captionTracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    
+    // Try alternative path
+    if (!captionTracks || !Array.isArray(captionTracks) || captionTracks.length === 0) {
+      captionTracks = playerResponse?.captions?.playerCaptionsRenderer?.captionTracks;
+    }
+    
+    // Try searching anywhere in captions object
+    if (!captionTracks || !Array.isArray(captionTracks) || captionTracks.length === 0) {
+      const captionsStr = JSON.stringify(playerResponse?.captions || {});
+      const captionMatch = captionsStr.match(/"captionTracks":\s*(\[.+?\])/);
+      if (captionMatch) {
+        try {
+          captionTracks = JSON.parse(captionMatch[1]);
+          console.log(`🔧 [INNERTUBE] Found caption tracks via string search`);
+        } catch (e) {
+          console.warn(`⚠️ [INNERTUBE] Failed to parse caption tracks from string search`);
+        }
+      }
+    }
     
     if (!captionTracks || !Array.isArray(captionTracks) || captionTracks.length === 0) {
+      console.log(`🔧 [INNERTUBE] Caption object structure:`, JSON.stringify(playerResponse?.captions, null, 2).substring(0, 500));
       throw new Error("No caption tracks available for this video");
     }
 
@@ -549,28 +571,28 @@ async function fetchTranscriptWithClaudeWeb(videoUrl: string, metadata: VideoMet
   console.log("🌐 [CLAUDE_WEB_SEARCH] Video URL:", videoUrl);
 
   try {
-    const systemPrompt = `You are a YouTube transcript extractor. Your job is to search for and extract the full transcript/captions from YouTube videos using web search.
+    const systemPrompt = `You are a YouTube transcript extractor. Use web search to find and extract video transcripts.
 
-CRITICAL INSTRUCTIONS:
-1. Use web search to find the video and its transcript
-2. Extract the COMPLETE transcript with timestamps if available
-3. Return ONLY the transcript content - no explanations or apologies
-4. If you cannot find a transcript, provide a detailed summary based on what you find
-5. Format the transcript clearly and readably`;
+CRITICAL: You MUST use web search to find current information about videos. Do not rely on training data.
 
-    const userPrompt = `Search for and extract the transcript/captions from this YouTube video:
+Your task:
+1. Search the web for the video and transcript
+2. Extract the COMPLETE transcript with timestamps
+3. Return ONLY transcript content - no explanations
+4. If no transcript exists, provide a detailed summary from available information`;
 
-Video URL: ${videoUrl}
-${metadata ? `Title: ${metadata.title}
-Channel: ${metadata.channelTitle}
-Description preview: ${metadata.description.substring(0, 500)}...` : ""}
+    const userPrompt = `I need the transcript for this YouTube video RIGHT NOW. Search for it immediately.
 
-Use web search to:
-1. Find this specific video
-2. Locate and extract its full transcript/captions
-3. Return the transcript with timestamps if available
+Video: ${videoUrl}
+${metadata ? `Title: "${metadata.title}"
+Channel: ${metadata.channelTitle}` : ""}
 
-Return the complete transcript content only.`;
+SEARCH QUERIES TO TRY:
+1. "${metadata?.title || videoUrl} transcript"
+2. "${metadata?.title || videoUrl} captions"
+3. Search directly for the video URL: ${videoUrl}
+
+ACTION REQUIRED: Use web search NOW to find this video's transcript. Extract the complete content with timestamps if available.`;
 
     const result = await callClaude({
       systemPrompt,
