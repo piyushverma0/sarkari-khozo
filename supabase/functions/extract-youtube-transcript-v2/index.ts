@@ -10,7 +10,6 @@ const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const WEBSHARE_PROXY_URL = Deno.env.get("WEBSHARE_PROXY_URL");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -142,28 +141,15 @@ function formatTimestamp(seconds: number): string {
   return `${minutes}:${secs.toString().padStart(2, "0")}`;
 }
 
-// Helper to get proxy configuration
-function getProxyConfig(): RequestInit | undefined {
-  if (!WEBSHARE_PROXY_URL) {
-    console.log("🔧 [PROXY] No proxy configured");
-    return undefined;
-  }
-  
-  console.log("🔧 [PROXY] Using Webshare proxy");
-  
-  // Parse proxy URL to extract credentials
-  try {
-    const proxyUrl = new URL(WEBSHARE_PROXY_URL);
-    return {
-      // Note: Deno's fetch doesn't support proxy option directly
-      // We need to use a proxy agent or HTTP_PROXY env var
-      // For Webshare, we can set the proxy via environment
-    };
-  } catch (error) {
-    console.error("❌ [PROXY] Invalid proxy URL:", error);
-    return undefined;
-  }
-}
+// Invidious public instances for free transcript extraction
+const INVIDIOUS_INSTANCES = [
+  'https://invidious.io',
+  'https://yewtu.be',
+  'https://vid.puffyan.us',
+  'https://inv.nadeko.net',
+  'https://invidious.snopyta.org',
+  'https://invidious.kavin.rocks',
+];
 
 function detectLanguageFromMetadata(metadata: VideoMetadata | null, userLanguage?: string): string {
   if (userLanguage && userLanguage !== "en") return userLanguage;
@@ -254,7 +240,150 @@ function extractChaptersFromDescription(description: string): Array<{ time: stri
 }
 
 // =====================================================
-// METHOD 1: Multi-Client Innertube API
+// METHOD 1: Invidious API (FREE - Primary method)
+// Uses public Invidious instances to get captions
+// =====================================================
+async function fetchTranscriptWithInvidious(
+  videoId: string,
+  preferredLang: string = "en",
+): Promise<{ segments: TranscriptSegment[]; text: string; timestampedText: string; language: string }> {
+  console.log(`🔧 [INVIDIOUS] Starting Invidious API extraction for: ${videoId}`);
+
+  const errors: string[] = [];
+
+  for (const instance of INVIDIOUS_INSTANCES) {
+    try {
+      console.log(`🔧 [INVIDIOUS] Trying instance: ${instance}`);
+
+      // Fetch video info including captions
+      const videoInfoUrl = `${instance}/api/v1/videos/${videoId}`;
+      const videoResponse = await fetch(videoInfoUrl, {
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!videoResponse.ok) {
+        console.log(`🔧 [INVIDIOUS] ${instance}: HTTP ${videoResponse.status}`);
+        errors.push(`${instance}: HTTP ${videoResponse.status}`);
+        continue;
+      }
+
+      const videoData = await videoResponse.json();
+
+      if (!videoData.captions || !Array.isArray(videoData.captions) || videoData.captions.length === 0) {
+        console.log(`🔧 [INVIDIOUS] ${instance}: No captions available`);
+        errors.push(`${instance}: No captions`);
+        continue;
+      }
+
+      console.log(`✅ [INVIDIOUS] ${instance}: Found ${videoData.captions.length} caption track(s)!`);
+
+      // Log available languages
+      const availableLangs = videoData.captions.map((c: any) => c.language_code || c.label);
+      console.log(`🔧 [INVIDIOUS] Available: ${availableLangs.join(", ")}`);
+
+      // Select best caption track
+      const langPriority = preferredLang === "hi" ? ["hi", "hi-IN", "en", "en-US"] : ["en", "en-US", "hi", "hi-IN"];
+
+      let selectedCaption: any = null;
+      for (const lang of langPriority) {
+        selectedCaption = videoData.captions.find((c: any) => 
+          c.language_code?.startsWith(lang.split("-")[0]) || c.label?.toLowerCase().includes(lang.toLowerCase())
+        );
+        if (selectedCaption) break;
+      }
+
+      if (!selectedCaption) selectedCaption = videoData.captions[0];
+
+      const selectedLang = selectedCaption.language_code || selectedCaption.label || "unknown";
+      console.log(`🔧 [INVIDIOUS] Selected: ${selectedLang}`);
+
+      // Fetch caption content
+      const captionUrl = selectedCaption.url;
+      if (!captionUrl) {
+        errors.push(`${instance}: No caption URL`);
+        continue;
+      }
+
+      // Build full caption URL (relative URLs need instance prefix)
+      const fullCaptionUrl = captionUrl.startsWith('http') ? captionUrl : `${instance}${captionUrl}`;
+      
+      const captionResponse = await fetch(fullCaptionUrl, {
+        headers: {
+          'Accept': 'application/json, text/plain, */*',
+        },
+      });
+
+      if (!captionResponse.ok) {
+        errors.push(`${instance}: Caption fetch failed`);
+        continue;
+      }
+
+      const captionText = await captionResponse.text();
+      
+      // Try parsing as JSON3 format first
+      try {
+        const captionData = JSON.parse(captionText);
+        
+        if (captionData.events && Array.isArray(captionData.events)) {
+          // JSON3 format (same as Innertube)
+          const segments: TranscriptSegment[] = [];
+          const textParts: string[] = [];
+          const timestampedParts: string[] = [];
+
+          for (const event of captionData.events) {
+            if (!event?.segs || event.tStartMs === undefined) continue;
+            const text = event.segs
+              .filter((s: any) => s?.utf8)
+              .map((s: any) => s.utf8)
+              .join("")
+              .trim();
+            if (text && text !== "\n") {
+              const startSeconds = Math.floor(event.tStartMs / 1000);
+              const timeStr = formatTimestamp(startSeconds);
+              segments.push({ time: timeStr, text, startSeconds });
+              textParts.push(text);
+              timestampedParts.push(`[${timeStr}] ${text}`);
+            }
+          }
+
+          if (segments.length > 0) {
+            console.log(`✅ [INVIDIOUS] ${instance}: Success! ${segments.length} segments, ${textParts.join(" ").length} chars`);
+            return {
+              segments,
+              text: textParts.join(" "),
+              timestampedText: timestampedParts.join("\n"),
+              language: selectedLang,
+            };
+          }
+        }
+      } catch {
+        // Not JSON3, try plain text
+        if (captionText.length > 100) {
+          console.log(`✅ [INVIDIOUS] ${instance}: Success with plain text! ${captionText.length} chars`);
+          return {
+            segments: [],
+            text: captionText,
+            timestampedText: captionText,
+            language: selectedLang,
+          };
+        }
+      }
+
+      errors.push(`${instance}: Invalid caption format`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.log(`🔧 [INVIDIOUS] ${instance}: Error - ${msg}`);
+      errors.push(`${instance}: ${msg}`);
+    }
+  }
+
+  throw new Error(`All Invidious instances failed: ${errors.join("; ")}`);
+}
+
+// =====================================================
+// METHOD 2: Multi-Client Innertube API
 // Tries multiple client types to bypass LOGIN_REQUIRED
 // =====================================================
 async function fetchTranscriptWithMultiClientInnertube(
@@ -291,7 +420,6 @@ async function fetchTranscriptWithMultiClientInnertube(
         requestBody.thirdParty = clientConfig.thirdParty;
       }
 
-      // Configure fetch with proxy if available
       const fetchOptions: RequestInit = {
         method: "POST",
         headers: {
@@ -302,14 +430,6 @@ async function fetchTranscriptWithMultiClientInnertube(
         },
         body: JSON.stringify(requestBody),
       };
-      
-      // Add proxy if configured (Webshare format: http://username:password@proxy:port)
-      if (WEBSHARE_PROXY_URL) {
-        const proxyUrl = new URL(WEBSHARE_PROXY_URL);
-        // Set HTTP_PROXY for Deno fetch
-        Deno.env.set("HTTP_PROXY", WEBSHARE_PROXY_URL);
-        Deno.env.set("HTTPS_PROXY", WEBSHARE_PROXY_URL);
-      }
 
       const response = await fetch("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", fetchOptions);
 
@@ -434,7 +554,7 @@ async function fetchTranscriptWithMultiClientInnertube(
 }
 
 // =====================================================
-// METHOD 2: Direct Timedtext API with multiple variants
+// METHOD 3: Direct Timedtext API with multiple variants
 // =====================================================
 async function fetchTranscriptWithTimedtextAPI(
   videoId: string,
@@ -532,7 +652,7 @@ async function fetchTranscriptWithTimedtextAPI(
 }
 
 // =====================================================
-// METHOD 3: youtube-transcript NPM package
+// METHOD 4: youtube-transcript NPM package
 // =====================================================
 async function fetchTranscriptWithNPM(
   videoId: string,
@@ -577,7 +697,7 @@ async function fetchTranscriptWithNPM(
 }
 
 // =====================================================
-// METHOD 4: Supadata API (Alternative transcript service)
+// METHOD 5: Supadata API (Alternative transcript service - 100 free/month)
 // =====================================================
 async function fetchTranscriptWithSupadata(
   videoId: string,
@@ -643,7 +763,7 @@ async function fetchTranscriptWithSupadata(
 }
 
 // =====================================================
-// METHOD 5: Claude Web Search (Last resort for actual transcript)
+// METHOD 6: Claude Web Search (Last resort for actual transcript)
 // =====================================================
 async function fetchTranscriptWithClaudeWeb(
   videoUrl: string,
@@ -717,7 +837,7 @@ Return the FULL TRANSCRIPT with timestamps. For a ${metadata?.duration || ""} vi
 }
 
 // =====================================================
-// METHOD 6: Generate from metadata (absolute last resort)
+// METHOD 7: Generate from metadata (absolute last resort)
 // =====================================================
 async function generateFromMetadata(
   metadata: VideoMetadata | null,
@@ -832,10 +952,10 @@ serve(async (req) => {
     await supabase.from("study_notes").update({ processing_progress: 30 }).eq("id", note_id);
 
     // =====================================================
-    // 6-METHOD EXTRACTION CASCADE
-    // (youtube-transcript.io removed, using Webshare proxy)
+    // 7-METHOD EXTRACTION CASCADE (ALL FREE)
+    // Priority: Invidious (most reliable free) → Others → AI
     // =====================================================
-    console.log("📥 Starting 6-method extraction cascade...");
+    console.log("📥 Starting 7-method extraction cascade...");
 
     let transcript: string;
     let timestampedTranscript: string;
@@ -844,84 +964,99 @@ serve(async (req) => {
     let confidenceScore: number;
     let extractedLanguage: string = detectedLanguage;
 
-    // METHOD 1: Multi-Client Innertube
+    // METHOD 1: Invidious API (FREE - Best reliability)
     try {
-      console.log("📥 Method 1: Multi-Client Innertube API");
-      const result = await fetchTranscriptWithMultiClientInnertube(videoId, detectedLanguage);
+      console.log("📥 Method 1: Invidious API");
+      const result = await fetchTranscriptWithInvidious(videoId, detectedLanguage);
       transcript = result.text;
       timestampedTranscript = result.timestampedText;
       segments = result.segments;
-      extractionMethod = "innertube-multi-client";
+      extractionMethod = "invidious-api";
       confidenceScore = 1.0;
       extractedLanguage = result.language;
       console.log("✅ Method 1 succeeded!");
     } catch (e1) {
       console.log("⚠️ Method 1 failed:", e1 instanceof Error ? e1.message : String(e1));
 
-      // METHOD 2: Timedtext API
+      // METHOD 2: Multi-Client Innertube
       try {
-        console.log("📥 Method 2: Timedtext API");
-        const result = await fetchTranscriptWithTimedtextAPI(videoId, detectedLanguage);
+        console.log("📥 Method 2: Multi-Client Innertube API");
+        const result = await fetchTranscriptWithMultiClientInnertube(videoId, detectedLanguage);
         transcript = result.text;
         timestampedTranscript = result.timestampedText;
         segments = result.segments;
-        extractionMethod = "timedtext-api";
-        confidenceScore = 0.98;
+        extractionMethod = "innertube-multi-client";
+        confidenceScore = 0.99;
         extractedLanguage = result.language;
         console.log("✅ Method 2 succeeded!");
       } catch (e2) {
         console.log("⚠️ Method 2 failed:", e2 instanceof Error ? e2.message : String(e2));
 
-        // METHOD 3: NPM Package
+        // METHOD 3: Timedtext API
         try {
-          console.log("📥 Method 3: NPM package");
-          const result = await fetchTranscriptWithNPM(videoId, detectedLanguage);
+          console.log("📥 Method 3: Timedtext API");
+          const result = await fetchTranscriptWithTimedtextAPI(videoId, detectedLanguage);
           transcript = result.text;
           timestampedTranscript = result.timestampedText;
           segments = result.segments;
-          extractionMethod = "npm-package";
-          confidenceScore = 0.95;
+          extractionMethod = "timedtext-api";
+          confidenceScore = 0.98;
           extractedLanguage = result.language;
           console.log("✅ Method 3 succeeded!");
         } catch (e3) {
           console.log("⚠️ Method 3 failed:", e3 instanceof Error ? e3.message : String(e3));
 
-          // METHOD 4: Supadata
+          // METHOD 4: NPM Package
           try {
-            console.log("📥 Method 4: Supadata API");
-            const result = await fetchTranscriptWithSupadata(videoId);
+            console.log("📥 Method 4: NPM package");
+            const result = await fetchTranscriptWithNPM(videoId, detectedLanguage);
             transcript = result.text;
             timestampedTranscript = result.timestampedText;
             segments = result.segments;
-            extractionMethod = "supadata";
-            confidenceScore = 0.92;
+            extractionMethod = "npm-package";
+            confidenceScore = 0.95;
             extractedLanguage = result.language;
             console.log("✅ Method 4 succeeded!");
           } catch (e4) {
             console.log("⚠️ Method 4 failed:", e4 instanceof Error ? e4.message : String(e4));
 
-            // METHOD 5: Claude Web Search
+            // METHOD 5: Supadata API
             try {
-              console.log("📥 Method 5: Claude Web Search");
-              const result = await fetchTranscriptWithClaudeWeb(youtubeUrl, metadata, detectedLanguage);
+              console.log("📥 Method 5: Supadata API");
+              const result = await fetchTranscriptWithSupadata(videoId);
               transcript = result.text;
-              timestampedTranscript = result.text;
-              extractionMethod = "claude-web-search";
-              confidenceScore = 0.8;
+              timestampedTranscript = result.timestampedText;
+              segments = result.segments;
+              extractionMethod = "supadata";
+              confidenceScore = 0.92;
               extractedLanguage = result.language;
               console.log("✅ Method 5 succeeded!");
             } catch (e5) {
               console.log("⚠️ Method 5 failed:", e5 instanceof Error ? e5.message : String(e5));
 
-              // METHOD 6: Metadata generation (LAST RESORT)
-              console.log("📥 Method 6: Metadata generation (LAST RESORT)");
-              const result = await generateFromMetadata(metadata, detectedLanguage);
-              transcript = result.text;
-              timestampedTranscript = result.text;
-              extractionMethod = "metadata-generated";
-              confidenceScore = 0.5;
-              extractedLanguage = result.language;
-              console.log("⚠️ Method 6 succeeded - AI-generated content");
+              // METHOD 6: Claude Web Search
+              try {
+                console.log("📥 Method 6: Claude Web Search");
+                const result = await fetchTranscriptWithClaudeWeb(youtubeUrl, metadata, detectedLanguage);
+                transcript = result.text;
+                timestampedTranscript = result.text;
+                extractionMethod = "claude-web-search";
+                confidenceScore = 0.8;
+                extractedLanguage = result.language;
+                console.log("✅ Method 6 succeeded!");
+              } catch (e6) {
+                console.log("⚠️ Method 6 failed:", e6 instanceof Error ? e6.message : String(e6));
+
+                // METHOD 7: Metadata generation (LAST RESORT)
+                console.log("📥 Method 7: Metadata generation (LAST RESORT)");
+                const result = await generateFromMetadata(metadata, detectedLanguage);
+                transcript = result.text;
+                timestampedTranscript = result.text;
+                extractionMethod = "metadata-generated";
+                confidenceScore = 0.5;
+                extractedLanguage = result.language;
+                console.log("⚠️ Method 7 succeeded - AI-generated content");
+              }
             }
           }
         }
