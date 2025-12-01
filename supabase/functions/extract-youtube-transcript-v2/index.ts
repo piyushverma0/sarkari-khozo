@@ -1,5 +1,5 @@
-// Extract YouTube Transcript V2 - Enhanced with Innertube API + YouTube Data API + Claude Web Search
-// 5-method extraction strategy: Innertube → YouTube Data API → youtube-transcript → Claude Web Search → Metadata
+// Extract YouTube Transcript V2 - Enhanced with Innertube API + Third-Party APIs + Claude Web Search
+// 5-method extraction strategy: Innertube → youtube-transcript npm → youtube-transcript.io API → Claude Web Search → Metadata
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
@@ -291,94 +291,61 @@ async function fetchTranscriptWithInnertube(
   }
 }
 
-// ✅ METHOD 2: YouTube Data API Captions (Direct API Access)
-async function fetchTranscriptWithYoutubeDataAPI(
-  videoId: string,
-  preferredLang: string = "en"
-): Promise<{ segments: TranscriptSegment[]; text: string; timestampedText: string }> {
-  console.log(`🔑 [YOUTUBE_DATA_API] Starting YouTube Data API caption extraction`);
-  console.log(`🔑 [YOUTUBE_DATA_API] Video ID: ${videoId}`);
-  console.log(`🔑 [YOUTUBE_DATA_API] Preferred language: ${preferredLang}`);
+// ✅ METHOD 2: youtube-transcript npm package
+// (Moved from METHOD 3 for better ordering)
 
-  if (!YOUTUBE_API_KEY) {
-    throw new Error("YouTube API key not configured");
-  }
+// ✅ METHOD 3: youtube-transcript.io API (Third-party free service)
+async function fetchTranscriptWithYoutubeTranscriptIO(
+  videoId: string
+): Promise<{ segments: TranscriptSegment[]; text: string; timestampedText: string }> {
+  console.log(`🌐 [TRANSCRIPT_IO] Attempting transcript extraction using youtube-transcript.io API`);
+  console.log(`🌐 [TRANSCRIPT_IO] Video ID: ${videoId}`);
 
   try {
-    // Step 1: List available captions
-    const listUrl = `https://www.googleapis.com/youtube/v3/captions?videoId=${videoId}&part=snippet&key=${YOUTUBE_API_KEY}`;
-    console.log(`🔑 [YOUTUBE_DATA_API] Listing captions...`);
-    
-    const listResponse = await fetch(listUrl);
-    if (!listResponse.ok) {
-      throw new Error(`Failed to list captions: ${listResponse.status}`);
+    const apiKey = Deno.env.get('YOUTUBE_TRANSCRIPT_IO_API_KEY');
+    if (!apiKey) {
+      throw new Error('YOUTUBE_TRANSCRIPT_IO_API_KEY not configured');
     }
 
-    const listData = await listResponse.json();
+    const apiUrl = 'https://www.youtube-transcript.io/api/transcripts';
+    console.log(`🌐 [TRANSCRIPT_IO] Fetching from: ${apiUrl}`);
     
-    if (!listData.items || listData.items.length === 0) {
-      throw new Error("No captions available for this video");
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ids: [videoId] }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After');
+        throw new Error(`Rate limited. Retry after: ${retryAfter} seconds`);
+      }
+      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
-    console.log(`🔑 [YOUTUBE_DATA_API] Found ${listData.items.length} caption tracks`);
+    const data = await response.json();
     
-    // Find best matching caption track
-    let selectedCaption = listData.items.find((item: any) => 
-      item.snippet.language === preferredLang || item.snippet.language.startsWith(preferredLang)
-    );
-    
-    // Fallback to English
-    if (!selectedCaption) {
-      selectedCaption = listData.items.find((item: any) => 
-        item.snippet.language === "en" || item.snippet.language.startsWith("en")
-      );
-    }
-    
-    // Fallback to first available
-    if (!selectedCaption) {
-      selectedCaption = listData.items[0];
+    // Response format: array of video objects
+    if (!Array.isArray(data) || data.length === 0 || !data[0].transcript) {
+      throw new Error("No transcript data returned from youtube-transcript.io");
     }
 
-    console.log(`🔑 [YOUTUBE_DATA_API] Selected caption: ${selectedCaption.snippet.language} (${selectedCaption.snippet.trackKind})`);
+    const transcript = data[0].transcript;
+    console.log(`🌐 [TRANSCRIPT_IO] Retrieved ${transcript.length} transcript segments`);
 
-    // Step 2: Download caption (Note: This requires OAuth2 for private videos, may not work for all)
-    const downloadUrl = `https://www.googleapis.com/youtube/v3/captions/${selectedCaption.id}?tfmt=srt&key=${YOUTUBE_API_KEY}`;
-    console.log(`🔑 [YOUTUBE_DATA_API] Attempting caption download...`);
-    
-    const downloadResponse = await fetch(downloadUrl);
-    
-    if (!downloadResponse.ok) {
-      // This is expected for most videos as caption download requires OAuth2
-      throw new Error(`Caption download requires authorization (status: ${downloadResponse.status})`);
-    }
-
-    const srtContent = await downloadResponse.text();
-    console.log(`🔑 [YOUTUBE_DATA_API] Caption downloaded, length: ${srtContent.length}`);
-
-    // Parse SRT format
     const segments: TranscriptSegment[] = [];
     const textParts: string[] = [];
     const timestampedParts: string[] = [];
 
-    const srtBlocks = srtContent.split(/\n\n+/);
-    
-    for (const block of srtBlocks) {
-      const lines = block.trim().split("\n");
-      if (lines.length < 3) continue;
-
-      const timeLine = lines[1];
-      const textLines = lines.slice(2).join(" ");
-      
-      const timeMatch = timeLine.match(/(\d{2}):(\d{2}):(\d{2})/);
-      if (!timeMatch) continue;
-
-      const hours = parseInt(timeMatch[1]);
-      const minutes = parseInt(timeMatch[2]);
-      const seconds = parseInt(timeMatch[3]);
-      const startSeconds = hours * 3600 + minutes * 60 + seconds;
+    for (const item of transcript) {
+      const startSeconds = Math.floor(item.offset || 0);
       const timeStr = formatTimestamp(startSeconds);
+      const text = (item.text || "").trim();
 
-      const text = textLines.trim();
       if (text) {
         segments.push({
           time: timeStr,
@@ -392,14 +359,14 @@ async function fetchTranscriptWithYoutubeDataAPI(
     }
 
     if (segments.length === 0) {
-      throw new Error("No valid segments extracted from SRT captions");
+      throw new Error("No valid segments extracted from transcript data");
     }
 
     const fullText = textParts.join(" ");
     const timestampedText = timestampedParts.join("\n");
 
-    console.log(`✅ [YOUTUBE_DATA_API] Success! Extracted ${segments.length} segments`);
-    console.log(`✅ [YOUTUBE_DATA_API] Total text length: ${fullText.length} characters`);
+    console.log(`✅ [TRANSCRIPT_IO] Success! Extracted ${segments.length} segments`);
+    console.log(`✅ [TRANSCRIPT_IO] Total text length: ${fullText.length} characters`);
 
     return {
       segments,
@@ -407,12 +374,12 @@ async function fetchTranscriptWithYoutubeDataAPI(
       timestampedText,
     };
   } catch (error) {
-    console.error(`❌ [YOUTUBE_DATA_API] Failed:`, error instanceof Error ? error.message : String(error));
+    console.error(`❌ [TRANSCRIPT_IO] Failed:`, error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
 
-// ✅ METHOD 3: Use youtube-transcript npm package (Secondary)
+// Helper function for youtube-transcript npm package (used as METHOD 2)
 async function fetchTranscriptWithYoutubeTranscript(
   videoId: string
 ): Promise<{ segments: TranscriptSegment[]; text: string; timestampedText: string }> {
@@ -791,35 +758,35 @@ serve(async (req) => {
       );
 
       try {
-        // METHOD 2: YouTube Data API Captions
-        console.log("📥 Method 2: YouTube Data API Captions");
-        const result = await fetchTranscriptWithYoutubeDataAPI(videoId, language || "en");
+        // METHOD 2: youtube-transcript npm package
+        console.log("📥 Method 2: youtube-transcript npm package");
+        const result = await fetchTranscriptWithYoutubeTranscript(videoId);
         transcript = result.text;
         timestampedTranscript = result.timestampedText;
         segments = result.segments;
-        extractionMethod = "youtube-data-api";
+        extractionMethod = "youtube-transcript-npm";
         confidenceScore = 0.98;
-        console.log("✅ Method 2 (YouTube Data API) succeeded!");
-      } catch (dataApiError) {
+        console.log("✅ Method 2 (NPM Package) succeeded!");
+      } catch (npmError) {
         console.log(
-          "⚠️ Method 2 (YouTube Data API) failed:",
-          dataApiError instanceof Error ? dataApiError.message : String(dataApiError)
+          "⚠️ Method 2 (NPM Package) failed:",
+          npmError instanceof Error ? npmError.message : String(npmError)
         );
 
         try {
-          // METHOD 3: youtube-transcript npm package
-          console.log("📥 Method 3: youtube-transcript npm package");
-          const result = await fetchTranscriptWithYoutubeTranscript(videoId);
+          // METHOD 3: youtube-transcript.io API (third-party free service)
+          console.log("📥 Method 3: youtube-transcript.io API");
+          const result = await fetchTranscriptWithYoutubeTranscriptIO(videoId);
           transcript = result.text;
           timestampedTranscript = result.timestampedText;
           segments = result.segments;
-          extractionMethod = "youtube-transcript-npm";
+          extractionMethod = "youtube-transcript-io";
           confidenceScore = 0.95;
-          console.log("✅ Method 3 (NPM Package) succeeded!");
-        } catch (npmError) {
+          console.log("✅ Method 3 (youtube-transcript.io) succeeded!");
+        } catch (transcriptIoError) {
           console.log(
-            "⚠️ Method 3 (NPM Package) failed:",
-            npmError instanceof Error ? npmError.message : String(npmError)
+            "⚠️ Method 3 (youtube-transcript.io) failed:",
+            transcriptIoError instanceof Error ? transcriptIoError.message : String(transcriptIoError)
           );
 
           try {
