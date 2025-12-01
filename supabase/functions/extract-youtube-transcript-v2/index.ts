@@ -60,7 +60,7 @@ function extractVideoId(url: string): string | null {
 function formatTimestamp(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
+  const secs = Math.floor(seconds % 60);
 
   if (hours > 0) {
     return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
@@ -198,6 +198,7 @@ function extractChaptersFromDescription(description: string): Array<{ time: stri
 }
 
 // ✅ METHOD 1: Innertube API - Extract from ytInitialPlayerResponse (Most Reliable)
+// FIXED: Better caption URL extraction directly from HTML
 async function fetchTranscriptWithInnertube(
   videoId: string,
   preferredLang: string = "en",
@@ -227,157 +228,84 @@ async function fetchTranscriptWithInnertube(
     const html = await response.text();
     console.log(`🔧 [INNERTUBE] Watch page fetched, length: ${html.length}`);
 
-    // Step 2: Extract ytInitialPlayerResponse JSON - try multiple patterns
-    let playerResponse: any = null;
+    // Step 2: IMPROVED - Search for caption tracks directly in HTML
+    // This is more reliable than trying to parse the entire ytInitialPlayerResponse
+    let captionTracks: any[] = [];
 
-    // Pattern 1: Standard format with greedy match
-    let match = html.match(/var\s+ytInitialPlayerResponse\s*=\s*(\{.+?\});\s*(?:var|const|let|<\/script>)/s);
-    if (!match) {
-      // Pattern 2: Alternative format
-      match = html.match(/ytInitialPlayerResponse\s*=\s*(\{.+?\});\s*(?:var|const|let|if|<\/script>)/s);
-    }
-    if (!match) {
-      // Pattern 3: Broader match
-      match = html.match(/ytInitialPlayerResponse\s*=\s*(\{[\s\S]*?"captions"[\s\S]*?\})\s*;/);
-    }
-
-    if (match && match[1]) {
+    // Method A: Find captionTracks array directly
+    const captionTracksMatch = html.match(/"captionTracks"\s*:\s*(\[[\s\S]*?\])\s*,\s*"audioTracks"/);
+    if (captionTracksMatch) {
       try {
-        // Clean the JSON string by finding proper JSON boundaries
-        let jsonStr = match[1];
-
-        // Find the proper end of the JSON object by counting braces
-        let braceCount = 0;
-        let endIndex = 0;
-        let inString = false;
-        let escapeNext = false;
-
-        for (let i = 0; i < jsonStr.length; i++) {
-          const char = jsonStr[i];
-
-          if (escapeNext) {
-            escapeNext = false;
-            continue;
-          }
-
-          if (char === "\\") {
-            escapeNext = true;
-            continue;
-          }
-
-          if (char === '"' && !escapeNext) {
-            inString = !inString;
-            continue;
-          }
-
-          if (!inString) {
-            if (char === "{") braceCount++;
-            if (char === "}") {
-              braceCount--;
-              if (braceCount === 0) {
-                endIndex = i + 1;
-                break;
-              }
-            }
-          }
-        }
-
-        if (endIndex > 0) {
-          jsonStr = jsonStr.substring(0, endIndex);
-        }
-
-        playerResponse = JSON.parse(jsonStr);
-      } catch (parseError) {
-        console.error(
-          `❌ [INNERTUBE] JSON parse error:`,
-          parseError instanceof Error ? parseError.message : String(parseError),
-        );
-        throw new Error("Failed to parse ytInitialPlayerResponse JSON");
-      }
-    }
-
-    if (!playerResponse) {
-      console.error("❌ [INNERTUBE] Could not find ytInitialPlayerResponse in page HTML");
-      throw new Error("Could not find ytInitialPlayerResponse in page HTML");
-    }
-
-    console.log(`🔧 [INNERTUBE] Successfully parsed ytInitialPlayerResponse`);
-
-    // Step 3: Get caption tracks with extensive null checking
-    const captions = playerResponse?.captions;
-    if (!captions) {
-      console.log(`⚠️ [INNERTUBE] No captions object found in player response`);
-      throw new Error("No captions available for this video (captions object missing)");
-    }
-
-    // Try multiple paths to find caption tracks
-    let captionTracks: any[] | null = null;
-
-    // Path 1: Standard path
-    captionTracks = captions?.playerCaptionsTracklistRenderer?.captionTracks;
-
-    // Path 2: Alternative renderer
-    if (!captionTracks || !Array.isArray(captionTracks) || captionTracks.length === 0) {
-      captionTracks = captions?.playerCaptionsRenderer?.captionTracks;
-    }
-
-    // Path 3: Direct captionTracks
-    if (!captionTracks || !Array.isArray(captionTracks) || captionTracks.length === 0) {
-      captionTracks = captions?.captionTracks;
-    }
-
-    // Log what we found for debugging
-    console.log(`🔧 [INNERTUBE] Captions structure keys:`, Object.keys(captions || {}));
-
-    if (!captionTracks || !Array.isArray(captionTracks) || captionTracks.length === 0) {
-      // Last resort: try to find in stringified captions
-      try {
-        const captionsStr = JSON.stringify(captions);
-        console.log(`🔧 [INNERTUBE] Captions JSON preview:`, captionsStr.substring(0, 500));
-
-        // Try to extract captionTracks array from stringified JSON
-        const trackMatch = captionsStr.match(/"captionTracks"\s*:\s*(\[[\s\S]*?\])\s*[,}]/);
-        if (trackMatch && trackMatch[1]) {
-          try {
-            captionTracks = JSON.parse(trackMatch[1]);
-          } catch (e) {
-            // Try a more careful extraction
-            let arrayStr = trackMatch[1];
-            let bracketCount = 0;
-            let endIdx = 0;
-            for (let i = 0; i < arrayStr.length; i++) {
-              if (arrayStr[i] === "[") bracketCount++;
-              if (arrayStr[i] === "]") {
-                bracketCount--;
-                if (bracketCount === 0) {
-                  endIdx = i + 1;
-                  break;
-                }
-              }
-            }
-            if (endIdx > 0) {
-              captionTracks = JSON.parse(arrayStr.substring(0, endIdx));
-            }
-          }
-        }
+        captionTracks = JSON.parse(captionTracksMatch[1]);
+        console.log(`🔧 [INNERTUBE] Found caption tracks via direct search (Method A)`);
       } catch (e) {
-        console.warn(`⚠️ [INNERTUBE] Failed to extract caption tracks from string search:`, e);
+        console.log(`⚠️ [INNERTUBE] Method A parse failed, trying alternatives...`);
       }
     }
 
-    if (!captionTracks || !Array.isArray(captionTracks) || captionTracks.length === 0) {
-      throw new Error("No caption tracks available for this video");
+    // Method B: Find baseUrl patterns for timedtext
+    if (captionTracks.length === 0) {
+      const baseUrlMatches = html.matchAll(/"baseUrl"\s*:\s*"(https:\/\/www\.youtube\.com\/api\/timedtext[^"]+)"/g);
+      for (const match of baseUrlMatches) {
+        const baseUrl = match[1].replace(/\\u0026/g, "&");
+        // Extract language from URL
+        const langMatch = baseUrl.match(/lang=([a-z]{2}(?:-[A-Z]{2})?)/);
+        const lang = langMatch ? langMatch[1] : "unknown";
+        captionTracks.push({ baseUrl, languageCode: lang });
+        console.log(`🔧 [INNERTUBE] Found caption URL via Method B: ${lang}`);
+      }
+    }
+
+    // Method C: Search for timedtext URLs more broadly
+    if (captionTracks.length === 0) {
+      const timedtextPattern = /https:\/\/www\.youtube\.com\/api\/timedtext\?[^"'\s]+/g;
+      const timedtextMatches = html.match(timedtextPattern);
+      if (timedtextMatches) {
+        for (const url of timedtextMatches) {
+          const cleanUrl = url.replace(/\\u0026/g, "&").replace(/&amp;/g, "&");
+          const langMatch = cleanUrl.match(/lang=([a-z]{2}(?:-[A-Z]{2})?)/);
+          const lang = langMatch ? langMatch[1] : "unknown";
+          // Avoid duplicates
+          if (!captionTracks.some((t) => t.languageCode === lang)) {
+            captionTracks.push({ baseUrl: cleanUrl, languageCode: lang });
+            console.log(`🔧 [INNERTUBE] Found caption URL via Method C: ${lang}`);
+          }
+        }
+      }
+    }
+
+    // Method D: Try to find in playerCaptionsTracklistRenderer
+    if (captionTracks.length === 0) {
+      const rendererMatch = html.match(
+        /"playerCaptionsTracklistRenderer"\s*:\s*\{[^}]*"captionTracks"\s*:\s*(\[[^\]]+\])/,
+      );
+      if (rendererMatch) {
+        try {
+          captionTracks = JSON.parse(rendererMatch[1]);
+          console.log(`🔧 [INNERTUBE] Found caption tracks via Method D`);
+        } catch (e) {
+          console.log(`⚠️ [INNERTUBE] Method D parse failed`);
+        }
+      }
+    }
+
+    if (captionTracks.length === 0) {
+      // Log what we can find for debugging
+      const hasCaptions = html.includes('"captions"');
+      const hasCaptionTracks = html.includes('"captionTracks"');
+      const hasTimedtext = html.includes("timedtext");
+      console.log(
+        `🔧 [INNERTUBE] Debug - hasCaptions: ${hasCaptions}, hasCaptionTracks: ${hasCaptionTracks}, hasTimedtext: ${hasTimedtext}`,
+      );
+
+      throw new Error("No caption tracks found in page HTML");
     }
 
     console.log(`🔧 [INNERTUBE] Found ${captionTracks.length} caption track(s)`);
 
     // Log all available languages
-    const availableLangs = captionTracks.map((t: any) => ({
-      lang: t?.languageCode || "unknown",
-      name: t?.name?.simpleText || t?.name?.runs?.[0]?.text || "unnamed",
-      kind: t?.kind || "standard",
-    }));
-    console.log(`🔧 [INNERTUBE] Available languages:`, JSON.stringify(availableLangs));
+    const availableLangs = captionTracks.map((t: any) => t?.languageCode || "unknown");
+    console.log(`🔧 [INNERTUBE] Available languages: ${availableLangs.join(", ")}`);
 
     // Build language priority list based on preferred language
     const langPriority =
@@ -392,12 +320,12 @@ async function fetchTranscriptWithInnertube(
       selectedTrack = captionTracks.find((track: any) => {
         const trackLang = track?.languageCode;
         if (!trackLang) return false;
-        return trackLang === lang || trackLang.startsWith(lang + "-") || trackLang.startsWith(lang.split("-")[0]);
+        return trackLang === lang || trackLang.startsWith(lang.split("-")[0]);
       });
       if (selectedTrack) break;
     }
 
-    // Fallback to first available track (usually auto-generated)
+    // Fallback to first available track
     if (!selectedTrack) {
       selectedTrack = captionTracks[0];
       console.log(`🔧 [INNERTUBE] Using fallback track (first available)`);
@@ -408,19 +336,20 @@ async function fetchTranscriptWithInnertube(
     }
 
     const selectedLang = selectedTrack?.languageCode || "unknown";
-    const trackKind = selectedTrack?.kind || "standard";
-    console.log(`🔧 [INNERTUBE] Selected track: ${selectedLang} (${trackKind})`);
+    console.log(`🔧 [INNERTUBE] Selected track: ${selectedLang}`);
 
-    // Step 4: Get the baseUrl with null checking
-    const baseUrl = selectedTrack?.baseUrl;
+    // Step 3: Get the baseUrl
+    let baseUrl = selectedTrack?.baseUrl;
     if (!baseUrl || typeof baseUrl !== "string") {
-      console.error(`❌ [INNERTUBE] Selected track missing baseUrl:`, JSON.stringify(selectedTrack).substring(0, 300));
       throw new Error("Caption track has no download URL (baseUrl missing)");
     }
 
-    // Fetch transcript from signed baseUrl
+    // Clean and prepare the URL
+    baseUrl = baseUrl.replace(/\\u0026/g, "&").replace(/&amp;/g, "&");
+
+    // Add fmt=json3 if not present
     const transcriptUrl = baseUrl.includes("fmt=") ? baseUrl : `${baseUrl}&fmt=json3`;
-    console.log(`🔧 [INNERTUBE] Fetching transcript from signed URL`);
+    console.log(`🔧 [INNERTUBE] Fetching transcript from URL`);
 
     const transcriptResponse = await fetch(transcriptUrl);
     if (!transcriptResponse.ok) {
@@ -430,9 +359,8 @@ async function fetchTranscriptWithInnertube(
     const transcriptData = await transcriptResponse.json();
     console.log(`🔧 [INNERTUBE] Transcript data received`);
 
-    // Step 5: Parse JSON3 format with null checking
+    // Step 4: Parse JSON3 format
     if (!transcriptData || !transcriptData.events || !Array.isArray(transcriptData.events)) {
-      console.error(`❌ [INNERTUBE] Invalid transcript format:`, JSON.stringify(transcriptData).substring(0, 300));
       throw new Error("Invalid transcript data format (no events array)");
     }
 
@@ -667,23 +595,22 @@ async function fetchTranscriptWithClaudeWeb(
   try {
     const languageInstruction =
       preferredLang === "hi"
-        ? "The video is likely in Hindi. Search for Hindi transcripts or captions."
+        ? "The video is likely in Hindi. Search for Hindi transcripts or captions. Return content in Hindi/Hinglish if that's what's available."
         : "Search for transcripts in any available language.";
 
     const systemPrompt = `You are a YouTube transcript extractor. Use web search to find and extract video transcripts.
 
-CRITICAL: You MUST use web search to find current information about videos. Do not rely on training data.
-
-Your task:
-1. Search the web for the video and its transcript/captions
-2. Extract the COMPLETE transcript with timestamps if available
-3. Return ONLY transcript content - no explanations, no meta-commentary
-4. If the video is in Hindi or another language, extract in that language
-5. If no transcript exists, provide a detailed content summary based on available information
+CRITICAL INSTRUCTIONS:
+1. You MUST use web search to find the actual transcript/captions for this video
+2. Search for third-party transcript sites like: youtubetranscript.com, downsub.com, savesubs.com, etc.
+3. Extract the COMPLETE transcript - not a summary. We need the actual spoken words.
+4. If you find a transcript, return ALL of it with timestamps if available
+5. DO NOT summarize or paraphrase - we need the actual transcript text
+6. If the video is in Hindi, return the Hindi text (Devanagari or Romanized)
 
 ${languageInstruction}`;
 
-    const userPrompt = `I need the transcript for this YouTube video. Search for it immediately.
+    const userPrompt = `I need the COMPLETE TRANSCRIPT (not a summary) for this YouTube video.
 
 Video: ${videoUrl}
 ${
@@ -694,22 +621,24 @@ Duration: ${metadata.duration}`
     : ""
 }
 
-SEARCH STRATEGIES TO TRY:
-1. Search for: "${metadata?.title || ""} transcript"
-2. Search for: "${metadata?.title || ""} subtitles" or "captions"
-3. Look for third-party transcript sites that might have this video
-4. Search the video URL directly: ${videoUrl}
+IMPORTANT: This is a ${metadata?.duration || "long"} educational video. I need the FULL transcript, not a summary.
 
-ACTION REQUIRED: Use web search NOW to find this video's complete transcript. Extract ALL the spoken content with timestamps if available. This is for educational purposes - extract the complete lecture content.`;
+SEARCH STRATEGIES - TRY ALL OF THESE:
+1. Search: "${metadata?.title || ""} full transcript"
+2. Search: "youtube transcript ${videoUrl}"
+3. Search: site:youtubetranscript.com OR site:downsub.com "${metadata?.title || ""}"
+4. Search for any third-party site that has this video's captions
+
+If you cannot find the complete transcript, clearly state that and provide whatever content you can find from the video.`;
 
     const result = await callClaude({
       systemPrompt,
       userPrompt,
       enableWebSearch: true,
       forceWebSearch: true,
-      maxWebSearchUses: 5,
-      maxTokens: 16000, // Increased for longer transcripts
-      temperature: 0.3,
+      maxWebSearchUses: 8, // More searches to try harder
+      maxTokens: 32000, // Much larger for full transcripts
+      temperature: 0.2,
     });
 
     logClaudeUsage(
@@ -737,10 +666,12 @@ ACTION REQUIRED: Use web search NOW to find this video's complete transcript. Ex
         const minutes = parseInt(durationMatch[2] || "0");
         const totalMinutes = hours * 60 + minutes;
 
-        // If video is longer than 30 min but we got less than 500 words, it's probably just a summary
-        if (totalMinutes > 30 && wordCount < 500) {
+        // Expected: ~150 words per minute of video for a transcript
+        const expectedMinWords = totalMinutes * 50; // Conservative: 50 words/min
+
+        if (totalMinutes > 30 && wordCount < expectedMinWords) {
           console.warn(
-            `⚠️ [CLAUDE_WEB_SEARCH] Content seems short for ${totalMinutes} min video (${wordCount} words) - likely a summary, not full transcript`,
+            `⚠️ [CLAUDE_WEB_SEARCH] Content seems short for ${totalMinutes} min video (${wordCount} words, expected ~${expectedMinWords}+) - likely a summary, not full transcript`,
           );
         }
       }
@@ -959,7 +890,7 @@ serve(async (req) => {
 
     try {
       // METHOD 1: Innertube API (most reliable, direct from YouTube)
-      console.log("📥 Method 1: Innertube API (signed URLs)");
+      console.log("📥 Method 1: Innertube API (direct caption URL extraction)");
       const result = await fetchTranscriptWithInnertube(videoId, detectedLanguage);
       transcript = result.text;
       timestampedTranscript = result.timestampedText;
