@@ -1,4 +1,5 @@
-// Extract YouTube Transcript V3 - Multiple Innertube Clients + Fallbacks
+// Extract YouTube Transcript V3 - Webshare Proxy + Multiple Innertube Clients + Fallbacks
+// Uses Webshare.io rotating proxies (10 proxies) to bypass YouTube rate limiting
 // Tries ANDROID, iOS, TV clients to bypass LOGIN_REQUIRED restrictions
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -15,6 +16,67 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Webshare.io proxy rotation for avoiding YouTube blocking
+const WEBSHARE_PROXIES = [
+  "142.111.48.253:7030:lgldwhom:zl3xd2ldkor6",
+  "31.59.20.176:6754:lgldwhom:zl3xd2ldkor6",
+  "23.95.150.145:6114:lgldwhom:zl3xd2ldkor6",
+  "198.23.239.134:6540:lgldwhom:zl3xd2ldkor6",
+  "107.172.163.27:6543:lgldwhom:zl3xd2ldkor6",
+  "198.105.121.200:6462:lgldwhom:zl3xd2ldkor6",
+  "64.137.96.74:6641:lgldwhom:zl3xd2ldkor6",
+  "84.247.60.125:6095:lgldwhom:zl3xd2ldkor6",
+  "216.10.27.159:6837:lgldwhom:zl3xd2ldkor6",
+  "142.111.67.146:5611:lgldwhom:zl3xd2ldkor6",
+];
+
+let currentProxyIndex = 0;
+
+function getNextProxy(): { url: string; masked: string } {
+  const proxy = WEBSHARE_PROXIES[currentProxyIndex];
+  currentProxyIndex = (currentProxyIndex + 1) % WEBSHARE_PROXIES.length;
+  const [ip, port, username, password] = proxy.split(":");
+  return {
+    url: `http://${username}:${password}@${ip}:${port}`,
+    masked: `http://${username}:***@${ip}:${port}`,
+  };
+}
+
+// Enhanced fetch with proxy support for YouTube requests using Deno.createHttpClient
+async function fetchWithProxy(url: string, options: RequestInit = {}, maxRetries = 2): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const proxy = getNextProxy();
+    console.log(`🌐 [PROXY] Attempt ${attempt + 1}/${maxRetries + 1}, Using: ${proxy.masked}`);
+    
+    try {
+      // Create HTTP client with proxy configuration
+      const client = Deno.createHttpClient({
+        proxy: { url: proxy.url },
+      });
+      
+      const response = await fetch(url, {
+        ...options,
+        client,
+      });
+      
+      client.close();
+      return response;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.log(`⚠️ [PROXY] Failed: ${lastError.message}`);
+      
+      if (attempt < maxRetries) {
+        console.log(`🔄 [PROXY] Retrying with next proxy...`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+  }
+  
+  throw new Error(`All proxy attempts failed. Last error: ${lastError?.message}`);
+}
 
 interface VideoMetadata {
   videoId: string;
@@ -256,7 +318,7 @@ async function fetchVideoMetadata(videoId: string): Promise<VideoMetadata | null
   }
   try {
     const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${videoId}&key=${YOUTUBE_API_KEY}`;
-    const response = await fetch(url);
+    const response = await fetchWithProxy(url);
     if (!response.ok) throw new Error(`YouTube API error: ${response.statusText}`);
     const data = await response.json();
     if (!data.items || data.items.length === 0) throw new Error("Video not found");
@@ -309,7 +371,7 @@ async function fetchTranscriptWithInvidious(
 
       // Step 1: Get available captions list using correct endpoint
       const captionsUrl = `${instance}/api/v1/captions/${videoId}`;
-      const captionsResponse = await fetch(captionsUrl, {
+      const captionsResponse = await fetchWithProxy(captionsUrl, {
         headers: { 'Accept': 'application/json' },
       });
 
@@ -364,7 +426,7 @@ async function fetchTranscriptWithInvidious(
 
       // Step 3: Fetch WebVTT captions
       const vttUrl = `${captionsUrl}${captionParams}`;
-      const vttResponse = await fetch(vttUrl, {
+      const vttResponse = await fetchWithProxy(vttUrl, {
         headers: { 'Accept': 'text/vtt, text/plain, */*' },
       });
 
@@ -454,7 +516,7 @@ async function fetchTranscriptWithMultiClientInnertube(
         body: JSON.stringify(requestBody),
       };
 
-      const response = await fetch("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", fetchOptions);
+      const response = await fetchWithProxy("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", fetchOptions);
 
       if (!response.ok) {
         console.log(`🔧 [INNERTUBE_MULTI] ${clientConfig.name}: HTTP ${response.status}`);
@@ -516,7 +578,7 @@ async function fetchTranscriptWithMultiClientInnertube(
         headers: clientConfig.headers,
       };
 
-      const transcriptResponse = await fetch(transcriptUrl, transcriptOptions);
+      const transcriptResponse = await fetchWithProxy(transcriptUrl, transcriptOptions);
 
       if (!transcriptResponse.ok) {
         errors.push(`${clientConfig.name}: Transcript fetch failed`);
@@ -620,7 +682,7 @@ async function fetchTranscriptWithTimedtextAPI(
         },
       };
 
-      const response = await fetch(url, fetchOptions);
+      const response = await fetchWithProxy(url, fetchOptions);
 
       if (!response.ok) continue;
 
