@@ -142,14 +142,66 @@ function formatTimestamp(seconds: number): string {
 }
 
 // Invidious public instances for free transcript extraction
+// Using updated, working instances as of 2025
 const INVIDIOUS_INSTANCES = [
-  'https://invidious.io',
-  'https://yewtu.be',
-  'https://vid.puffyan.us',
-  'https://inv.nadeko.net',
-  'https://invidious.snopyta.org',
-  'https://invidious.kavin.rocks',
+  'https://invidious.nerdvpn.de',
+  'https://iv.datura.network',
+  'https://invidious.protokolla.fi',
+  'https://yt.artemislena.eu',
+  'https://invidious.privacyredirect.com',
 ];
+
+// Parse WebVTT format to extract transcript segments
+function parseWebVTT(vtt: string): { segments: TranscriptSegment[]; text: string; timestampedText: string } {
+  const segments: TranscriptSegment[] = [];
+  const textParts: string[] = [];
+  const timestampedParts: string[] = [];
+
+  // Split by double newlines to get each cue
+  const cues = vtt.split(/\n\n+/);
+  
+  for (const cue of cues) {
+    const lines = cue.trim().split('\n');
+    if (lines.length < 2) continue;
+    
+    // Look for timestamp line (format: 00:00:00.000 --> 00:00:05.000)
+    const timestampLine = lines.find(line => line.includes('-->'));
+    if (!timestampLine) continue;
+    
+    // Extract start time
+    const startTimeMatch = timestampLine.match(/^(\d{2}):(\d{2}):(\d{2})\.\d{3}/);
+    if (!startTimeMatch) continue;
+    
+    const hours = parseInt(startTimeMatch[1]);
+    const minutes = parseInt(startTimeMatch[2]);
+    const seconds = parseInt(startTimeMatch[3]);
+    const startSeconds = hours * 3600 + minutes * 60 + seconds;
+    const timeStr = formatTimestamp(startSeconds);
+    
+    // Get text (all lines after timestamp, removing HTML tags)
+    const textLines = lines.slice(lines.indexOf(timestampLine) + 1);
+    const text = textLines
+      .join(' ')
+      .replace(/<[^>]*>/g, '') // Remove HTML tags
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .trim();
+    
+    if (text) {
+      segments.push({ time: timeStr, text, startSeconds });
+      textParts.push(text);
+      timestampedParts.push(`[${timeStr}] ${text}`);
+    }
+  }
+  
+  return {
+    segments,
+    text: textParts.join(' '),
+    timestampedText: timestampedParts.join('\n'),
+  };
+}
 
 function detectLanguageFromMetadata(metadata: VideoMetadata | null, userLanguage?: string): string {
   if (userLanguage && userLanguage !== "en") return userLanguage;
@@ -241,7 +293,7 @@ function extractChaptersFromDescription(description: string): Array<{ time: stri
 
 // =====================================================
 // METHOD 1: Invidious API (FREE - Primary method)
-// Uses public Invidious instances to get captions
+// Uses public Invidious instances with correct /api/v1/captions endpoint
 // =====================================================
 async function fetchTranscriptWithInvidious(
   videoId: string,
@@ -255,123 +307,94 @@ async function fetchTranscriptWithInvidious(
     try {
       console.log(`🔧 [INVIDIOUS] Trying instance: ${instance}`);
 
-      // Fetch video info including captions
-      const videoInfoUrl = `${instance}/api/v1/videos/${videoId}`;
-      const videoResponse = await fetch(videoInfoUrl, {
-        headers: {
-          'Accept': 'application/json',
-        },
+      // Step 1: Get available captions list using correct endpoint
+      const captionsUrl = `${instance}/api/v1/captions/${videoId}`;
+      const captionsResponse = await fetch(captionsUrl, {
+        headers: { 'Accept': 'application/json' },
       });
 
-      if (!videoResponse.ok) {
-        console.log(`🔧 [INVIDIOUS] ${instance}: HTTP ${videoResponse.status}`);
-        errors.push(`${instance}: HTTP ${videoResponse.status}`);
+      if (!captionsResponse.ok) {
+        console.log(`🔧 [INVIDIOUS] ${instance}: HTTP ${captionsResponse.status}`);
+        errors.push(`${instance}: HTTP ${captionsResponse.status}`);
         continue;
       }
 
-      const videoData = await videoResponse.json();
-
-      if (!videoData.captions || !Array.isArray(videoData.captions) || videoData.captions.length === 0) {
+      const captionsData = await captionsResponse.json();
+      
+      if (!captionsData.captions || !Array.isArray(captionsData.captions) || captionsData.captions.length === 0) {
         console.log(`🔧 [INVIDIOUS] ${instance}: No captions available`);
         errors.push(`${instance}: No captions`);
         continue;
       }
 
-      console.log(`✅ [INVIDIOUS] ${instance}: Found ${videoData.captions.length} caption track(s)!`);
+      console.log(`✅ [INVIDIOUS] ${instance}: Found ${captionsData.captions.length} caption track(s)!`);
 
       // Log available languages
-      const availableLangs = videoData.captions.map((c: any) => c.language_code || c.label);
+      const availableLangs = captionsData.captions.map((c: any) => c.languageCode || c.label);
       console.log(`🔧 [INVIDIOUS] Available: ${availableLangs.join(", ")}`);
 
-      // Select best caption track
-      const langPriority = preferredLang === "hi" ? ["hi", "hi-IN", "en", "en-US"] : ["en", "en-US", "hi", "hi-IN"];
+      // Step 2: Find best caption track
+      const hasPreferred = captionsData.captions.find((c: any) => 
+        c.languageCode?.startsWith(preferredLang.split("-")[0])
+      );
+      const hasEnglish = captionsData.captions.find((c: any) => 
+        c.languageCode?.startsWith("en")
+      );
 
-      let selectedCaption: any = null;
-      for (const lang of langPriority) {
-        selectedCaption = videoData.captions.find((c: any) => 
-          c.language_code?.startsWith(lang.split("-")[0]) || c.label?.toLowerCase().includes(lang.toLowerCase())
-        );
-        if (selectedCaption) break;
+      let captionParams = '';
+      let selectedLang = 'unknown';
+
+      if (hasPreferred) {
+        // Direct match for preferred language
+        captionParams = `?lang=${preferredLang}`;
+        selectedLang = preferredLang;
+        console.log(`🔧 [INVIDIOUS] Using direct ${preferredLang} captions`);
+      } else if (hasEnglish && preferredLang !== 'en') {
+        // Auto-translate from English!
+        captionParams = `?lang=en&tlang=${preferredLang}`;
+        selectedLang = `en→${preferredLang} (auto-translated)`;
+        console.log(`🔧 [INVIDIOUS] Using auto-translation: English → ${preferredLang}`);
+      } else if (captionsData.captions.length > 0) {
+        // Fallback to first available
+        const firstCaption = captionsData.captions[0];
+        captionParams = `?label=${encodeURIComponent(firstCaption.label)}`;
+        selectedLang = firstCaption.languageCode || firstCaption.label;
+        console.log(`🔧 [INVIDIOUS] Fallback to: ${selectedLang}`);
       }
 
-      if (!selectedCaption) selectedCaption = videoData.captions[0];
-
-      const selectedLang = selectedCaption.language_code || selectedCaption.label || "unknown";
-      console.log(`🔧 [INVIDIOUS] Selected: ${selectedLang}`);
-
-      // Fetch caption content
-      const captionUrl = selectedCaption.url;
-      if (!captionUrl) {
-        errors.push(`${instance}: No caption URL`);
-        continue;
-      }
-
-      // Build full caption URL (relative URLs need instance prefix)
-      const fullCaptionUrl = captionUrl.startsWith('http') ? captionUrl : `${instance}${captionUrl}`;
-      
-      const captionResponse = await fetch(fullCaptionUrl, {
-        headers: {
-          'Accept': 'application/json, text/plain, */*',
-        },
+      // Step 3: Fetch WebVTT captions
+      const vttUrl = `${captionsUrl}${captionParams}`;
+      const vttResponse = await fetch(vttUrl, {
+        headers: { 'Accept': 'text/vtt, text/plain, */*' },
       });
 
-      if (!captionResponse.ok) {
-        errors.push(`${instance}: Caption fetch failed`);
+      if (!vttResponse.ok) {
+        errors.push(`${instance}: Caption fetch failed (${vttResponse.status})`);
         continue;
       }
 
-      const captionText = await captionResponse.text();
+      const vttText = await vttResponse.text();
       
-      // Try parsing as JSON3 format first
-      try {
-        const captionData = JSON.parse(captionText);
-        
-        if (captionData.events && Array.isArray(captionData.events)) {
-          // JSON3 format (same as Innertube)
-          const segments: TranscriptSegment[] = [];
-          const textParts: string[] = [];
-          const timestampedParts: string[] = [];
-
-          for (const event of captionData.events) {
-            if (!event?.segs || event.tStartMs === undefined) continue;
-            const text = event.segs
-              .filter((s: any) => s?.utf8)
-              .map((s: any) => s.utf8)
-              .join("")
-              .trim();
-            if (text && text !== "\n") {
-              const startSeconds = Math.floor(event.tStartMs / 1000);
-              const timeStr = formatTimestamp(startSeconds);
-              segments.push({ time: timeStr, text, startSeconds });
-              textParts.push(text);
-              timestampedParts.push(`[${timeStr}] ${text}`);
-            }
-          }
-
-          if (segments.length > 0) {
-            console.log(`✅ [INVIDIOUS] ${instance}: Success! ${segments.length} segments, ${textParts.join(" ").length} chars`);
-            return {
-              segments,
-              text: textParts.join(" "),
-              timestampedText: timestampedParts.join("\n"),
-              language: selectedLang,
-            };
-          }
-        }
-      } catch {
-        // Not JSON3, try plain text
-        if (captionText.length > 100) {
-          console.log(`✅ [INVIDIOUS] ${instance}: Success with plain text! ${captionText.length} chars`);
-          return {
-            segments: [],
-            text: captionText,
-            timestampedText: captionText,
-            language: selectedLang,
-          };
-        }
+      if (vttText.length < 50) {
+        errors.push(`${instance}: Caption too short`);
+        continue;
       }
 
-      errors.push(`${instance}: Invalid caption format`);
+      // Step 4: Parse WebVTT format
+      const parsed = parseWebVTT(vttText);
+      
+      if (parsed.segments.length === 0 && parsed.text.length < 100) {
+        errors.push(`${instance}: No valid content parsed`);
+        continue;
+      }
+
+      console.log(`✅ [INVIDIOUS] ${instance}: Success! ${parsed.segments.length} segments, ${parsed.text.length} chars`);
+      
+      return {
+        ...parsed,
+        language: selectedLang,
+      };
+
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       console.log(`🔧 [INVIDIOUS] ${instance}: Error - ${msg}`);
