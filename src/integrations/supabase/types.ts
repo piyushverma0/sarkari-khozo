@@ -1744,6 +1744,7 @@ export type Database = {
           folder_id: string | null
           has_audio: boolean | null
           has_flashcards: boolean | null
+          has_mind_map: boolean | null
           has_quiz: boolean | null
           has_translation: boolean | null
           id: string
@@ -1753,6 +1754,8 @@ export type Database = {
           last_accessed_at: string | null
           last_edited_at: string | null
           last_edited_by: string | null
+          mind_map_data: Json | null
+          mind_map_generated_at: string | null
           original_language: string | null
           processing_error: string | null
           processing_progress: number | null
@@ -1794,6 +1797,7 @@ export type Database = {
           folder_id?: string | null
           has_audio?: boolean | null
           has_flashcards?: boolean | null
+          has_mind_map?: boolean | null
           has_quiz?: boolean | null
           has_translation?: boolean | null
           id?: string
@@ -1803,6 +1807,8 @@ export type Database = {
           last_accessed_at?: string | null
           last_edited_at?: string | null
           last_edited_by?: string | null
+          mind_map_data?: Json | null
+          mind_map_generated_at?: string | null
           original_language?: string | null
           processing_error?: string | null
           processing_progress?: number | null
@@ -1844,6 +1850,7 @@ export type Database = {
           folder_id?: string | null
           has_audio?: boolean | null
           has_flashcards?: boolean | null
+          has_mind_map?: boolean | null
           has_quiz?: boolean | null
           has_translation?: boolean | null
           id?: string
@@ -1853,6 +1860,8 @@ export type Database = {
           last_accessed_at?: string | null
           last_edited_at?: string | null
           last_edited_by?: string | null
+          mind_map_data?: Json | null
+          mind_map_generated_at?: string | null
           original_language?: string | null
           processing_error?: string | null
           processing_progress?: number | null
