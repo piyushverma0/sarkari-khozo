@@ -237,3 +237,6 @@ verify_jwt = false
 
 [functions.extract-statistics]
 verify_jwt = false
+
+[functions.generate-mind-map]
+verify_jwt = true
