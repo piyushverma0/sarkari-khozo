@@ -37,9 +37,9 @@ function transformNodeToSnakeCase(node: any): any {
 }
 
 interface MindMapData {
-  rootNode: MindMapNode;
+  root_node: any;
   theme: string;
-  generatedAt: string;
+  generated_at: string;
   version: number;
 }
 
@@ -211,11 +211,11 @@ Return ONLY a valid JSON object with this EXACT structure (no additional text):
       })
       .eq("id", noteId);
 
-    // Create final mind map data
+    // Create final mind map data with snake_case fields
     const mindMapData: MindMapData = {
-      rootNode: transformNodeToSnakeCase(mindMapStructure.rootNode),
+      root_node: transformNodeToSnakeCase(mindMapStructure.rootNode),
       theme: "default",
-      generatedAt: new Date().toISOString(),
+      generated_at: new Date().toISOString(),
       version: 1,
     };
 
@@ -247,13 +247,12 @@ Return ONLY a valid JSON object with this EXACT structure (no additional text):
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Error generating mind map:", error);
-    const errorMessage = error instanceof Error ? error.message : "Failed to generate mind map";
 
     return new Response(
       JSON.stringify({
-        error: errorMessage,
+        error: error.message || "Failed to generate mind map",
       }),
       {
         status: 400,
