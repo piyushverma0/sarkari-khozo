@@ -20,6 +20,22 @@ interface MindMapNode {
   isExpanded: boolean;
 }
 
+// Transform camelCase node structure to snake_case for Kotlin compatibility
+function transformNodeToSnakeCase(node: any): any {
+  return {
+    id: node.id,
+    title: node.title,
+    description: node.description,
+    level: node.level,
+    children: (node.children || []).map((child: any) => transformNodeToSnakeCase(child)),
+    color: node.color,
+    icon: node.icon,
+    keywords: node.keywords || [],
+    related_note_section: node.relatedNoteSection,
+    is_expanded: node.isExpanded !== false, // default to true
+  };
+}
+
 interface MindMapData {
   rootNode: MindMapNode;
   theme: string;
@@ -195,11 +211,11 @@ Return ONLY a valid JSON object with this EXACT structure (no additional text):
       })
       .eq("id", noteId);
 
-    // Create final mind map data
+    // Create final mind map data with snake_case fields
     const mindMapData: MindMapData = {
-      rootNode: mindMapStructure.rootNode,
+      root_node: transformNodeToSnakeCase(mindMapStructure.rootNode),
       theme: "default",
-      generatedAt: new Date().toISOString(),
+      generated_at: new Date().toISOString(),
       version: 1,
     };
 
@@ -231,13 +247,12 @@ Return ONLY a valid JSON object with this EXACT structure (no additional text):
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Error generating mind map:", error);
-    const errorMessage = error instanceof Error ? error.message : "Failed to generate mind map";
 
     return new Response(
       JSON.stringify({
-        error: errorMessage,
+        error: error.message || "Failed to generate mind map",
       }),
       {
         status: 400,
