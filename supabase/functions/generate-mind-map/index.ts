@@ -197,9 +197,9 @@ Return ONLY a valid JSON object with this EXACT structure (no additional text):
 
     // Create final mind map data
     const mindMapData: MindMapData = {
-      root_node: mindMapStructure.rootNode,
+      rootNode: mindMapStructure.rootNode,
       theme: "default",
-      generated_at: new Date().toISOString(),
+      generatedAt: new Date().toISOString(),
       version: 1,
     };
 
@@ -231,12 +231,13 @@ Return ONLY a valid JSON object with this EXACT structure (no additional text):
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error generating mind map:", error);
+    const errorMessage = error instanceof Error ? error.message : "Failed to generate mind map";
 
     return new Response(
       JSON.stringify({
-        error: error.message || "Failed to generate mind map",
+        error: errorMessage,
       }),
       {
         status: 400,
