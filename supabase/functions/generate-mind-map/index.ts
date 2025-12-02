@@ -4,8 +4,7 @@ import Anthropic from "https://esm.sh/@anthropic-ai/sdk@0.27.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 interface MindMapNode {
@@ -35,15 +34,12 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      {
-        global: {
-          headers: { Authorization: req.headers.get("Authorization")! },
-        },
-      }
-    );
+    // Create client for authentication
+    const supabaseClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
+      global: {
+        headers: { Authorization: req.headers.get("Authorization")! },
+      },
+    });
 
     // Get user
     const {
@@ -51,8 +47,17 @@ serve(async (req) => {
     } = await supabaseClient.auth.getUser();
 
     if (!user) {
-      throw new Error("Unauthorized");
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+
+    // Create service role client for database operations
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    );
 
     const { noteId } = await req.json();
 
@@ -63,7 +68,7 @@ serve(async (req) => {
     console.log(`Generating mind map for note: ${noteId}`);
 
     // Update status to ANALYZING
-    await supabaseClient
+    await supabaseAdmin
       .from("study_notes")
       .update({
         mind_map_generation_status: "analyzing",
@@ -72,7 +77,7 @@ serve(async (req) => {
       .eq("user_id", user.id);
 
     // Fetch note content
-    const { data: note, error: noteError } = await supabaseClient
+    const { data: note, error: noteError } = await supabaseAdmin
       .from("study_notes")
       .select("title, summary, key_points, structured_content, raw_content")
       .eq("id", noteId)
@@ -104,7 +109,7 @@ serve(async (req) => {
     }
 
     // Update status to EXTRACTING
-    await supabaseClient
+    await supabaseAdmin
       .from("study_notes")
       .update({
         mind_map_generation_status: "extracting",
@@ -171,7 +176,7 @@ Return ONLY a valid JSON object with this EXACT structure (no additional text):
 }`;
 
     // Update status to ORGANIZING
-    await supabaseClient
+    await supabaseAdmin
       .from("study_notes")
       .update({
         mind_map_generation_status: "organizing",
@@ -190,9 +195,7 @@ Return ONLY a valid JSON object with this EXACT structure (no additional text):
       ],
     });
 
-    const responseText = message.content[0].type === "text"
-      ? message.content[0].text
-      : "";
+    const responseText = message.content[0].type === "text" ? message.content[0].text : "";
 
     console.log("Claude API response received");
 
@@ -205,7 +208,7 @@ Return ONLY a valid JSON object with this EXACT structure (no additional text):
     const mindMapStructure = JSON.parse(jsonMatch[0]);
 
     // Update status to STYLING
-    await supabaseClient
+    await supabaseAdmin
       .from("study_notes")
       .update({
         mind_map_generation_status: "styling",
@@ -224,7 +227,7 @@ Return ONLY a valid JSON object with this EXACT structure (no additional text):
     console.log("Mind map structure created successfully");
 
     // Save to database
-    const { error: updateError } = await supabaseClient
+    const { error: updateError } = await supabaseAdmin
       .from("study_notes")
       .update({
         mind_map_data: mindMapData,
@@ -248,21 +251,19 @@ Return ONLY a valid JSON object with this EXACT structure (no additional text):
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Error generating mind map:", error);
-
-    const errorMessage = error instanceof Error ? error.message : "Failed to generate mind map";
 
     return new Response(
       JSON.stringify({
-        error: errorMessage,
+        error: error.message || "Failed to generate mind map",
       }),
       {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      },
     );
   }
 });
