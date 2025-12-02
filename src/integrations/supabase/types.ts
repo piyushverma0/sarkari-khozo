@@ -1756,6 +1756,7 @@ export type Database = {
           last_edited_by: string | null
           mind_map_data: Json | null
           mind_map_generated_at: string | null
+          mind_map_generation_status: string | null
           original_language: string | null
           processing_error: string | null
           processing_progress: number | null
@@ -1809,6 +1810,7 @@ export type Database = {
           last_edited_by?: string | null
           mind_map_data?: Json | null
           mind_map_generated_at?: string | null
+          mind_map_generation_status?: string | null
           original_language?: string | null
           processing_error?: string | null
           processing_progress?: number | null
@@ -1862,6 +1864,7 @@ export type Database = {
           last_edited_by?: string | null
           mind_map_data?: Json | null
           mind_map_generated_at?: string | null
+          mind_map_generation_status?: string | null
           original_language?: string | null
           processing_error?: string | null
           processing_progress?: number | null
