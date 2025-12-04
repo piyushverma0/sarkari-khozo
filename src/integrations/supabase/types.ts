@@ -540,6 +540,7 @@ export type Database = {
           key_takeaways: string[] | null
           last_notified_at: string | null
           notified: boolean | null
+          official_government_url: string | null
           published_date: string | null
           region: string | null
           relevance_score: number | null
@@ -579,6 +580,7 @@ export type Database = {
           key_takeaways?: string[] | null
           last_notified_at?: string | null
           notified?: boolean | null
+          official_government_url?: string | null
           published_date?: string | null
           region?: string | null
           relevance_score?: number | null
@@ -618,6 +620,7 @@ export type Database = {
           key_takeaways?: string[] | null
           last_notified_at?: string | null
           notified?: boolean | null
+          official_government_url?: string | null
           published_date?: string | null
           region?: string | null
           relevance_score?: number | null
