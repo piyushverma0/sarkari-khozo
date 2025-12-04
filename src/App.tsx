@@ -14,6 +14,7 @@ import Dashboard from "./pages/Dashboard";
 import Discover from "./pages/Discover";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
+import DeleteAccount from "./pages/DeleteAccount";
 import Collaborate from "./pages/Collaborate";
 import NotFound from "./pages/NotFound";
 
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="/discover" element={<Discover />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/terms-of-service" element={<TermsOfService />} />
+            <Route path="/delete-account" element={<DeleteAccount />} />
             <Route path="/collaborate/:code" element={<Collaborate />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
