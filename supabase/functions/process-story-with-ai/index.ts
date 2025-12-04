@@ -7,6 +7,129 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Government domain mapping for official URLs
+const GOVERNMENT_DOMAINS: Record<string, string> = {
+  "SSC": "https://ssc.nic.in",
+  "UPSC": "https://upsc.gov.in",
+  "RRB": "https://www.rrbcdg.gov.in",
+  "IBPS": "https://www.ibps.in",
+  "SBI": "https://sbi.co.in/careers",
+  "RAILWAY": "https://www.rrbcdg.gov.in",
+  "NEET": "https://neet.nta.nic.in",
+  "JEE": "https://jeemain.nta.nic.in",
+  "NTA": "https://nta.ac.in",
+  "CBSE": "https://cbse.gov.in",
+  "UGC": "https://ugc.ac.in",
+  "AICTE": "https://www.aicte-india.org",
+  "RBI": "https://rbi.org.in/careers",
+  "EPFO": "https://www.epfindia.gov.in",
+  "INDIAN ARMY": "https://joinindianarmy.nic.in",
+  "ARMY": "https://joinindianarmy.nic.in",
+  "INDIAN NAVY": "https://joinindiannavy.gov.in",
+  "NAVY": "https://joinindiannavy.gov.in",
+  "INDIAN AIR FORCE": "https://careerindianairforce.cdac.in",
+  "AIR FORCE": "https://careerindianairforce.cdac.in",
+  "IAF": "https://careerindianairforce.cdac.in",
+  "DRDO": "https://www.drdo.gov.in",
+  "ISRO": "https://www.isro.gov.in",
+  "PM KISAN": "https://pmkisan.gov.in",
+  "PMKISAN": "https://pmkisan.gov.in",
+  "AYUSHMAN BHARAT": "https://pmjay.gov.in",
+  "PMJAY": "https://pmjay.gov.in",
+  "PMAY": "https://pmaymis.gov.in",
+  "AADHAAR": "https://uidai.gov.in",
+  "UIDAI": "https://uidai.gov.in",
+  "DIGILOCKER": "https://digilocker.gov.in",
+  "E-SHRAM": "https://eshram.gov.in",
+  "ESHRAM": "https://eshram.gov.in",
+  "SKILL INDIA": "https://skillindia.gov.in",
+  "MSDE": "https://www.msde.gov.in",
+  "CTET": "https://ctet.nic.in",
+  "TET": "https://ctet.nic.in",
+  "CUET": "https://cuet.samarth.ac.in",
+  "GATE": "https://gate.iitd.ac.in",
+  "NET": "https://ugcnet.nta.ac.in",
+  "UGC NET": "https://ugcnet.nta.ac.in",
+  "CSIR": "https://csirnet.nta.nic.in",
+  "CAT": "https://iimcat.ac.in",
+  "CLAT": "https://consortiumofnlus.ac.in",
+  "AIIMS": "https://www.aiims.edu",
+  "JIPMER": "https://jipmer.edu.in",
+  "ESIC": "https://www.esic.nic.in",
+  "FCI": "https://fci.gov.in",
+  "LIC": "https://licindia.in/careers",
+  "ONGC": "https://www.ongcindia.com",
+  "NTPC": "https://www.ntpc.co.in",
+  "BHEL": "https://www.bhel.com",
+  "SAIL": "https://sail.co.in",
+  "GAIL": "https://gailonline.com",
+  "IOC": "https://iocl.com",
+  "IOCL": "https://iocl.com",
+  "BPCL": "https://www.bharatpetroleum.in",
+  "HPCL": "https://hindustanpetroleum.com",
+  "COAL INDIA": "https://www.coalindia.in",
+  "CIL": "https://www.coalindia.in",
+  "BSNL": "https://www.bsnl.co.in",
+  "MTNL": "https://mtnl.in",
+  "HAL": "https://hal-india.co.in",
+  "BEL": "https://www.bel-india.in",
+  "DMRC": "https://www.delhimetrorail.com",
+  "METRO": "https://www.delhimetrorail.com",
+  "CRPF": "https://crpf.gov.in",
+  "BSF": "https://bsf.gov.in",
+  "CISF": "https://cisf.gov.in",
+  "ITBP": "https://www.itbpolice.nic.in",
+  "SSB": "https://ssb.nic.in",
+  "NDA": "https://www.nda.nic.in",
+  "CDS": "https://upsc.gov.in",
+  "IAS": "https://upsc.gov.in",
+  "IPS": "https://upsc.gov.in",
+  "IFS": "https://upsc.gov.in",
+  "PSC": "https://upsc.gov.in",
+  "UPPSC": "https://uppsc.up.nic.in",
+  "BPSC": "https://www.bpsc.bih.nic.in",
+  "MPSC": "https://www.mpsc.gov.in",
+  "RPSC": "https://rpsc.rajasthan.gov.in",
+  "WBPSC": "https://www.pscwbonline.gov.in",
+  "KPSC": "https://kpsc.kar.nic.in",
+  "TNPSC": "https://www.tnpsc.gov.in",
+  "APPSC": "https://psc.ap.gov.in",
+  "TSPSC": "https://www.tspsc.gov.in",
+  "GPSC": "https://gpsc.gujarat.gov.in",
+  "HPSC": "https://hpsc.gov.in",
+  "UKPSC": "https://ukpsc.gov.in",
+  "JPSC": "https://www.jpsc.gov.in",
+  "CGPSC": "https://psc.cg.gov.in",
+  "OPSC": "https://www.opsc.gov.in",
+  "PPSC": "https://ppsc.gov.in",
+  "MPPSC": "https://www.mppsc.nic.in",
+  "KPSC KERALA": "https://keralapsc.gov.in",
+};
+
+// Function to infer government URL from content
+function inferGovernmentUrl(
+  category: string, 
+  subcategory: string | null, 
+  headline: string, 
+  tags: string[]
+): string | null {
+  // Only for government-related categories
+  if (!['jobs', 'exams', 'schemes', 'policies'].includes(category)) {
+    return null;
+  }
+  
+  const searchText = `${headline} ${subcategory || ''} ${tags.join(' ')}`.toUpperCase();
+  
+  // Check for known organization mentions
+  for (const [org, url] of Object.entries(GOVERNMENT_DOMAINS)) {
+    if (searchText.includes(org)) {
+      return url;
+    }
+  }
+  
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -58,7 +181,8 @@ Focus on:
 - For international news: India's involvement or impact on India
 - For diplomatic news: Strategic significance for India
 - For education: Opportunities for Indian students and institutions
-- Avoiding jargon, using simple Hindi-English terms where needed`;
+- Avoiding jargon, using simple Hindi-English terms where needed
+- IMPORTANT: For jobs/exams/schemes/policies, extract the official government source URL (.gov.in, .nic.in, .ac.in domains)`;
 
     const userPrompt = `Article URL: ${url}
 ${raw_headline ? `Headline: ${raw_headline}` : ''}
@@ -137,6 +261,14 @@ Please analyze this article and provide a JSON response with the following field
     - If not found, use current date
 12. **image_url**: Extract featured image URL if available, else null
 13. **excerpt**: First 200 characters of the article for previews
+14. **official_government_url**: CRITICAL for jobs/exams/schemes/policies categories:
+    - Extract the official government recruitment/scheme portal URL
+    - MUST be a .gov.in, .nic.in, .ac.in domain or known official site (like ibps.in, iimcat.ac.in)
+    - Examples: "https://ssc.nic.in", "https://upsc.gov.in", "https://pmkisan.gov.in"
+    - If the article mentions a specific notification URL on an official site, use that
+    - If not found in article but organization is identifiable (SSC, UPSC, RRB, etc.), return the organization's official website
+    - DO NOT return news website URLs (like indianexpress.com, thehindu.com)
+    - Return null only if no official government URL can be determined
 
 **Important Guidelines**:
 - If relevance_score < 3, still return the data but note low relevance
@@ -285,6 +417,35 @@ Do not include markdown code blocks, do not include any text before or after the
       );
     }
 
+    // Determine official government URL
+    let officialGovUrl = cleanedData.official_government_url || null;
+    
+    // Validate it's actually a government domain
+    if (officialGovUrl) {
+      const isValidGovDomain = /\.(gov\.in|nic\.in|ac\.in|org\.in)/.test(officialGovUrl) ||
+        officialGovUrl.includes('ibps.in') ||
+        officialGovUrl.includes('iimcat.ac.in') ||
+        officialGovUrl.includes('consortiumofnlus.ac.in');
+      
+      if (!isValidGovDomain) {
+        console.log('AI returned non-government URL, discarding:', officialGovUrl);
+        officialGovUrl = null;
+      }
+    }
+    
+    // Fallback: infer from content if AI didn't provide valid URL
+    if (!officialGovUrl) {
+      officialGovUrl = inferGovernmentUrl(
+        cleanedData.category,
+        cleanedData.subcategory,
+        cleanedData.headline,
+        cleanedData.tags || []
+      );
+      if (officialGovUrl) {
+        console.log('Inferred government URL from content:', officialGovUrl);
+      }
+    }
+
     // Prepare story record
     const storyRecord = {
       headline: cleanedData.headline.substring(0, 200),
@@ -303,6 +464,7 @@ Do not include markdown code blocks, do not include any text before or after the
       relevance_score: cleanedData.relevance_score || 5,
       impact_statement: cleanedData.impact_statement || null,
       key_takeaways: cleanedData.key_takeaways || [],
+      official_government_url: officialGovUrl,
       is_active: true,
       scraped_at: new Date().toISOString()
     };
@@ -319,13 +481,14 @@ Do not include markdown code blocks, do not include any text before or after the
       throw saveError;
     }
 
-    console.log('Story saved successfully:', savedStory.id);
+    console.log('Story saved successfully:', savedStory.id, 'official_gov_url:', officialGovUrl);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         story_id: savedStory.id,
-        relevance_score: cleanedData.relevance_score 
+        relevance_score: cleanedData.relevance_score,
+        official_government_url: officialGovUrl
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
