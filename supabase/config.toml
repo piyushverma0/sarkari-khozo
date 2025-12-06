@@ -71,12 +71,8 @@ inspector_port = 8083
 "0 6 * * *" = "check-application-updates"
 # Cleanup old notifications weekly on Sunday at midnight
 "0 0 * * 0" = "cleanup-old-notifications"
-# Scrape news sources at 10 AM IST (4:30 AM UTC)
+# Scrape news sources ONCE per day at 10 AM IST (4:30 AM UTC) - limited to 3 articles
 "30 4 * * *" = "scrape-news-sources"
-# Scrape news sources at 3 PM IST (9:30 AM UTC)
-"30 9 * * *" = "scrape-news-sources"
-# Scrape news sources at 8 PM IST (2:30 PM UTC)
-"30 14 * * *" = "scrape-news-sources"
 # Generate morning audio bulletin at 5:30 AM IST (0:00 AM UTC)
 "0 0 * * *" = "generate-audio-news-bulletin"
 # Generate evening audio bulletin at 6:00 PM IST (12:30 PM UTC)
