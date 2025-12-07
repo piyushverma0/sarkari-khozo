@@ -245,12 +245,12 @@ Return ONLY a valid JSON object with this EXACT structure (no additional text):
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error generating mind map:", error);
 
     return new Response(
       JSON.stringify({
-        error: error.message || "Failed to generate mind map",
+        error: error instanceof Error ? error.message : "Failed to generate mind map",
       }),
       {
         status: 400,
