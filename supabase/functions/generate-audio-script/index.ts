@@ -106,10 +106,11 @@ serve(async (req) => {
     let script;
     try {
       script = JSON.parse(cleanedJson);
-    } catch (parseError) {
+    } catch (parseError: unknown) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      throw new Error(`Failed to parse script: ${parseError.message}`);
+      const parseErrorMessage = parseError instanceof Error ? parseError.message : String(parseError);
+      throw new Error(`Failed to parse script: ${parseErrorMessage}`);
     }
 
     console.log(`Script generated with ${script.turns?.length || 0} turns`);
@@ -145,8 +146,9 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error in generate-audio-script:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
 
     // Update status to failed
     try {
@@ -157,7 +159,7 @@ serve(async (req) => {
           .from("study_notes")
           .update({
             audio_generation_status: "failed",
-            audio_generation_error: error.message,
+            audio_generation_error: errorMessage,
           })
           .eq("id", body.note_id);
       }
@@ -165,7 +167,7 @@ serve(async (req) => {
       console.error("Failed to update error status:", e);
     }
 
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
