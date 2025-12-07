@@ -73,8 +73,7 @@ serve(async (req) => {
           })
           .then(() => {
             console.log("Usage count incremented");
-          })
-          .catch((err) => {
+          }, (err: unknown) => {
             console.error("Failed to increment usage count:", err);
           });
 
@@ -186,10 +185,10 @@ IMPORTANT:
     let explanationData;
     try {
       explanationData = JSON.parse(cleanedJson);
-    } catch (parseError) {
+    } catch (parseError: unknown) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      throw new Error(`Failed to parse explanation: ${parseError.message}`);
+      throw new Error(`Failed to parse explanation: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
     }
 
     console.log("Explanation generated successfully");
@@ -232,12 +231,12 @@ IMPORTANT:
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error in explain-text:", error);
 
     return new Response(
       JSON.stringify({
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         success: false,
       }),
       {
