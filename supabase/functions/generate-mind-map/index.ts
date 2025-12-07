@@ -1,9 +1,9 @@
 // Generate Mind Map - Create hierarchical mind maps from study notes
-// Uses Gemini 2.0 Flash for intelligent structure generation
+// Uses Sonar Pro with GPT-4-turbo fallback for intelligent structure generation
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { callGemini, logGeminiUsage } from "../_shared/gemini-client.ts";
+import { callAI, logAIUsage } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -118,7 +118,7 @@ serve(async (req) => {
       .eq("id", noteId);
 
     // Call Gemini API to generate mind map
-    console.log("Calling Gemini API to generate mind map structure...");
+    console.log("Calling AI (Sonar Pro → GPT-4-turbo) to generate mind map structure...");
 
     const systemPrompt = `You are a learning expert creating visual mind maps for students. Always return valid JSON without markdown.`;
 
@@ -179,7 +179,7 @@ Return ONLY a valid JSON object with this EXACT structure (no additional text):
       })
       .eq("id", noteId);
 
-    const geminiResponse = await callGemini({
+    const aiResponse = await callAI({
       systemPrompt,
       userPrompt,
       temperature: 0.4,
@@ -187,11 +187,11 @@ Return ONLY a valid JSON object with this EXACT structure (no additional text):
       responseFormat: "json",
     });
 
-    logGeminiUsage("generate-mind-map", geminiResponse.tokensUsed, geminiResponse.webSearchUsed);
+    logAIUsage("generate-mind-map", aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed);
 
-    const responseText = geminiResponse.content;
+    const responseText = aiResponse.content;
 
-    console.log("Gemini API response received");
+    console.log("AI API response received");
 
     // Parse the response
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -245,13 +245,12 @@ Return ONLY a valid JSON object with this EXACT structure (no additional text):
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Error generating mind map:", error);
-    const errorMessage = error instanceof Error ? error.message : "Failed to generate mind map";
 
     return new Response(
       JSON.stringify({
-        error: errorMessage,
+        error: error.message || "Failed to generate mind map",
       }),
       {
         status: 400,
