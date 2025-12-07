@@ -104,14 +104,15 @@ serve(async (req) => {
     let extractedContent: string;
     try {
       extractedContent = await extractWebContent(source_url);
-    } catch (extractError) {
+    } catch (extractError: unknown) {
       console.error("❌ Web content extraction failed:", extractError);
+      const errorMessage = extractError instanceof Error ? extractError.message : "Unknown extraction error";
 
       await supabase
         .from("study_notes")
         .update({
           processing_status: "failed",
-          processing_error: `Failed to extract web content: ${extractError.message}`,
+          processing_error: `Failed to extract web content: ${errorMessage}`,
         })
         .eq("id", note_id);
 
@@ -150,15 +151,16 @@ serve(async (req) => {
       }
 
       console.log("✅ Summarization completed successfully for note:", note_id);
-    } catch (triggerError) {
+    } catch (triggerError: unknown) {
       console.error("❌ Failed to trigger or complete summarization:", triggerError);
+      const errorMessage = triggerError instanceof Error ? triggerError.message : "Failed to complete summarization process";
 
       // Update note status to failed
       await supabase
         .from("study_notes")
         .update({
           processing_status: "failed",
-          processing_error: triggerError.message || "Failed to complete summarization process",
+          processing_error: errorMessage,
         })
         .eq("id", note_id);
 
@@ -176,8 +178,9 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("❌ Web content extraction error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error during web content extraction";
 
     // Try to extract note_id from the request
     let noteId: string | null = null;
@@ -196,7 +199,7 @@ serve(async (req) => {
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: error.message || "Unknown error during web content extraction",
+            processing_error: errorMessage,
           })
           .eq("id", noteId);
       } catch (dbError) {
@@ -204,7 +207,7 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
