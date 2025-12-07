@@ -1,6 +1,9 @@
+// Generate Mind Map - Create hierarchical mind maps from study notes
+// Uses Gemini 2.0 Flash for intelligent structure generation
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import Anthropic from "https://esm.sh/@anthropic-ai/sdk@0.27.3";
+import { callGemini, logGeminiUsage } from "../_shared/gemini-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -114,16 +117,12 @@ serve(async (req) => {
       })
       .eq("id", noteId);
 
-    // Call Claude API to generate mind map
-    const anthropic = new Anthropic({
-      apiKey: Deno.env.get("ANTHROPIC_API_KEY"),
-    });
+    // Call Gemini API to generate mind map
+    console.log("Calling Gemini API to generate mind map structure...");
 
-    console.log("Calling Claude API to generate mind map structure...");
+    const systemPrompt = `You are a learning expert creating visual mind maps for students. Always return valid JSON without markdown.`;
 
-    const prompt = `You are a learning expert creating visual mind maps for students.
-
-Analyze the following study notes and create a hierarchical mind map structure optimized for learning and recall.
+    const userPrompt = `Analyze the following study notes and create a hierarchical mind map structure optimized for learning and recall.
 
 Requirements:
 - Create 1 ROOT node with the main topic
@@ -180,20 +179,19 @@ Return ONLY a valid JSON object with this EXACT structure (no additional text):
       })
       .eq("id", noteId);
 
-    const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-5-20250929",
-      max_tokens: 4096,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
+    const geminiResponse = await callGemini({
+      systemPrompt,
+      userPrompt,
+      temperature: 0.4,
+      maxTokens: 4096,
+      responseFormat: "json",
     });
 
-    const responseText = message.content[0].type === "text" ? message.content[0].text : "";
+    logGeminiUsage("generate-mind-map", geminiResponse.tokensUsed, geminiResponse.webSearchUsed);
 
-    console.log("Claude API response received");
+    const responseText = geminiResponse.content;
+
+    console.log("Gemini API response received");
 
     // Parse the response
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -247,13 +245,12 @@ Return ONLY a valid JSON object with this EXACT structure (no additional text):
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Error generating mind map:", error);
-    const errorMessage = error instanceof Error ? error.message : "Failed to generate mind map";
 
     return new Response(
       JSON.stringify({
-        error: errorMessage,
+        error: error.message || "Failed to generate mind map",
       }),
       {
         status: 400,
