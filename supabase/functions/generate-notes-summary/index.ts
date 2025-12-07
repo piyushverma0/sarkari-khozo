@@ -196,10 +196,11 @@ Remember: Return ONLY the JSON object, nothing else.`;
     let structuredContent;
     try {
       structuredContent = JSON.parse(cleanedJson);
-    } catch (parseError) {
+    } catch (parseError: unknown) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      throw new Error(`Failed to parse summary: ${parseError.message}`);
+      const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
+      throw new Error(`Failed to parse summary: ${errorMessage}`);
     }
 
     console.log("Structured content generated:", Object.keys(structuredContent));
@@ -248,8 +249,9 @@ Remember: Return ONLY the JSON object, nothing else.`;
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error in generate-notes-summary:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
 
     // Update note status to failed
     try {
@@ -262,7 +264,7 @@ Remember: Return ONLY the JSON object, nothing else.`;
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: error.message || "Summary generation failed",
+            processing_error: errorMessage || "Summary generation failed",
           })
           .eq("id", body.note_id);
       }
@@ -270,7 +272,7 @@ Remember: Return ONLY the JSON object, nothing else.`;
       console.error("Failed to update error status:", e);
     }
 
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
