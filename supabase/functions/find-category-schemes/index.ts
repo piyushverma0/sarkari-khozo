@@ -124,7 +124,6 @@ Return 4-6 HIGH-QUALITY, VERIFIED results.`;
       systemPrompt,
       userPrompt,
       enableWebSearch: true,
-      maxWebSearchUses: 15, // Increased for better accuracy
       temperature: 0.3,
       maxTokens: 4096,
     });
