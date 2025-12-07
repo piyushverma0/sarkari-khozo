@@ -1,10 +1,10 @@
 // Explain Text - AI-powered text explanations with web search
-// Uses Claude Sonnet 4.5 with web capability for comprehensive explanations
+// Uses Gemini 2.0 Flash with web grounding for comprehensive explanations
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { callGemini, logGeminiUsage } from "../_shared/gemini-client.ts";
 
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -67,14 +67,16 @@ serve(async (req) => {
         console.log("Cache hit! Returning cached explanation");
 
         // Increment usage count asynchronously (don't wait)
-        void supabase
+        supabase
           .rpc("increment_explanation_usage", {
             explanation_id: cachedExplanation.id,
           })
-          .then(
-            () => console.log("Usage count incremented"),
-            (err: unknown) => console.error("Failed to increment usage count:", err)
-          );
+          .then(() => {
+            console.log("Usage count incremented");
+          })
+          .catch((err) => {
+            console.error("Failed to increment usage count:", err);
+          });
 
         // Return cached result
         return new Response(
@@ -105,7 +107,10 @@ serve(async (req) => {
     }
 
     // Build the explanation prompt
-    const prompt = `You are an expert educator creating concise, well-formatted explanations for students preparing for Indian government exams and jobs.
+    const systemPrompt =
+      "You are an expert educator creating concise, beautifully formatted explanations. Use rich markdown (bold, italic, highlights, tables, formulas). Keep responses focused and appropriate to query complexity. Always return valid JSON without markdown code blocks.";
+
+    const userPrompt = `Create a concise, well-formatted explanation for students preparing for Indian government exams and jobs.
 
 SELECTED TEXT:
 "${text}"
@@ -144,53 +149,29 @@ Date: ${new Date().toISOString()}
 IMPORTANT:
 - Return ONLY the JSON object
 - Keep explanations concise - quality over quantity
-- Use rich formatting for better readability`;
+- Use rich formatting for better readability
+- Use web search if current information is needed`;
 
-    // Call Claude API
-    console.log("Calling Claude API...");
-    const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5-20250929",
-        max_tokens: 2048,
-        temperature: 0.3,
-        system:
-          "You are an expert educator creating concise, beautifully formatted explanations. Use rich markdown (bold, italic, highlights, tables, formulas). Keep responses focused and appropriate to query complexity. Always return valid JSON without markdown code blocks.",
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-      }),
+    // Call Gemini API with web grounding enabled
+    console.log("Calling Gemini API with web grounding...");
+    const geminiResponse = await callGemini({
+      systemPrompt,
+      userPrompt,
+      temperature: 0.3,
+      maxTokens: 2048,
+      responseFormat: "json",
+      enableWebSearch: true, // Enable web search for current information
     });
 
-    if (!anthropicResponse.ok) {
-      const errorText = await anthropicResponse.text();
-      console.error("Claude API error:", errorText);
-      throw new Error(`Claude API error: ${errorText}`);
-    }
+    logGeminiUsage("explain-text", geminiResponse.tokensUsed, geminiResponse.webSearchUsed);
 
-    const anthropicData = await anthropicResponse.json();
-    console.log("Claude explanation generation complete");
+    console.log("Gemini explanation generation complete");
 
-    // Extract response text (handle tool use if present)
-    let responseText = "";
-    if (anthropicData.content && anthropicData.content.length > 0) {
-      for (const block of anthropicData.content) {
-        if (block.type === "text") {
-          responseText += block.text;
-        }
-      }
-    }
+    // Extract response text
+    let responseText = geminiResponse.content;
 
     if (!responseText.trim()) {
-      throw new Error("Empty response from Claude");
+      throw new Error("Empty response from Gemini");
     }
 
     // Clean up response (remove markdown code blocks if present)
@@ -208,8 +189,7 @@ IMPORTANT:
     } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      const errorMessage = parseError instanceof Error ? parseError.message : "Unknown parsing error";
-      throw new Error(`Failed to parse explanation: ${errorMessage}`);
+      throw new Error(`Failed to parse explanation: ${parseError.message}`);
     }
 
     console.log("Explanation generated successfully");
@@ -254,11 +234,10 @@ IMPORTANT:
     );
   } catch (error) {
     console.error("Error in explain-text:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
 
     return new Response(
       JSON.stringify({
-        error: errorMessage,
+        error: error.message,
         success: false,
       }),
       {
