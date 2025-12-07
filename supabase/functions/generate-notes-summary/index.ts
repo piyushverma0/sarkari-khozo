@@ -1,9 +1,9 @@
 // Generate Notes Summary - Transform raw content into structured study notes
-// Uses Gemini 2.0 Flash to create clean, organized notes
+// Uses Sonar Pro (primary) with GPT-4-turbo fallback
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { callGemini, logGeminiUsage } from "../_shared/gemini-client.ts";
+import { callAI, logAIUsage } from "../_shared/ai-client.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -155,9 +155,9 @@ Remember: Return ONLY the JSON object, nothing else.`;
       })
       .eq("id", note_id);
 
-    // Call Gemini API
-    console.log("Calling Gemini API for summarization...");
-    const geminiResponse = await callGemini({
+    // Call AI (Sonar Pro → GPT-4-turbo fallback)
+    console.log("Calling AI for summarization...");
+    const aiResponse = await callAI({
       systemPrompt,
       userPrompt,
       temperature: 0.3,
@@ -165,9 +165,9 @@ Remember: Return ONLY the JSON object, nothing else.`;
       responseFormat: "json",
     });
 
-    logGeminiUsage("generate-notes-summary", geminiResponse.tokensUsed, geminiResponse.webSearchUsed);
+    logAIUsage("generate-notes-summary", aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed);
 
-    console.log("Gemini summarization complete");
+    console.log("AI summarization complete with", aiResponse.modelUsed);
 
     // Update progress
     await supabase
@@ -178,10 +178,10 @@ Remember: Return ONLY the JSON object, nothing else.`;
       .eq("id", note_id);
 
     // Extract response text
-    let responseText = geminiResponse.content;
+    let responseText = aiResponse.content;
 
     if (!responseText.trim()) {
-      throw new Error("Empty response from Gemini");
+      throw new Error("Empty response from AI");
     }
 
     // Clean up response (remove markdown code blocks if present)
@@ -196,11 +196,10 @@ Remember: Return ONLY the JSON object, nothing else.`;
     let structuredContent;
     try {
       structuredContent = JSON.parse(cleanedJson);
-    } catch (parseError: unknown) {
+    } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      const errorMessage = parseError instanceof Error ? parseError.message : "Unknown parse error";
-      throw new Error(`Failed to parse summary: ${errorMessage}`);
+      throw new Error(`Failed to parse summary: ${parseError.message}`);
     }
 
     console.log("Structured content generated:", Object.keys(structuredContent));
@@ -249,9 +248,8 @@ Remember: Return ONLY the JSON object, nothing else.`;
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Error in generate-notes-summary:", error);
-    const errorMessage = error instanceof Error ? error.message : "Summary generation failed";
 
     // Update note status to failed
     try {
@@ -264,7 +262,7 @@ Remember: Return ONLY the JSON object, nothing else.`;
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: errorMessage,
+            processing_error: error.message || "Summary generation failed",
           })
           .eq("id", body.note_id);
       }
@@ -272,7 +270,7 @@ Remember: Return ONLY the JSON object, nothing else.`;
       console.error("Failed to update error status:", e);
     }
 
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
