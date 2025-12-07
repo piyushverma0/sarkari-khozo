@@ -1,9 +1,9 @@
-// Extract PDF Content - Use Gemini File API to extract text
-// Uses Gemini 2.0 Flash with native PDF reading capability
+// Extract PDF Content - Uses AI with file upload
+// Uses Sonar Pro (primary) with GPT-4-turbo fallback for PDF processing
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { callGeminiWithFile, logGeminiUsage } from "../_shared/gemini-client.ts";
+import { callAIWithFile, logAIUsage } from "../_shared/ai-client.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -102,7 +102,7 @@ serve(async (req) => {
       .eq("id", note_id);
 
     // Step 2: Use Gemini 2.0 Flash to extract and understand PDF content
-    console.log("Sending PDF to Gemini 2.0 Flash for extraction...");
+    console.log("Sending PDF to AI (Sonar Pro → GPT-4-turbo) for extraction...");
 
     const systemPrompt = `You are an expert study material analyzer. Extract ALL content from this PDF document comprehensively.
 
@@ -153,7 +153,7 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
 
     const userPrompt = "Extract all content from this PDF document following the requirements above.";
 
-    const geminiResponse = await callGeminiWithFile({
+    const aiResponse = await callAIWithFile({
       systemPrompt,
       userPrompt,
       fileBuffer: pdfBuffer,
@@ -163,11 +163,11 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
       maxTokens: 16000,
     });
 
-    logGeminiUsage("extract-pdf-content", geminiResponse.tokensUsed, geminiResponse.webSearchUsed);
+    logAIUsage("extract-pdf-content", aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed);
 
-    console.log("Gemini extraction complete");
+    console.log("AI extraction complete with", aiResponse.modelUsed);
 
-    const extractedText = geminiResponse.content;
+    const extractedText = aiResponse.content;
 
     if (!extractedText.trim()) {
       throw new Error("No text could be extracted from PDF");
@@ -208,15 +208,14 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
 
       const summaryData = await summaryResponse.json();
       console.log("Summarization completed:", summaryData);
-    } catch (summaryError: unknown) {
+    } catch (summaryError) {
       console.error("Failed to trigger summarization:", summaryError);
-      const errorMessage = summaryError instanceof Error ? summaryError.message : "Unknown summarization error";
       // Update note with error
       await supabase
         .from("study_notes")
         .update({
           processing_status: "failed",
-          processing_error: `Summarization failed: ${errorMessage}`,
+          processing_error: `Summarization failed: ${summaryError.message}`,
         })
         .eq("id", note_id);
 
@@ -234,9 +233,8 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Error in extract-pdf-content:", error);
-    const errorMessage = error instanceof Error ? error.message : "PDF extraction failed";
 
     // Update note status to failed
     try {
@@ -249,7 +247,7 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: errorMessage,
+            processing_error: error.message || "PDF extraction failed",
           })
           .eq("id", body.note_id);
       }
@@ -257,7 +255,7 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
       console.error("Failed to update error status:", e);
     }
 
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
