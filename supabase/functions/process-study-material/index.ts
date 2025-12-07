@@ -4,7 +4,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -85,14 +84,16 @@ serve(async (req) => {
           throw new Error(`Failed to upload file: ${uploadError.message}`);
         }
 
-        // Store the storage path instead of public URL for audio files
-        // This allows authenticated downloads in edge functions
-        storageUrl = storagePath;
+        // Get public URL
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("study-materials").getPublicUrl(storagePath);
+
+        storageUrl = publicUrl;
         console.log("File uploaded to:", storageUrl);
       } catch (uploadErr) {
         console.error("File upload failed:", uploadErr);
-        const errorMessage = uploadErr instanceof Error ? uploadErr.message : "Unknown upload error";
-        return new Response(JSON.stringify({ error: "File upload failed", details: errorMessage }), {
+        return new Response(JSON.stringify({ error: "File upload failed", details: uploadErr.message }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -201,8 +202,7 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Error in process-study-material:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
