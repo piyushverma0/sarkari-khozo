@@ -899,7 +899,7 @@ Return the FULL TRANSCRIPT with timestamps. For a ${metadata?.duration || ""} vi
     temperature: 0.1,
   });
 
-  logAIUsage("extract-youtube-transcript/ai-web", result.tokensUsed, result.webSearchUsed);
+  logAIUsage("extract-youtube-transcript/ai-web", result.tokensUsed, result.webSearchUsed, result.modelUsed);
 
   const wordCount = result.content.split(/\s+/).filter((w: string) => w.length > 0).length;
   console.log(`✅ [AI_WEB] Extracted ${result.content.length} chars (${wordCount} words)`);
@@ -955,7 +955,7 @@ Create comprehensive notes (1000+ words).`;
     maxTokens: 8000,
   });
 
-  logAIUsage("extract-youtube-transcript/metadata-gen", result.tokensUsed, result.webSearchUsed);
+  logAIUsage("extract-youtube-transcript/metadata-gen", result.tokensUsed, result.webSearchUsed, result.modelUsed);
 
   const content = result.content;
   if (content.length < 500) throw new Error("Generated content too short");
