@@ -1,10 +1,10 @@
-// Extract PDF Content - Use Claude PDF support to extract text
-// Uses Claude Sonnet 4.5 with native PDF reading capability
+// Extract PDF Content - Use Gemini File API to extract text
+// Uses Gemini 2.0 Flash with native PDF reading capability
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { callGeminiWithFile, logGeminiUsage } from "../_shared/gemini-client.ts";
 
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -12,20 +12,6 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-// Convert ArrayBuffer to base64 in chunks to avoid stack overflow
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  const chunkSize = 8192; // Process 8KB at a time
-  let binary = "";
-
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.slice(i, i + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-
-  return btoa(binary);
-}
 
 interface ExtractRequest {
   note_id: string;
@@ -99,17 +85,13 @@ serve(async (req) => {
 
     console.log("PDF downloaded, size:", pdfBuffer.byteLength, "bytes");
 
-    // Check file size (Claude supports PDFs up to 32MB)
-    const maxSizeBytes = 32 * 1024 * 1024; // 32MB
+    // Check file size (Gemini supports files up to 50MB)
+    const maxSizeBytes = 50 * 1024 * 1024; // 50MB
     if (pdfBuffer.byteLength > maxSizeBytes) {
       throw new Error(
-        `PDF file is too large (${(pdfBuffer.byteLength / 1024 / 1024).toFixed(2)}MB). Maximum supported size is 32MB.`,
+        `PDF file is too large (${(pdfBuffer.byteLength / 1024 / 1024).toFixed(2)}MB). Maximum supported size is 50MB.`,
       );
     }
-
-    console.log("Converting PDF to base64...");
-    const pdfBase64 = arrayBufferToBase64(pdfBuffer);
-    console.log("Base64 conversion complete");
 
     // Update progress
     await supabase
@@ -119,34 +101,10 @@ serve(async (req) => {
       })
       .eq("id", note_id);
 
-    // Step 2: Use Claude Sonnet 4.5 to extract and understand PDF content
-    console.log("Sending PDF to Claude Sonnet 4.5 for extraction...");
+    // Step 2: Use Gemini 2.0 Flash to extract and understand PDF content
+    console.log("Sending PDF to Gemini 2.0 Flash for extraction...");
 
-    const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5-20250929",
-        max_tokens: 16000,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "document",
-                source: {
-                  type: "base64",
-                  media_type: "application/pdf",
-                  data: pdfBase64,
-                },
-              },
-              {
-                type: "text",
-                text: `You are an expert study material analyzer. Extract ALL content from this PDF document comprehensively.
+    const systemPrompt = `You are an expert study material analyzer. Extract ALL content from this PDF document comprehensively.
 
 EXTRACTION REQUIREMENTS:
 1. **Complete Extraction**: Extract every single word, sentence, and piece of information
@@ -191,32 +149,25 @@ EXTRACTION REQUIREMENTS:
    - Example: Instead of "The fee is Rs. 500 for general category and Rs. 250 for SC/ST/OBC which is payable online and candidates must keep the receipt", write:
      "**Application Fee:**\\n- General: **Rs. 500**\\n- SC/ST/OBC: **Rs. 250**\\n\\nPayable online. ==Keep payment receipt.=="
 
-CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document in a well-structured, simple easy to understand language, readable format that any students can quickly study from.`,
-              },
-            ],
-          },
-        ],
-      }),
+CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document in a well-structured, readable format that students can study from.`;
+
+    const userPrompt = "Extract all content from this PDF document following the requirements above.";
+
+    const geminiResponse = await callGeminiWithFile({
+      systemPrompt,
+      userPrompt,
+      fileBuffer: pdfBuffer,
+      mimeType: "application/pdf",
+      displayName: `pdf_${note_id}.pdf`,
+      temperature: 0.2,
+      maxTokens: 16000,
     });
 
-    if (!anthropicResponse.ok) {
-      const errorText = await anthropicResponse.text();
-      console.error("Claude API error:", errorText);
-      throw new Error(`Claude API error: ${errorText}`);
-    }
+    logGeminiUsage("extract-pdf-content", geminiResponse.tokensUsed, geminiResponse.webSearchUsed);
 
-    const anthropicData = await anthropicResponse.json();
-    console.log("Claude extraction complete");
+    console.log("Gemini extraction complete");
 
-    // Extract text from response
-    let extractedText = "";
-    if (anthropicData.content && anthropicData.content.length > 0) {
-      for (const block of anthropicData.content) {
-        if (block.type === "text") {
-          extractedText += block.text + "\n";
-        }
-      }
-    }
+    const extractedText = geminiResponse.content;
 
     if (!extractedText.trim()) {
       throw new Error("No text could be extracted from PDF");
@@ -251,25 +202,24 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
 
       if (!summaryResponse.ok) {
         const errorText = await summaryResponse.text();
-        console.error("Summarization failed:", errorText);
+        console.error("Summarization error:", errorText);
         throw new Error(`Summarization failed: ${errorText}`);
       }
 
-      console.log("Summarization completed successfully for note:", note_id);
-    } catch (triggerError) {
-      console.error("Failed to trigger or complete summarization:", triggerError);
-
-      // Update note status to failed
+      const summaryData = await summaryResponse.json();
+      console.log("Summarization completed:", summaryData);
+    } catch (summaryError) {
+      console.error("Failed to trigger summarization:", summaryError);
+      // Update note with error
       await supabase
         .from("study_notes")
         .update({
           processing_status: "failed",
-          processing_error:
-            triggerError instanceof Error ? triggerError.message : "Failed to complete summarization process",
+          processing_error: `Summarization failed: ${summaryError.message}`,
         })
         .eq("id", note_id);
 
-      throw triggerError;
+      throw summaryError;
     }
 
     return new Response(
@@ -284,30 +234,28 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
       },
     );
   } catch (error) {
-    console.error("PDF extraction error:", error);
+    console.error("Error in extract-pdf-content:", error);
 
-    // Try to extract note_id from the request
-    let noteId: string | null = null;
+    // Update note status to failed
     try {
-      const body = await req.clone().json();
-      noteId = body.note_id;
-    } catch {
-      // Ignore parsing errors
+      const bodyText = await req.text();
+      const body = JSON.parse(bodyText);
+      if (body.note_id) {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+        await supabase
+          .from("study_notes")
+          .update({
+            processing_status: "failed",
+            processing_error: error.message || "PDF extraction failed",
+          })
+          .eq("id", body.note_id);
+      }
+    } catch (e) {
+      console.error("Failed to update error status:", e);
     }
 
-    // Update note status to failed if we have the note_id
-    if (noteId) {
-      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      await supabase
-        .from("study_notes")
-        .update({
-          processing_status: "failed",
-          processing_error: error instanceof Error ? error.message : "PDF extraction failed",
-        })
-        .eq("id", noteId);
-    }
-
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "PDF extraction failed" }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
