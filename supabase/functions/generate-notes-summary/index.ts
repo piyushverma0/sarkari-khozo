@@ -1,10 +1,10 @@
 // Generate Notes Summary - Transform raw content into structured study notes
-// Uses Claude Sonnet 4.5 to create clean, organized notes
+// Uses Gemini 2.0 Flash to create clean, organized notes
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { callGemini, logGeminiUsage } from "../_shared/gemini-client.ts";
 
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -17,8 +17,6 @@ interface SummarizeRequest {
   note_id: string;
   raw_content: string;
   language: string;
-  video_url?: string;
-  video_title?: string;
 }
 
 serve(async (req) => {
@@ -28,7 +26,7 @@ serve(async (req) => {
   }
 
   try {
-    const { note_id, raw_content, language, video_url, video_title }: SummarizeRequest = await req.json();
+    const { note_id, raw_content, language }: SummarizeRequest = await req.json();
 
     if (!note_id || !raw_content) {
       return new Response(JSON.stringify({ error: "note_id and raw_content are required" }), {
@@ -51,8 +49,8 @@ serve(async (req) => {
       })
       .eq("id", note_id);
 
-    // Build the prompt
-    const prompt = `You are an expert study assistant specializing in Indian government exams, jobs, and educational content. Transform the following text into clean, well-structured study notes optimized for learning and exam preparation.
+    // Build the system prompt
+    const systemPrompt = `You are an expert study assistant specializing in Indian government exams, jobs, and educational content. Transform the following text into clean, well-structured study notes optimized for learning and exam preparation.
 
 CRITICAL REQUIREMENTS:
 1. Create clear hierarchical sections with descriptive headings
@@ -90,7 +88,7 @@ MARKDOWN FORMATTING RULES (for content field):
    - Highlight deadlines and urgent information with ==text==
 4. **Examples**:
    BAD: "The application fee for general category is Rs. 500 and for SC/ST/OBC is Rs. 250 payable through online mode via debit card, credit card or net banking and candidates must keep the payment receipt for future reference."
-   GOOD: "**Application Fee:**\n- General Category: **Rs. 500**\n- SC/ST/OBC: **Rs. 250**\n\nPayment accepted via debit card, credit card, or net banking. ==Keep payment receipt for future reference.=="
+   GOOD: "**Application Fee:**\\n- General Category: **Rs. 500**\\n- SC/ST/OBC: **Rs. 250**\\n\\nPayment accepted via debit card, credit card, or net banking. ==Keep payment receipt for future reference.=="
 
 OUTPUT FORMAT: Return ONLY valid JSON (no markdown, no backticks):
 {
@@ -104,7 +102,7 @@ OUTPUT FORMAT: Return ONLY valid JSON (no markdown, no backticks):
   "sections": [
     {
       "title": "Section heading",
-      "content": "Main content using markdown formatting. Keep paragraphs under 4 lines. Use **bold**, *italic*, \`code\`, ==highlights==, and bullet points. Example:\n\n**Important Info:** This is a short 2-3 line paragraph with key details.\n\n- First bullet point\n- Second bullet point\n\nAnother short paragraph if needed.",
+      "content": "Main content using markdown formatting. Keep paragraphs under 4 lines. Use **bold**, *italic*, \`code\`, ==highlights==, and bullet points. Example:\\n\\n**Important Info:** This is a short 2-3 line paragraph with key details.\\n\\n- First bullet point\\n- Second bullet point\\n\\nAnother short paragraph if needed.",
       "subsections": [
         {
           "title": "Subsection heading",
@@ -113,16 +111,16 @@ OUTPUT FORMAT: Return ONLY valid JSON (no markdown, no backticks):
       ],
       "highlights": [
         {
-          "type": "deadline" | "eligibility" | "fee" | "important" | "action",
+          "type": "deadline",
           "text": "Highlighted information",
-          "date": "YYYY-MM-DD" (if applicable)
+          "date": "YYYY-MM-DD"
         }
       ],
       "links": [
         {
           "text": "Link description",
           "url": "https://...",
-          "type": "application" | "notification" | "official" | "resource"
+          "type": "application"
         }
       ]
     }
@@ -145,10 +143,9 @@ OUTPUT FORMAT: Return ONLY valid JSON (no markdown, no backticks):
   ]
 }
 
-TEXT TO PROCESS:
-${raw_content.substring(0, 30000)}
-
 Remember: Return ONLY the JSON object, nothing else.`;
+
+    const userPrompt = `TEXT TO PROCESS:\n${raw_content.substring(0, 30000)}`;
 
     // Update progress
     await supabase
@@ -158,38 +155,19 @@ Remember: Return ONLY the JSON object, nothing else.`;
       })
       .eq("id", note_id);
 
-    // Call Claude API
-    console.log("Calling Claude API for summarization...");
-    const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5-20250929",
-        max_tokens: 8192,
-        temperature: 0.3,
-        system:
-          "You are an expert study assistant. Always return valid JSON without any markdown formatting or code blocks.",
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-      }),
+    // Call Gemini API
+    console.log("Calling Gemini API for summarization...");
+    const geminiResponse = await callGemini({
+      systemPrompt,
+      userPrompt,
+      temperature: 0.3,
+      maxTokens: 8192,
+      responseFormat: "json",
     });
 
-    if (!anthropicResponse.ok) {
-      const errorText = await anthropicResponse.text();
-      console.error("Claude API error:", errorText);
-      throw new Error(`Claude API error: ${errorText}`);
-    }
+    logGeminiUsage("generate-notes-summary", geminiResponse.tokensUsed, geminiResponse.webSearchUsed);
 
-    const anthropicData = await anthropicResponse.json();
-    console.log("Claude summarization complete");
+    console.log("Gemini summarization complete");
 
     // Update progress
     await supabase
@@ -200,17 +178,10 @@ Remember: Return ONLY the JSON object, nothing else.`;
       .eq("id", note_id);
 
     // Extract response text
-    let responseText = "";
-    if (anthropicData.content && anthropicData.content.length > 0) {
-      for (const block of anthropicData.content) {
-        if (block.type === "text") {
-          responseText += block.text;
-        }
-      }
-    }
+    let responseText = geminiResponse.content;
 
     if (!responseText.trim()) {
-      throw new Error("Empty response from Claude");
+      throw new Error("Empty response from Gemini");
     }
 
     // Clean up response (remove markdown code blocks if present)
@@ -228,28 +199,10 @@ Remember: Return ONLY the JSON object, nothing else.`;
     } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
-      throw new Error(`Failed to parse summary: ${errorMessage}`);
+      throw new Error(`Failed to parse summary: ${parseError.message}`);
     }
 
     console.log("Structured content generated:", Object.keys(structuredContent));
-
-    // Add video source section ONLY if video_url is provided
-    // This keeps PDF and article notes unchanged
-    if (video_url && structuredContent.sections) {
-      console.log("📺 Adding video source section to top of structured content");
-      
-      const sourceSection = {
-        title: "📺 Source Video",
-        content: `[${video_title || 'Watch on YouTube'}](${video_url})`,
-        priority: "high" as const
-      };
-      
-      // Prepend source section to the beginning
-      structuredContent.sections.unshift(sourceSection);
-      
-      console.log(`✅ Video source added: ${video_title || 'YouTube Video'}`);
-    }
 
     // Update progress
     await supabase
@@ -272,7 +225,6 @@ Remember: Return ONLY the JSON object, nothing else.`;
         processing_status: "completed",
         processing_progress: 100,
         processing_error: null,
-        source_url: video_url || null,
       })
       .eq("id", note_id);
 
@@ -306,12 +258,11 @@ Remember: Return ONLY the JSON object, nothing else.`;
       if (body.note_id) {
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-        const errorMessage = error instanceof Error ? error.message : "Summary generation failed";
         await supabase
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: errorMessage,
+            processing_error: error.message || "Summary generation failed",
           })
           .eq("id", body.note_id);
       }
@@ -319,8 +270,7 @@ Remember: Return ONLY the JSON object, nothing else.`;
       console.error("Failed to update error status:", e);
     }
 
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
