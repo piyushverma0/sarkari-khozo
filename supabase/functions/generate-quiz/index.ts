@@ -1,10 +1,10 @@
 // Generate Quiz - Create AI-powered quizzes from study notes
 // Supports MCQ, True/False, Short Answer, and Mixed types
-// Uses Gemini 2.0 Flash for intelligent question generation
+// Uses Sonar Pro with GPT-4-turbo fallback for intelligent question generation
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { callGemini, logGeminiUsage } from "../_shared/gemini-client.ts";
+import { callAI, logAIUsage } from "../_shared/ai-client.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -139,8 +139,8 @@ OUTPUT FORMAT: Return ONLY valid JSON (no markdown):
 Generate exactly ${question_count} questions. Return ONLY the JSON.`;
 
     // Call Gemini API
-    console.log("Calling Gemini API for quiz generation...");
-    const geminiResponse = await callGemini({
+    console.log("Calling AI (Sonar Pro → GPT-4-turbo) for quiz generation...");
+    const aiResponse = await callAI({
       systemPrompt,
       userPrompt,
       temperature: 0.4,
@@ -148,12 +148,12 @@ Generate exactly ${question_count} questions. Return ONLY the JSON.`;
       responseFormat: "json",
     });
 
-    logGeminiUsage("generate-quiz", geminiResponse.tokensUsed, geminiResponse.webSearchUsed);
+    logAIUsage("generate-quiz", aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed);
 
-    console.log("Gemini quiz generation complete");
+    console.log("AI quiz generation complete");
 
     // Extract response text
-    let responseText = geminiResponse.content;
+    let responseText = aiResponse.content;
 
     // Clean up response
     let cleanedJson = responseText.trim();
@@ -167,11 +167,10 @@ Generate exactly ${question_count} questions. Return ONLY the JSON.`;
     let quizData;
     try {
       quizData = JSON.parse(cleanedJson);
-    } catch (parseError: unknown) {
+    } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
-      throw new Error(`Failed to parse quiz: ${errorMessage}`);
+      throw new Error(`Failed to parse quiz: ${parseError.message}`);
     }
 
     if (!quizData.questions || !Array.isArray(quizData.questions)) {
@@ -232,10 +231,10 @@ Generate exactly ${question_count} questions. Return ONLY the JSON.`;
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Error in generate-quiz:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return new Response(JSON.stringify({ error: errorMessage }), {
+
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
