@@ -5,9 +5,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { YoutubeTranscript } from "jsr:@fbehrens/youtube-transcript@1.0.2";
-import { callClaude, logClaudeUsage } from "../_shared/claude-client.ts";
+import { callGemini, logGeminiUsage } from "../_shared/gemini-client.ts";
 
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -46,35 +45,35 @@ function getNextProxy(): { url: string; masked: string } {
 // Enhanced fetch with proxy support for YouTube requests using Deno.createHttpClient
 async function fetchWithProxy(url: string, options: RequestInit = {}, maxRetries = 2): Promise<Response> {
   let lastError: Error | null = null;
-  
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const proxy = getNextProxy();
     console.log(`🌐 [PROXY] Attempt ${attempt + 1}/${maxRetries + 1}, Using: ${proxy.masked}`);
-    
+
     try {
       // Create HTTP client with proxy configuration
       const client = Deno.createHttpClient({
         proxy: { url: proxy.url },
       });
-      
+
       const response = await fetch(url, {
         ...options,
         client,
       });
-      
+
       client.close();
       return response;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
       console.log(`⚠️ [PROXY] Failed: ${lastError.message}`);
-      
+
       if (attempt < maxRetries) {
         console.log(`🔄 [PROXY] Retrying with next proxy...`);
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
     }
   }
-  
+
   throw new Error(`All proxy attempts failed. Last error: ${lastError?.message}`);
 }
 
@@ -206,11 +205,11 @@ function formatTimestamp(seconds: number): string {
 // Invidious public instances for free transcript extraction
 // Using updated, working instances as of 2025
 const INVIDIOUS_INSTANCES = [
-  'https://invidious.nerdvpn.de',
-  'https://iv.datura.network',
-  'https://invidious.protokolla.fi',
-  'https://yt.artemislena.eu',
-  'https://invidious.privacyredirect.com',
+  "https://invidious.nerdvpn.de",
+  "https://iv.datura.network",
+  "https://invidious.protokolla.fi",
+  "https://yt.artemislena.eu",
+  "https://invidious.privacyredirect.com",
 ];
 
 // Parse WebVTT format to extract transcript segments
@@ -221,47 +220,47 @@ function parseWebVTT(vtt: string): { segments: TranscriptSegment[]; text: string
 
   // Split by double newlines to get each cue
   const cues = vtt.split(/\n\n+/);
-  
+
   for (const cue of cues) {
-    const lines = cue.trim().split('\n');
+    const lines = cue.trim().split("\n");
     if (lines.length < 2) continue;
-    
+
     // Look for timestamp line (format: 00:00:00.000 --> 00:00:05.000)
-    const timestampLine = lines.find(line => line.includes('-->'));
+    const timestampLine = lines.find((line) => line.includes("-->"));
     if (!timestampLine) continue;
-    
+
     // Extract start time
     const startTimeMatch = timestampLine.match(/^(\d{2}):(\d{2}):(\d{2})\.\d{3}/);
     if (!startTimeMatch) continue;
-    
+
     const hours = parseInt(startTimeMatch[1]);
     const minutes = parseInt(startTimeMatch[2]);
     const seconds = parseInt(startTimeMatch[3]);
     const startSeconds = hours * 3600 + minutes * 60 + seconds;
     const timeStr = formatTimestamp(startSeconds);
-    
+
     // Get text (all lines after timestamp, removing HTML tags)
     const textLines = lines.slice(lines.indexOf(timestampLine) + 1);
     const text = textLines
-      .join(' ')
-      .replace(/<[^>]*>/g, '') // Remove HTML tags
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
+      .join(" ")
+      .replace(/<[^>]*>/g, "") // Remove HTML tags
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
       .replace(/&quot;/g, '"')
       .trim();
-    
+
     if (text) {
       segments.push({ time: timeStr, text, startSeconds });
       textParts.push(text);
       timestampedParts.push(`[${timeStr}] ${text}`);
     }
   }
-  
+
   return {
     segments,
-    text: textParts.join(' '),
-    timestampedText: timestampedParts.join('\n'),
+    text: textParts.join(" "),
+    timestampedText: timestampedParts.join("\n"),
   };
 }
 
@@ -372,7 +371,7 @@ async function fetchTranscriptWithInvidious(
       // Step 1: Get available captions list using correct endpoint
       const captionsUrl = `${instance}/api/v1/captions/${videoId}`;
       const captionsResponse = await fetchWithProxy(captionsUrl, {
-        headers: { 'Accept': 'application/json' },
+        headers: { Accept: "application/json" },
       });
 
       if (!captionsResponse.ok) {
@@ -382,7 +381,7 @@ async function fetchTranscriptWithInvidious(
       }
 
       const captionsData = await captionsResponse.json();
-      
+
       if (!captionsData.captions || !Array.isArray(captionsData.captions) || captionsData.captions.length === 0) {
         console.log(`🔧 [INVIDIOUS] ${instance}: No captions available`);
         errors.push(`${instance}: No captions`);
@@ -396,22 +395,20 @@ async function fetchTranscriptWithInvidious(
       console.log(`🔧 [INVIDIOUS] Available: ${availableLangs.join(", ")}`);
 
       // Step 2: Find best caption track
-      const hasPreferred = captionsData.captions.find((c: any) => 
-        c.languageCode?.startsWith(preferredLang.split("-")[0])
+      const hasPreferred = captionsData.captions.find((c: any) =>
+        c.languageCode?.startsWith(preferredLang.split("-")[0]),
       );
-      const hasEnglish = captionsData.captions.find((c: any) => 
-        c.languageCode?.startsWith("en")
-      );
+      const hasEnglish = captionsData.captions.find((c: any) => c.languageCode?.startsWith("en"));
 
-      let captionParams = '';
-      let selectedLang = 'unknown';
+      let captionParams = "";
+      let selectedLang = "unknown";
 
       if (hasPreferred) {
         // Direct match for preferred language
         captionParams = `?lang=${preferredLang}`;
         selectedLang = preferredLang;
         console.log(`🔧 [INVIDIOUS] Using direct ${preferredLang} captions`);
-      } else if (hasEnglish && preferredLang !== 'en') {
+      } else if (hasEnglish && preferredLang !== "en") {
         // Auto-translate from English!
         captionParams = `?lang=en&tlang=${preferredLang}`;
         selectedLang = `en→${preferredLang} (auto-translated)`;
@@ -427,7 +424,7 @@ async function fetchTranscriptWithInvidious(
       // Step 3: Fetch WebVTT captions
       const vttUrl = `${captionsUrl}${captionParams}`;
       const vttResponse = await fetchWithProxy(vttUrl, {
-        headers: { 'Accept': 'text/vtt, text/plain, */*' },
+        headers: { Accept: "text/vtt, text/plain, */*" },
       });
 
       if (!vttResponse.ok) {
@@ -436,7 +433,7 @@ async function fetchTranscriptWithInvidious(
       }
 
       const vttText = await vttResponse.text();
-      
+
       if (vttText.length < 50) {
         errors.push(`${instance}: Caption too short`);
         continue;
@@ -444,19 +441,20 @@ async function fetchTranscriptWithInvidious(
 
       // Step 4: Parse WebVTT format
       const parsed = parseWebVTT(vttText);
-      
+
       if (parsed.segments.length === 0 && parsed.text.length < 100) {
         errors.push(`${instance}: No valid content parsed`);
         continue;
       }
 
-      console.log(`✅ [INVIDIOUS] ${instance}: Success! ${parsed.segments.length} segments, ${parsed.text.length} chars`);
-      
+      console.log(
+        `✅ [INVIDIOUS] ${instance}: Success! ${parsed.segments.length} segments, ${parsed.text.length} chars`,
+      );
+
       return {
         ...parsed,
         language: selectedLang,
       };
-
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       console.log(`🔧 [INVIDIOUS] ${instance}: Error - ${msg}`);
@@ -516,7 +514,10 @@ async function fetchTranscriptWithMultiClientInnertube(
         body: JSON.stringify(requestBody),
       };
 
-      const response = await fetchWithProxy("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", fetchOptions);
+      const response = await fetchWithProxy(
+        "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
+        fetchOptions,
+      );
 
       if (!response.ok) {
         console.log(`🔧 [INNERTUBE_MULTI] ${clientConfig.name}: HTTP ${response.status}`);
@@ -848,14 +849,14 @@ async function fetchTranscriptWithSupadata(
 }
 
 // =====================================================
-// METHOD 6: Claude Web Search (Last resort for actual transcript)
+// METHOD 6: Gemini Web Search (Last resort for actual transcript)
 // =====================================================
-async function fetchTranscriptWithClaudeWeb(
+async function fetchTranscriptWithGeminiWeb(
   videoUrl: string,
   metadata: VideoMetadata | null,
   preferredLang: string = "en",
 ): Promise<{ text: string; language: string }> {
-  console.log("🌐 [CLAUDE_WEB] Using Claude web search...");
+  console.log("🌐 [GEMINI_WEB] Using Gemini web search...");
 
   const systemPrompt = `You are a YouTube transcript extractor. Your ONLY job is to find and return the COMPLETE word-for-word transcript.
 
@@ -884,26 +885,24 @@ Duration: ${metadata.duration}`
 
 SEARCH FOR:
 1. "${metadata?.title || ""} transcript" site:youtubetranscript.com
-2. "${metadata?.title || ""} transcript" site:downsub.com  
+2. "${metadata?.title || ""} transcript" site:downsub.com
 3. youtube video transcript "${videoUrl}"
 4. "${metadata?.title || ""}" full captions text
 
 Return the FULL TRANSCRIPT with timestamps. For a ${metadata?.duration || ""} video, I expect THOUSANDS of words.`;
 
-  const result = await callClaude({
+  const result = await callGemini({
     systemPrompt,
     userPrompt,
     enableWebSearch: true,
-    forceWebSearch: true,
-    maxWebSearchUses: 10,
-    maxTokens: 64000,
+    maxTokens: 16000,
     temperature: 0.1,
   });
 
-  logClaudeUsage("extract-youtube-transcript/claude-web", result.tokensUsed, result.webSearchUsed);
+  logGeminiUsage("extract-youtube-transcript/gemini-web", result.tokensUsed, result.webSearchUsed);
 
   const wordCount = result.content.split(/\s+/).filter((w: string) => w.length > 0).length;
-  console.log(`✅ [CLAUDE_WEB] Extracted ${result.content.length} chars (${wordCount} words)`);
+  console.log(`✅ [GEMINI_WEB] Extracted ${result.content.length} chars (${wordCount} words)`);
 
   // Warn if short
   if (metadata?.duration) {
@@ -911,12 +910,12 @@ Return the FULL TRANSCRIPT with timestamps. For a ${metadata?.duration || ""} vi
     if (match) {
       const totalMinutes = parseInt(match[1] || "0") * 60 + parseInt(match[2] || "0");
       if (totalMinutes > 30 && wordCount < totalMinutes * 50) {
-        console.warn(`⚠️ [CLAUDE_WEB] Only ${wordCount} words for ${totalMinutes} min video - likely summary`);
+        console.warn(`⚠️ [GEMINI_WEB] Only ${wordCount} words for ${totalMinutes} min video - likely summary`);
       }
     }
   }
 
-  if (wordCount < 50) throw new Error("Claude returned insufficient content");
+  if (wordCount < 50) throw new Error("Gemini returned insufficient content");
 
   return { text: result.content, language: preferredLang };
 }
@@ -934,38 +933,31 @@ async function generateFromMetadata(
     throw new Error("Insufficient metadata");
   }
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-5-20250929",
-      max_tokens: 8000,
-      messages: [
-        {
-          role: "user",
-          content: `Create study notes from this video metadata (transcript unavailable):
+  const systemPrompt =
+    "You are an expert at creating comprehensive study notes from video metadata. Generate detailed, well-structured notes.";
+
+  const userPrompt = `Create study notes from this video metadata (transcript unavailable):
 
 Title: ${metadata.title}
-Channel: ${metadata.channelTitle}  
+Channel: ${metadata.channelTitle}
 Duration: ${metadata.duration}
 Description: ${metadata.description}
 
 ${metadata.chapters?.length ? `Chapters:\n${metadata.chapters.map((c) => `${c.time}: ${c.title}`).join("\n")}` : ""}
 
 Start with: "[AI-GENERATED FROM METADATA - ACTUAL TRANSCRIPT UNAVAILABLE]"
-Create comprehensive notes (1000+ words).`,
-        },
-      ],
-    }),
+Create comprehensive notes (1000+ words).`;
+
+  const result = await callGemini({
+    systemPrompt,
+    userPrompt,
+    temperature: 0.3,
+    maxTokens: 8000,
   });
 
-  if (!response.ok) throw new Error(`API error: ${await response.text()}`);
-  const result = await response.json();
-  const content = result.content?.[0]?.text || "";
+  logGeminiUsage("extract-youtube-transcript/metadata-gen", result.tokensUsed, result.webSearchUsed);
+
+  const content = result.content;
   if (content.length < 500) throw new Error("Generated content too short");
   return { text: content, language: preferredLang };
 }
@@ -1119,13 +1111,13 @@ serve(async (req) => {
             } catch (e5) {
               console.log("⚠️ Method 5 failed:", e5 instanceof Error ? e5.message : String(e5));
 
-              // METHOD 6: Claude Web Search
+              // METHOD 6: Gemini Web Search
               try {
-                console.log("📥 Method 6: Claude Web Search");
-                const result = await fetchTranscriptWithClaudeWeb(youtubeUrl, metadata, detectedLanguage);
+                console.log("📥 Method 6: Gemini Web Search");
+                const result = await fetchTranscriptWithGeminiWeb(youtubeUrl, metadata, detectedLanguage);
                 transcript = result.text;
                 timestampedTranscript = result.text;
-                extractionMethod = "claude-web-search";
+                extractionMethod = "gemini-web-search";
                 confidenceScore = 0.8;
                 extractedLanguage = result.language;
                 console.log("✅ Method 6 succeeded!");
