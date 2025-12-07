@@ -1,218 +1,185 @@
 // Generate Audio Script - Create conversational dialogue between Raj and Priya
-// Uses Claude Sonnet 4.5 to generate friendly, educational conversation
+// Uses Gemini 2.0 Flash to generate friendly, educational conversation
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { callGemini, logGeminiUsage } from "../_shared/gemini-client.ts";
 
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 interface GenerateScriptRequest {
-  note_id: string
-  language: 'hi' | 'en'
+  note_id: string;
+  language: "hi" | "en";
 }
 
 interface ConversationTurn {
-  speaker: 'Raj' | 'Priya'
-  text: string
-  emotion?: string
+  speaker: "Raj" | "Priya";
+  text: string;
+  emotion?: string;
 }
 
 serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const { note_id, language }: GenerateScriptRequest = await req.json()
+    const { note_id, language }: GenerateScriptRequest = await req.json();
 
     if (!note_id || !language) {
-      return new Response(
-        JSON.stringify({ error: 'note_id and language are required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return new Response(JSON.stringify({ error: "note_id and language are required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log(`Generating ${language} audio script for note: ${note_id}`)
+    console.log(`Generating ${language} audio script for note: ${note_id}`);
 
     // Initialize Supabase client
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Fetch note content
     const { data: note, error: fetchError } = await supabase
-      .from('study_notes')
-      .select('title, summary, key_points, structured_content')
-      .eq('id', note_id)
-      .single()
+      .from("study_notes")
+      .select("title, summary, key_points, structured_content")
+      .eq("id", note_id)
+      .single();
 
     if (fetchError || !note) {
-      throw new Error('Failed to fetch note: ' + (fetchError?.message || 'Note not found'))
+      throw new Error("Failed to fetch note: " + (fetchError?.message || "Note not found"));
     }
 
     // Update status to generating
-    const scriptField = language === 'hi' ? 'audio_script_hindi' : 'audio_script_english'
-    await supabase
-      .from('study_notes')
-      .update({ audio_generation_status: 'generating_script' })
-      .eq('id', note_id)
+    const scriptField = language === "hi" ? "audio_script_hindi" : "audio_script_english";
+    await supabase.from("study_notes").update({ audio_generation_status: "generating_script" }).eq("id", note_id);
 
     // Prepare content for Claude
-    const keyPoints = Array.isArray(note.key_points) ? note.key_points.join('\n- ') : ''
+    const keyPoints = Array.isArray(note.key_points) ? note.key_points.join("\n- ") : "";
     const sectionsText = note.structured_content?.sections
-      ? note.structured_content.sections.map((s: any) => `${s.title}: ${s.content}`).join('\n\n')
-      : ''
+      ? note.structured_content.sections.map((s: any) => `${s.title}: ${s.content}`).join("\n\n")
+      : "";
 
-    // Build Claude prompt based on language
-    const prompt = buildConversationPrompt(
-      note.title,
-      note.summary || '',
-      keyPoints,
-      sectionsText,
-      language
-    )
+    // Build conversation prompt based on language
+    const userPrompt = buildConversationPrompt(note.title, note.summary || "", keyPoints, sectionsText, language);
 
-    console.log('Calling Claude API to generate script...')
+    const systemPrompt =
+      "You are an expert at creating engaging, educational conversations between two Indian students. Create natural, friendly dialogues that help students learn. Always return valid JSON.";
 
-    // Call Claude API
-    const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 4096,
-        temperature: 0.7,
-        system: 'You are an expert at creating engaging, educational conversations between two Indian students. Create natural, friendly dialogues that help students learn. Always return valid JSON.',
-        messages: [{
-          role: 'user',
-          content: prompt
-        }]
-      })
-    })
+    console.log("Calling Gemini API to generate script...");
 
-    if (!anthropicResponse.ok) {
-      const errorText = await anthropicResponse.text()
-      console.error('Claude API error:', errorText)
-      throw new Error(`Claude API error: ${errorText}`)
-    }
+    // Call Gemini API
+    const geminiResponse = await callGemini({
+      systemPrompt,
+      userPrompt,
+      temperature: 0.7,
+      maxTokens: 4096,
+      responseFormat: "json",
+    });
 
-    const anthropicData = await anthropicResponse.json()
-    console.log('Claude response received')
+    logGeminiUsage("generate-audio-script", geminiResponse.tokensUsed, geminiResponse.webSearchUsed);
+
+    console.log("Gemini response received");
 
     // Extract response text
-    let responseText = ''
-    if (anthropicData.content && anthropicData.content.length > 0) {
-      for (const block of anthropicData.content) {
-        if (block.type === 'text') {
-          responseText += block.text
-        }
-      }
-    }
+    let responseText = geminiResponse.content;
 
     if (!responseText.trim()) {
-      throw new Error('Empty response from Claude')
+      throw new Error("Empty response from Gemini");
     }
 
     // Clean up JSON (remove markdown code blocks if present)
-    let cleanedJson = responseText.trim()
-    if (cleanedJson.startsWith('```json')) {
-      cleanedJson = cleanedJson.replace(/^```json\s*/, '').replace(/\s*```$/, '')
-    } else if (cleanedJson.startsWith('```')) {
-      cleanedJson = cleanedJson.replace(/^```\s*/, '').replace(/\s*```$/, '')
+    let cleanedJson = responseText.trim();
+    if (cleanedJson.startsWith("```json")) {
+      cleanedJson = cleanedJson.replace(/^```json\s*/, "").replace(/\s*```$/, "");
+    } else if (cleanedJson.startsWith("```")) {
+      cleanedJson = cleanedJson.replace(/^```\s*/, "").replace(/\s*```$/, "");
     }
 
     // Parse JSON
-    let script
+    let script;
     try {
-      script = JSON.parse(cleanedJson)
+      script = JSON.parse(cleanedJson);
     } catch (parseError) {
-      console.error('Failed to parse JSON:', parseError instanceof Error ? parseError.message : 'Unknown error')
-      console.error('Response text:', responseText.substring(0, 500))
-      throw new Error(`Failed to parse script: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`)
+      console.error("Failed to parse JSON:", parseError);
+      console.error("Response text:", responseText.substring(0, 500));
+      throw new Error(`Failed to parse script: ${parseError.message}`);
     }
 
-    console.log(`Script generated with ${script.turns?.length || 0} turns`)
+    console.log(`Script generated with ${script.turns?.length || 0} turns`);
 
     // Calculate estimated duration (assuming ~2 seconds per turn on average)
-    const estimatedDuration = (script.turns?.length || 0) * 2
+    const estimatedDuration = (script.turns?.length || 0) * 2;
 
     const scriptData = {
       turns: script.turns || [],
-      estimatedDuration: estimatedDuration
-    }
+      estimatedDuration: estimatedDuration,
+    };
 
     // Store script in database
     await supabase
-      .from('study_notes')
+      .from("study_notes")
       .update({
         [scriptField]: scriptData,
-        audio_generation_status: 'not_generated' // Reset status, ready for audio generation
+        audio_generation_status: "not_generated", // Reset status, ready for audio generation
       })
-      .eq('id', note_id)
+      .eq("id", note_id);
 
-    console.log('Script stored in database')
+    console.log("Script stored in database");
 
     return new Response(
       JSON.stringify({
         success: true,
         script: scriptData,
         turns_count: script.turns?.length || 0,
-        estimated_duration: estimatedDuration
+        estimated_duration: estimatedDuration,
       }),
       {
         status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
-
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (error) {
-    console.error('Error in generate-audio-script:', error)
+    console.error("Error in generate-audio-script:", error);
 
     // Update status to failed
     try {
-      const body = await req.json()
+      const body = await req.json();
       if (body.note_id) {
-        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
         await supabase
-          .from('study_notes')
+          .from("study_notes")
           .update({
-            audio_generation_status: 'failed',
-            audio_generation_error: error instanceof Error ? error.message : 'Unknown error'
+            audio_generation_status: "failed",
+            audio_generation_error: error.message,
           })
-          .eq('id', body.note_id)
+          .eq("id", body.note_id);
       }
     } catch (e) {
-      console.error('Failed to update error status:', e)
+      console.error("Failed to update error status:", e);
     }
 
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
-})
+});
 
 function buildConversationPrompt(
   title: string,
   summary: string,
   keyPoints: string,
   sectionsText: string,
-  language: 'hi' | 'en'
+  language: "hi" | "en",
 ): string {
-  const isHindi = language === 'hi'
+  const isHindi = language === "hi";
 
   const languageInstruction = isHindi
     ? `Language: Hinglish (mix of Hindi and English). Use Hindi for conversation but keep technical terms in English. Make it natural like how Indian students actually talk.
@@ -230,9 +197,9 @@ Examples:
 - "Hey Priya, I've been reading about this topic but it's quite complex..."
 - "Don't worry Raj, let me break it down for you in simple terms..."
 - "So basically, there are three main stages - Prelims, Mains, and Interview."
-- "Got it! And what about the eligibility criteria?"`
+- "Got it! And what about the eligibility criteria?"`;
 
-  return `You are creating a friendly, educational conversation between two Indian students discussing study material. You can ask question in middle where you get confuse about any topic.
+  return `You are creating a friendly, educational conversation between two Indian students discussing study material.
 
 Participants:
 - **Raj** (Male, enthusiastic learner): Asks questions, represents the student's perspective, curious and eager to learn
@@ -292,5 +259,5 @@ Remember:
 - Cover MAIN POINTS from the content
 - End with ENCOURAGEMENT
 
-Generate the conversation now:`
+Generate the conversation now:`;
 }
