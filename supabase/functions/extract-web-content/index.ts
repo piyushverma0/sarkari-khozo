@@ -1,9 +1,9 @@
 // Extract Web Content - Extract article content from web pages
-// Uses Gemini 2.0 Flash with web grounding capability
+// Uses Sonar Pro with GPT-4-turbo fallback with web grounding capability
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { callGemini, logGeminiUsage } from "../_shared/gemini-client.ts";
+import { callAI, logAIUsage } from "../_shared/ai-client.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -21,7 +21,7 @@ interface ExtractRequest {
 }
 
 /**
- * Extract web article content using Gemini with web grounding
+ * Extract web article content using AI (Sonar Pro → GPT-4-turbo) with web grounding
  */
 async function extractWebContent(url: string): Promise<string> {
   console.log("📄 Extracting web content from:", url);
@@ -47,7 +47,7 @@ IMPORTANT:
 - Do NOT include any commentary, explanations, or meta-text
 - Preserve formatting and structure`;
 
-  const geminiResponse = await callGemini({
+  const aiResponse = await callAI({
     systemPrompt,
     userPrompt,
     enableWebSearch: true,
@@ -55,11 +55,11 @@ IMPORTANT:
     maxTokens: 16000,
   });
 
-  logGeminiUsage("extract-web-content", geminiResponse.tokensUsed, geminiResponse.webSearchUsed);
+  logAIUsage("extract-web-content", aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed);
 
-  console.log("✅ Gemini web extraction complete");
+  console.log("✅ AI web extraction complete");
 
-  const extractedText = geminiResponse.content;
+  const extractedText = aiResponse.content;
 
   if (!extractedText.trim()) {
     throw new Error("No content could be extracted from the web page");
@@ -104,15 +104,14 @@ serve(async (req) => {
     let extractedContent: string;
     try {
       extractedContent = await extractWebContent(source_url);
-    } catch (extractError: unknown) {
+    } catch (extractError) {
       console.error("❌ Web content extraction failed:", extractError);
-      const errorMessage = extractError instanceof Error ? extractError.message : "Unknown extraction error";
 
       await supabase
         .from("study_notes")
         .update({
           processing_status: "failed",
-          processing_error: `Failed to extract web content: ${errorMessage}`,
+          processing_error: `Failed to extract web content: ${extractError.message}`,
         })
         .eq("id", note_id);
 
@@ -151,16 +150,15 @@ serve(async (req) => {
       }
 
       console.log("✅ Summarization completed successfully for note:", note_id);
-    } catch (triggerError: unknown) {
+    } catch (triggerError) {
       console.error("❌ Failed to trigger or complete summarization:", triggerError);
-      const errorMessage = triggerError instanceof Error ? triggerError.message : "Failed to complete summarization process";
 
       // Update note status to failed
       await supabase
         .from("study_notes")
         .update({
           processing_status: "failed",
-          processing_error: errorMessage,
+          processing_error: triggerError.message || "Failed to complete summarization process",
         })
         .eq("id", note_id);
 
@@ -178,9 +176,8 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("❌ Web content extraction error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error during web content extraction";
 
     // Try to extract note_id from the request
     let noteId: string | null = null;
@@ -199,7 +196,7 @@ serve(async (req) => {
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: errorMessage,
+            processing_error: error.message || "Unknown error during web content extraction",
           })
           .eq("id", noteId);
       } catch (dbError) {
@@ -207,7 +204,7 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
