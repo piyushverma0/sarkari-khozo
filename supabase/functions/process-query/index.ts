@@ -1,10 +1,10 @@
 // Process Query - Extract detailed government application information
-// Model: Claude Sonnet 4.5 with web search
+// Model: Sonar Pro with GPT-4-turbo fallback with web search
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAI, logAIUsage } from "../_shared/ai-client.ts";
 
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -35,11 +35,7 @@ serve(async (req) => {
 
     console.log("Processing query:", query);
 
-    // Implement tool use loop for web search
-    const messages: any[] = [
-      {
-        role: "user",
-        content: `You are an expert at extracting information about Indian government applications, exams, jobs, and schemes.
+    const userPrompt = `You are an expert at extracting information about Indian government applications, exams, jobs, and schemes.
 
 User Query: "${query}"
 
@@ -124,10 +120,8 @@ CRITICAL DATE EXTRACTION RULES (HIGHEST PRIORITY):
    - If statistics not available, set statistics_confidence to "unavailable" and all numeric fields to null
    - Always include the statistics object even if data is unavailable
 
-CRITICAL: You MUST use web_search tool to get CURRENT dates from official sources. Do not rely on training data.
-Current Date: ${new Date().toISOString()}`,
-      },
-    ];
+CRITICAL: Use web search to get CURRENT dates from official sources. Do not rely on training data.
+Current Date: ${new Date().toISOString()}`;
 
     const systemPrompt = `You are an expert at extracting information about Indian government applications, exams, jobs, and schemes.
 
@@ -156,105 +150,28 @@ Based on the available information, here's what I found:
 
 Your output will be parsed directly as JSON, so any extra text will cause parsing errors.`;
 
-    let finalResponse = "";
-    let iterationCount = 0;
-    const maxIterations = 5; // Prevent infinite loops
+    console.log("Calling AI (Sonar Pro → GPT-4-turbo) to process query...");
 
-    // Tool use loop - continue until Claude provides final answer
-    while (iterationCount < maxIterations) {
-      iterationCount++;
-      console.log(`Tool use iteration ${iterationCount}`);
+    // Call AI with web search enabled
+    const aiResponse = await callAI({
+      systemPrompt,
+      userPrompt,
+      enableWebSearch: true,
+      temperature: 0.3,
+      maxTokens: 4096,
+      responseFormat: "json",
+    });
 
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5-20250929",
-          max_tokens: 4096,
-          temperature: 0.3,
-          system: systemPrompt,
-          messages: messages,
-          tools: [
-            {
-              name: "web_search",
-              description: "Search the web for current information from Indian government portals and reliable sources",
-              input_schema: {
-                type: "object",
-                properties: {
-                  query: {
-                    type: "string",
-                    description: "The search query to find information",
-                  },
-                },
-                required: ["query"],
-              },
-            },
-          ],
-        }),
-      });
+    logAIUsage("process-query", aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed);
+    console.log("AI response received, parsing JSON...");
 
-      if (!response.ok) {
-        const error = await response.text();
-        console.error("Anthropic API error:", error);
-        return new Response(JSON.stringify({ error: "Failed to process query", details: error }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    const finalResponse = aiResponse.content;
 
-      const data = await response.json();
-      console.log(`Iteration ${iterationCount} response:`, JSON.stringify(data, null, 2));
-
-      // Check if Claude wants to use tools
-      let hasToolUse = false;
-      const toolResults: any[] = [];
-
-      for (const block of data.content) {
-        if (block.type === "tool_use") {
-          hasToolUse = true;
-          console.log("Tool use requested:", block.name, block.input);
-
-          // For now, we'll mock web search results since we don't have actual web search
-          // In production, you'd integrate with a real search API
-          const searchQuery = block.input.query;
-          const mockResults = `Search results for "${searchQuery}": Please check official government portals like ssc.nic.in, upsc.gov.in, or sarkariresult.com for the latest information.`;
-
-          toolResults.push({
-            type: "tool_result",
-            tool_use_id: block.id,
-            content: mockResults,
-          });
-        } else if (block.type === "text") {
-          finalResponse = block.text;
-        }
-      }
-
-      // If no tool use, we have the final answer
-      if (!hasToolUse) {
-        break;
-      }
-
-      // Add assistant's response and tool results to messages
-      messages.push({
-        role: "assistant",
-        content: data.content,
-      });
-
-      messages.push({
-        role: "user",
-        content: toolResults,
-      });
-    }
-
-    // Parse the JSON response from Claude
+    // Parse the JSON response from AI
     try {
       // Check if we got a response
       if (!finalResponse || finalResponse.trim().length === 0) {
-        console.error("No response received from Claude after tool use loop");
+        console.error("No response received from AI");
         return new Response(
           JSON.stringify({
             error: "Unable to process query",
@@ -432,7 +349,7 @@ Your output will be parsed directly as JSON, so any extra text will cause parsin
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (parseError) {
-      console.error("Failed to parse Claude response:", parseError);
+      console.error("Failed to parse AI response:", parseError);
       console.error("Response text:", finalResponse);
 
       return new Response(
@@ -448,8 +365,7 @@ Your output will be parsed directly as JSON, so any extra text will cause parsin
     }
   } catch (error) {
     console.error("Error in process-query:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
