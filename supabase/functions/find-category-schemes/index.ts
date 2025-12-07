@@ -1,5 +1,6 @@
-// Find Category Opportunities - AI-powered category browsing
+// Find Category Schemes - AI-powered category browsing
 // Model: Sonar Pro with GPT-4-turbo fallback with web search
+// Returns: { schemes: [...] } format for Android app compatibility
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { callAI, logAIUsage } from "../_shared/ai-client.ts";
@@ -13,10 +14,17 @@ interface CategoryRequest {
   category: string;
 }
 
+interface Scheme {
+  title: string;
+  url: string;
+  description: string;
+  type: "organization" | "single_application";
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -29,97 +37,151 @@ serve(async (req) => {
       });
     }
 
-    console.log("Finding opportunities for category:", category);
+    console.log("Finding schemes for category:", category);
 
-    const systemPrompt = `You are an expert on Indian government schemes, applications, exams, and job opportunities. Return ONLY valid JSON.`;
+    const currentDate = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
+    const currentYear = new Date().getFullYear();
 
-    const userPrompt = `You are an expert on Indian government schemes, applications, exams, and job opportunities.
+    const systemPrompt = `You are an expert on Indian government schemes, applications, exams, and job opportunities.
 
-Category: "${category}"
+CRITICAL RULES:
+1. Return ONLY valid JSON - no markdown, no explanations, just JSON
+2. All schemes must be CURRENTLY ACTIVE or have UPCOMING deadlines
+3. All URLs must be REAL and VERIFIED through web search
+4. Focus on HIGH-IMPACT, POPULAR schemes that many people apply to
+5. Prefer official .gov.in domains`;
 
-Task: Return 4-6 of the most important, popular, and currently active official Indian government
-schemes, exams, jobs, or applications for this category.
+    const userPrompt = `Category: "${category}"
+Current Date: ${currentDate}
+Current Year: ${currentYear}
 
-Focus on:
-- Official government schemes (.gov.in domains preferred)
-- Currently active or regularly conducted programs
-- High-impact schemes that many people use
-- Mix of different types (scholarships, welfare schemes, exams, jobs)
+Task: Find 4-6 of the MOST IMPORTANT, POPULAR, and CURRENTLY ACTIVE official Indian government schemes, exams, jobs, or applications for this category.
 
-CRITICAL DEADLINE FILTERING:
-- ONLY return opportunities that are CURRENTLY OPEN or have UPCOMING deadlines
-- DO NOT return opportunities whose application deadlines have already passed
-- For single applications: verify the application deadline is in the FUTURE
-- For organizations: only include if they have active/upcoming opportunities
-- Current Date: ${new Date().toISOString()}
+CRITICAL REQUIREMENTS:
 
-CRITICAL: Determine TYPE of each result:
-- "organization": Organizations conducting MULTIPLE exams/schemes (RRB, SSC, UPSC, IBPS, State PSCs)
-  Example: SSC conducts CGL, CHSL, MTS, GD, etc. - it's an organization
-- "single_application": Single schemes/jobs/exams (specific job notifications, welfare schemes, scholarships)
-  Example: "SSC CGL 2024" or "PM Scholarship Scheme" - single applications
+1. DEADLINE FILTERING (MOST IMPORTANT):
+   - ONLY return opportunities that are CURRENTLY OPEN or have UPCOMING deadlines in ${currentYear} or beyond
+   - DO NOT return expired opportunities from previous years
+   - For single applications: Verify the application deadline is in the FUTURE (after ${currentDate})
+   - For organizations: Only include if they REGULARLY conduct exams/schemes (like SSC, UPSC, RRB)
+   - If an opportunity's deadline has passed, SKIP IT
 
-For each result, provide:
-{
-  "title": "Full official name",
-  "url": "https://official-website.gov.in/...",
-  "description": "Clear description of what this is (2-3 sentences)",
-  "type": "organization" | "single_application",
-  "category": "${category}"
-}
+2. TYPE CLASSIFICATION (CRITICAL):
+   - "organization": Government bodies that conduct MULTIPLE exams/recruitments REGULARLY
+     Examples:
+     ✓ Staff Selection Commission (SSC) - conducts CGL, CHSL, MTS, GD annually
+     ✓ Railway Recruitment Board (RRB) - conducts NTPC, Group D, ALP, RPF regularly
+     ✓ Union Public Service Commission (UPSC) - conducts Civil Services, CDS, NDA annually
+     ✓ Institute of Banking Personnel Selection (IBPS) - conducts PO, Clerk, RRB annually
+     ✓ State PSCs (UPPSC, BPSC, etc.) - conduct state civil services regularly
 
-Return JSON array of 4-6 opportunities:
-{
-  "success": true,
-  "category": "${category}",
-  "opportunities": [
-    { "title": "...", "url": "...", "description": "...", "type": "...", "category": "..." }
-  ]
-}
+   - "single_application": ONE-TIME schemes, specific job notifications, or welfare programs
+     Examples:
+     ✓ "SSC CGL 2025" - specific exam cycle of SSC
+     ✓ "RRB NTPC 2024" - specific recruitment cycle
+     ✓ "PM Kisan Samman Nidhi" - welfare scheme
+     ✓ "NEET UG 2025" - annual exam (specific year)
+     ✓ "Indian Navy SSR Recruitment 2025" - specific recruitment
 
-CRITICAL: Use web search to find CURRENTLY ACTIVE opportunities with accurate URLs.
-Do NOT make up URLs. Search official government portals.
-Current Date: ${new Date().toISOString()}`;
+3. URL VERIFICATION:
+   - You MUST use web_search to find REAL, CURRENT, WORKING URLs
+   - Verify the URLs are for ACTIVE opportunities, not archived pages
+   - Prefer official government websites (.gov.in, .nic.in)
+   - DO NOT make up or guess URLs
 
-    console.log("Calling AI (Sonar Pro → GPT-4-turbo) to find opportunities...");
+4. QUALITY OVER QUANTITY:
+   - Focus on HIGH-IMPACT schemes that affect MANY people
+   - Prioritize popular and well-known opportunities
+   - Include a MIX of types: organizations, welfare schemes, exams, jobs
 
-    const aiResponse = await callAI({
+5. DESCRIPTION REQUIREMENTS:
+   - Write CLEAR, HELPFUL descriptions (2-3 sentences)
+   - Mention key details: who can apply, benefits, frequency
+   - For organizations: mention the types of exams they conduct
+   - For single applications: mention deadlines if known
+
+RESPONSE FORMAT:
+Return ONLY this JSON structure, nothing else:
+[
+  {
+    "title": "Official full name of the scheme/exam/organization",
+    "url": "https://official-website.gov.in/...",
+    "description": "Clear 2-3 sentence description with key details",
+    "type": "organization" or "single_application"
+  }
+]
+
+SEARCH STRATEGY:
+1. Search for: "${category} government schemes ${currentYear}"
+2. Search for: "${category} exams ${currentYear} India"
+3. Search for: "${category} jobs gov.in ${currentYear}"
+4. Verify each result has an active, official URL
+5. Filter out expired or outdated opportunities
+
+Return 4-6 HIGH-QUALITY, VERIFIED results.`;
+
+    const response = await callAI({
       systemPrompt,
       userPrompt,
       enableWebSearch: true,
+      maxWebSearchUses: 15, // Increased for better accuracy
       temperature: 0.3,
       maxTokens: 4096,
-      responseFormat: "json",
     });
 
-    logAIUsage("find-category-opportunities", aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed);
+    logAIUsage("find-category-schemes", response.tokensUsed, response.webSearchUsed, response.modelUsed);
     console.log("AI response received, parsing JSON...");
 
-    const finalResponse = aiResponse.content;
-
-    // Parse JSON response
+    // Parse JSON response with robust extraction
+    let schemes: Scheme[];
     try {
-      let jsonText = finalResponse.trim();
+      let jsonText = response.content.trim();
+
+      // Remove markdown code blocks if present
       if (jsonText.startsWith("```json")) {
         jsonText = jsonText.replace(/^```json\s*/, "").replace(/\s*```$/, "");
       } else if (jsonText.startsWith("```")) {
         jsonText = jsonText.replace(/^```\s*/, "").replace(/\s*```$/, "");
       }
 
-      const result = JSON.parse(jsonText);
+      // Try to find JSON array in the response
+      const jsonMatch = jsonText.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        schemes = JSON.parse(jsonMatch[0]);
+      } else {
+        // Try parsing the whole response
+        schemes = JSON.parse(jsonText);
+      }
 
-      return new Response(JSON.stringify(result), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      // Validate the parsed schemes
+      if (!Array.isArray(schemes)) {
+        throw new Error("Response is not an array");
+      }
+
+      if (schemes.length === 0) {
+        throw new Error("No schemes found in response");
+      }
+
+      // Validate each scheme has required fields
+      for (const scheme of schemes) {
+        if (!scheme.title || !scheme.url || !scheme.description || !scheme.type) {
+          throw new Error(`Invalid scheme structure: ${JSON.stringify(scheme)}`);
+        }
+        if (scheme.type !== "organization" && scheme.type !== "single_application") {
+          throw new Error(`Invalid scheme type: ${scheme.type}`);
+        }
+      }
+
+      console.log(`Successfully parsed ${schemes.length} schemes`);
     } catch (parseError) {
       console.error("Failed to parse AI response:", parseError);
-      console.error("Response text:", finalResponse);
+      console.error("Raw response:", response.content);
 
       return new Response(
         JSON.stringify({
-          error: "Failed to parse opportunities",
-          raw_response: finalResponse,
+          error: "Failed to parse AI response",
+          details: parseError instanceof Error ? parseError.message : "Unknown parse error",
+          raw_response: response.content.substring(0, 500), // First 500 chars for debugging
         }),
         {
           status: 500,
@@ -127,12 +189,23 @@ Current Date: ${new Date().toISOString()}`;
         },
       );
     }
-  } catch (error: unknown) {
-    console.error("Error in find-category-opportunities:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
+
+    // Return in the format expected by Android app
+    return new Response(JSON.stringify({ schemes }), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  } catch (error) {
+    console.error("Error in find-category-schemes:", error);
+    return new Response(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Unknown error occurred",
+        details: error instanceof Error ? error.stack : undefined,
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 });
