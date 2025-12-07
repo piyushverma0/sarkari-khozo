@@ -1,9 +1,9 @@
 // Generate Audio Script - Create conversational dialogue between Raj and Priya
-// Uses Gemini 2.0 Flash to generate friendly, educational conversation
+// Uses Sonar Pro with GPT-4-turbo fallback to generate friendly, educational conversation
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { callGemini, logGeminiUsage } from "../_shared/gemini-client.ts";
+import { callAI, logAIUsage } from "../_shared/ai-client.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -60,7 +60,7 @@ serve(async (req) => {
     const scriptField = language === "hi" ? "audio_script_hindi" : "audio_script_english";
     await supabase.from("study_notes").update({ audio_generation_status: "generating_script" }).eq("id", note_id);
 
-    // Prepare content for Claude
+    // Prepare content for AI
     const keyPoints = Array.isArray(note.key_points) ? note.key_points.join("\n- ") : "";
     const sectionsText = note.structured_content?.sections
       ? note.structured_content.sections.map((s: any) => `${s.title}: ${s.content}`).join("\n\n")
@@ -72,10 +72,10 @@ serve(async (req) => {
     const systemPrompt =
       "You are an expert at creating engaging, educational conversations between two Indian students. Create natural, friendly dialogues that help students learn. Always return valid JSON.";
 
-    console.log("Calling Gemini API to generate script...");
+    console.log("Calling AI (Sonar Pro → GPT-4-turbo) to generate script...");
 
     // Call Gemini API
-    const geminiResponse = await callGemini({
+    const aiResponse = await callAI({
       systemPrompt,
       userPrompt,
       temperature: 0.7,
@@ -83,15 +83,15 @@ serve(async (req) => {
       responseFormat: "json",
     });
 
-    logGeminiUsage("generate-audio-script", geminiResponse.tokensUsed, geminiResponse.webSearchUsed);
+    logAIUsage("generate-audio-script", aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed);
 
-    console.log("Gemini response received");
+    console.log("AI response received");
 
     // Extract response text
-    let responseText = geminiResponse.content;
+    let responseText = aiResponse.content;
 
     if (!responseText.trim()) {
-      throw new Error("Empty response from Gemini");
+      throw new Error("Empty response from AI");
     }
 
     // Clean up JSON (remove markdown code blocks if present)
@@ -106,11 +106,10 @@ serve(async (req) => {
     let script;
     try {
       script = JSON.parse(cleanedJson);
-    } catch (parseError: unknown) {
+    } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      const errMessage = parseError instanceof Error ? parseError.message : String(parseError);
-      throw new Error(`Failed to parse script: ${errMessage}`);
+      throw new Error(`Failed to parse script: ${parseError.message}`);
     }
 
     console.log(`Script generated with ${script.turns?.length || 0} turns`);
@@ -146,9 +145,8 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Error in generate-audio-script:", error);
-    const errMessage = error instanceof Error ? error.message : String(error);
 
     // Update status to failed
     try {
@@ -159,7 +157,7 @@ serve(async (req) => {
           .from("study_notes")
           .update({
             audio_generation_status: "failed",
-            audio_generation_error: errMessage,
+            audio_generation_error: error.message,
           })
           .eq("id", body.note_id);
       }
@@ -167,7 +165,7 @@ serve(async (req) => {
       console.error("Failed to update error status:", e);
     }
 
-    return new Response(JSON.stringify({ error: errMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
