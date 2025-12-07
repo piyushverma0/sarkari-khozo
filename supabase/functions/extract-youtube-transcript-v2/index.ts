@@ -5,7 +5,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { YoutubeTranscript } from "jsr:@fbehrens/youtube-transcript@1.0.2";
-import { callGemini, logGeminiUsage } from "../_shared/gemini-client.ts";
+import { callAI, logAIUsage } from "../_shared/ai-client.ts";
 
 const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -849,14 +849,14 @@ async function fetchTranscriptWithSupadata(
 }
 
 // =====================================================
-// METHOD 6: Gemini Web Search (Last resort for actual transcript)
+// METHOD 6: AI Web Search (Sonar Pro → GPT-4-turbo) (Last resort for actual transcript)
 // =====================================================
-async function fetchTranscriptWithGeminiWeb(
+async function fetchTranscriptWithAIWeb(
   videoUrl: string,
   metadata: VideoMetadata | null,
   preferredLang: string = "en",
 ): Promise<{ text: string; language: string }> {
-  console.log("🌐 [GEMINI_WEB] Using Gemini web search...");
+  console.log("🌐 [AI_WEB] Using AI web search...");
 
   const systemPrompt = `You are a YouTube transcript extractor. Your ONLY job is to find and return the COMPLETE word-for-word transcript.
 
@@ -891,7 +891,7 @@ SEARCH FOR:
 
 Return the FULL TRANSCRIPT with timestamps. For a ${metadata?.duration || ""} video, I expect THOUSANDS of words.`;
 
-  const result = await callGemini({
+  const result = await callAI({
     systemPrompt,
     userPrompt,
     enableWebSearch: true,
@@ -899,10 +899,10 @@ Return the FULL TRANSCRIPT with timestamps. For a ${metadata?.duration || ""} vi
     temperature: 0.1,
   });
 
-  logGeminiUsage("extract-youtube-transcript/gemini-web", result.tokensUsed, result.webSearchUsed);
+  logAIUsage("extract-youtube-transcript/ai-web", result.tokensUsed, result.webSearchUsed);
 
   const wordCount = result.content.split(/\s+/).filter((w: string) => w.length > 0).length;
-  console.log(`✅ [GEMINI_WEB] Extracted ${result.content.length} chars (${wordCount} words)`);
+  console.log(`✅ [AI_WEB] Extracted ${result.content.length} chars (${wordCount} words)`);
 
   // Warn if short
   if (metadata?.duration) {
@@ -910,12 +910,12 @@ Return the FULL TRANSCRIPT with timestamps. For a ${metadata?.duration || ""} vi
     if (match) {
       const totalMinutes = parseInt(match[1] || "0") * 60 + parseInt(match[2] || "0");
       if (totalMinutes > 30 && wordCount < totalMinutes * 50) {
-        console.warn(`⚠️ [GEMINI_WEB] Only ${wordCount} words for ${totalMinutes} min video - likely summary`);
+        console.warn(`⚠️ [AI_WEB] Only ${wordCount} words for ${totalMinutes} min video - likely summary`);
       }
     }
   }
 
-  if (wordCount < 50) throw new Error("Gemini returned insufficient content");
+  if (wordCount < 50) throw new Error("AI returned insufficient content");
 
   return { text: result.content, language: preferredLang };
 }
@@ -948,14 +948,14 @@ ${metadata.chapters?.length ? `Chapters:\n${metadata.chapters.map((c) => `${c.ti
 Start with: "[AI-GENERATED FROM METADATA - ACTUAL TRANSCRIPT UNAVAILABLE]"
 Create comprehensive notes (1000+ words).`;
 
-  const result = await callGemini({
+  const result = await callAI({
     systemPrompt,
     userPrompt,
     temperature: 0.3,
     maxTokens: 8000,
   });
 
-  logGeminiUsage("extract-youtube-transcript/metadata-gen", result.tokensUsed, result.webSearchUsed);
+  logAIUsage("extract-youtube-transcript/metadata-gen", result.tokensUsed, result.webSearchUsed);
 
   const content = result.content;
   if (content.length < 500) throw new Error("Generated content too short");
@@ -1111,13 +1111,13 @@ serve(async (req) => {
             } catch (e5) {
               console.log("⚠️ Method 5 failed:", e5 instanceof Error ? e5.message : String(e5));
 
-              // METHOD 6: Gemini Web Search
+              // METHOD 6: AI Web Search (Sonar Pro → GPT-4-turbo)
               try {
-                console.log("📥 Method 6: Gemini Web Search");
-                const result = await fetchTranscriptWithGeminiWeb(youtubeUrl, metadata, detectedLanguage);
+                console.log("📥 Method 6: AI Web Search");
+                const result = await fetchTranscriptWithAIWeb(youtubeUrl, metadata, detectedLanguage);
                 transcript = result.text;
                 timestampedTranscript = result.text;
-                extractionMethod = "gemini-web-search";
+                extractionMethod = "ai-web-search";
                 confidenceScore = 0.8;
                 extractedLanguage = result.language;
                 console.log("✅ Method 6 succeeded!");
