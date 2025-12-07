@@ -1,9 +1,9 @@
 // Generate Flashcards - Create AI-powered flashcards from study notes
-// Uses Gemini 2.0 Flash to generate high-quality Q&A pairs
+// Uses Sonar Pro with GPT-4-turbo fallback to generate high-quality Q&A pairs
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { callGemini, logGeminiUsage } from "../_shared/gemini-client.ts";
+import { callAI, logAIUsage } from "../_shared/ai-client.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -104,8 +104,8 @@ OUTPUT FORMAT: Return ONLY valid JSON (no markdown):
 Generate ${Math.min(20, Math.max(10, Math.ceil(contentForPrompt.length / 500)))} flashcards. Return ONLY the JSON.`;
 
     // Call Gemini API
-    console.log("Calling Gemini API for flashcard generation...");
-    const geminiResponse = await callGemini({
+    console.log("Calling AI (Sonar Pro → GPT-4-turbo) for flashcard generation...");
+    const aiResponse = await callAI({
       systemPrompt,
       userPrompt,
       temperature: 0.5, // Slightly higher for creative question generation
@@ -113,12 +113,12 @@ Generate ${Math.min(20, Math.max(10, Math.ceil(contentForPrompt.length / 500)))}
       responseFormat: "json",
     });
 
-    logGeminiUsage("generate-flashcards", geminiResponse.tokensUsed, geminiResponse.webSearchUsed);
+    logAIUsage("generate-flashcards", aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed);
 
-    console.log("Gemini flashcard generation complete");
+    console.log("AI flashcard generation complete");
 
     // Extract response text
-    let responseText = geminiResponse.content;
+    let responseText = aiResponse.content;
 
     // Clean up response
     let cleanedJson = responseText.trim();
@@ -132,11 +132,10 @@ Generate ${Math.min(20, Math.max(10, Math.ceil(contentForPrompt.length / 500)))}
     let flashcardsData;
     try {
       flashcardsData = JSON.parse(cleanedJson);
-    } catch (parseError: unknown) {
+    } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      const message = parseError instanceof Error ? parseError.message : String(parseError);
-      throw new Error(`Failed to parse flashcards: ${message}`);
+      throw new Error(`Failed to parse flashcards: ${parseError.message}`);
     }
 
     if (!flashcardsData.flashcards || !Array.isArray(flashcardsData.flashcards)) {
@@ -188,10 +187,10 @@ Generate ${Math.min(20, Math.max(10, Math.ceil(contentForPrompt.length / 500)))}
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Error in generate-flashcards:", error);
-    const message = error instanceof Error ? error.message : String(error);
-    return new Response(JSON.stringify({ error: message }), {
+
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
