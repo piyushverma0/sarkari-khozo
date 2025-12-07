@@ -1,218 +1,189 @@
-// Extract Web Content - Use Claude Web Capability to extract article content
-// Uses Claude Sonnet 4.5 with web browsing capability
+// Extract Web Content - Extract article content from web pages
+// Uses Gemini 2.0 Flash with web grounding capability
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { callGemini, logGeminiUsage } from "../_shared/gemini-client.ts";
 
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 interface ExtractRequest {
-  note_id: string
-  source_url: string
-  source_type: string
-  language: string
+  note_id: string;
+  source_url: string;
+  source_type: string;
+  language: string;
 }
 
 /**
- * Extract web article content using Claude's web capability
+ * Extract web article content using Gemini with web grounding
  */
 async function extractWebContent(url: string): Promise<string> {
-  console.log('📄 Extracting web content from:', url)
+  console.log("📄 Extracting web content from:", url);
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 16000,
-      temperature: 0,
-      system: `You are an expert at extracting the main article content from web pages.
+  const systemPrompt = `You are an expert at extracting the main article content from web pages. Return ONLY the clean article content, nothing else.`;
 
-Your task:
-1. Navigate to the provided URL and read the web page content
-2. Extract ONLY the main article text, removing:
+  const userPrompt = `Extract the complete main article content from this URL: ${url}
+
+EXTRACTION REQUIREMENTS:
+1. Extract ONLY the main article text, removing:
    - Navigation menus, headers, footers
    - Advertisements and promotional content
    - Comments sections
    - Social media widgets
    - Cookie notices and popups
-3. Preserve the article structure with headings and paragraphs
-4. Include important lists, quotes, and code blocks if present
-5. Return ONLY the extracted article text, nothing else
+2. Preserve the article structure with headings and paragraphs
+3. Include important lists, quotes, and code blocks if present
+4. Return the COMPLETE article text with proper formatting
 
-Do NOT include any commentary, explanations, or meta-text. Just return the clean article content.`,
-      messages: [
-        {
-          role: 'user',
-          content: `Extract the main article content from this URL: ${url}
+IMPORTANT:
+- Use web search to access and read the page content
+- Return ONLY the extracted article text
+- Do NOT include any commentary, explanations, or meta-text
+- Preserve formatting and structure`;
 
-Return ONLY the article text with proper formatting. No explanations.`
-        }
-      ]
-    })
-  })
+  const geminiResponse = await callGemini({
+    systemPrompt,
+    userPrompt,
+    enableWebSearch: true,
+    temperature: 0,
+    maxTokens: 16000,
+  });
 
-  if (!response.ok) {
-    const errorText = await response.text()
-    console.error('❌ Claude Web API error:', errorText)
-    throw new Error(`Claude Web API error: ${errorText}`)
-  }
+  logGeminiUsage("extract-web-content", geminiResponse.tokensUsed, geminiResponse.webSearchUsed);
 
-  const data = await response.json()
-  console.log('✅ Claude Web extraction complete')
+  console.log("✅ Gemini web extraction complete");
 
-  // Extract text from response
-  let extractedText = ''
-  if (data.content && data.content.length > 0) {
-    for (const block of data.content) {
-      if (block.type === 'text') {
-        extractedText += block.text + '\n'
-      }
-    }
-  }
+  const extractedText = geminiResponse.content;
 
   if (!extractedText.trim()) {
-    throw new Error('No content could be extracted from the web page')
+    throw new Error("No content could be extracted from the web page");
   }
 
-  console.log('📊 Extracted content length:', extractedText.length, 'characters')
-  return extractedText.trim()
+  console.log("📊 Extracted content length:", extractedText.length, "characters");
+  return extractedText.trim();
 }
 
 serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const { note_id, source_url, language }: ExtractRequest = await req.json()
+    const { note_id, source_url, language }: ExtractRequest = await req.json();
 
     if (!note_id || !source_url) {
-      return new Response(
-        JSON.stringify({ error: 'note_id and source_url are required' }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
+      return new Response(JSON.stringify({ error: "note_id and source_url are required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log('🌐 Starting web content extraction for note:', note_id)
-    console.log('🔗 URL:', source_url)
+    console.log("🌐 Starting web content extraction for note:", note_id);
+    console.log("🔗 URL:", source_url);
 
     // Initialize Supabase client
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Update progress - starting extraction
     await supabase
-      .from('study_notes')
+      .from("study_notes")
       .update({
-        processing_status: 'extracting',
-        processing_progress: 20
+        processing_status: "extracting",
+        processing_progress: 20,
       })
-      .eq('id', note_id)
+      .eq("id", note_id);
 
     // Step 1: Extract web content using Claude Web capability
-    let extractedContent: string
+    let extractedContent: string;
     try {
-      extractedContent = await extractWebContent(source_url)
+      extractedContent = await extractWebContent(source_url);
     } catch (extractError) {
-      console.error('❌ Web content extraction failed:', extractError)
-      const errorMessage = extractError instanceof Error ? extractError.message : String(extractError)
+      console.error("❌ Web content extraction failed:", extractError);
 
       await supabase
-        .from('study_notes')
+        .from("study_notes")
         .update({
-          processing_status: 'failed',
-          processing_error: `Failed to extract web content: ${errorMessage}`
+          processing_status: "failed",
+          processing_error: `Failed to extract web content: ${extractError.message}`,
         })
-        .eq('id', note_id)
+        .eq("id", note_id);
 
-      throw extractError
+      throw extractError;
     }
 
     // Update progress - extraction complete
     await supabase
-      .from('study_notes')
+      .from("study_notes")
       .update({
-        processing_progress: 50
+        processing_progress: 50,
       })
-      .eq('id', note_id)
+      .eq("id", note_id);
 
     // Step 2: Trigger summarization (same pattern as PDF and YouTube)
     try {
-      console.log('📝 Triggering summarization for note:', note_id)
+      console.log("📝 Triggering summarization for note:", note_id);
 
       const summaryResponse = await fetch(`${SUPABASE_URL}/functions/v1/generate-notes-summary`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
         },
         body: JSON.stringify({
           note_id,
           raw_content: extractedContent,
-          language: language || 'en'
-        })
-      })
+          language: language || "en",
+        }),
+      });
 
       if (!summaryResponse.ok) {
-        const errorText = await summaryResponse.text()
-        console.error('❌ Summarization failed:', errorText)
-        throw new Error(`Summarization failed: ${errorText}`)
+        const errorText = await summaryResponse.text();
+        console.error("❌ Summarization failed:", errorText);
+        throw new Error(`Summarization failed: ${errorText}`);
       }
 
-      console.log('✅ Summarization completed successfully for note:', note_id)
+      console.log("✅ Summarization completed successfully for note:", note_id);
     } catch (triggerError) {
-      console.error('❌ Failed to trigger or complete summarization:', triggerError)
-      const errorMessage = triggerError instanceof Error ? triggerError.message : 'Failed to complete summarization process'
+      console.error("❌ Failed to trigger or complete summarization:", triggerError);
 
       // Update note status to failed
       await supabase
-        .from('study_notes')
+        .from("study_notes")
         .update({
-          processing_status: 'failed',
-          processing_error: errorMessage
+          processing_status: "failed",
+          processing_error: triggerError.message || "Failed to complete summarization process",
         })
-        .eq('id', note_id)
+        .eq("id", note_id);
 
-      throw triggerError
+      throw triggerError;
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         note_id,
-        extracted_length: extractedContent.length
+        extracted_length: extractedContent.length,
       }),
       {
         status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
-
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (error) {
-    console.error('❌ Web content extraction error:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error during web content extraction'
+    console.error("❌ Web content extraction error:", error);
 
     // Try to extract note_id from the request
-    let noteId: string | null = null
+    let noteId: string | null = null;
     try {
-      const body = await req.clone().json()
-      noteId = body.note_id
+      const body = await req.clone().json();
+      noteId = body.note_id;
     } catch {
       // Ignore parsing errors
     }
@@ -220,25 +191,22 @@ serve(async (req) => {
     // Update database if we have a note_id
     if (noteId) {
       try {
-        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
         await supabase
-          .from('study_notes')
+          .from("study_notes")
           .update({
-            processing_status: 'failed',
-            processing_error: errorMessage
+            processing_status: "failed",
+            processing_error: error.message || "Unknown error during web content extraction",
           })
-          .eq('id', noteId)
+          .eq("id", noteId);
       } catch (dbError) {
-        console.error('Failed to update error status in database:', dbError)
+        console.error("Failed to update error status in database:", dbError);
       }
     }
 
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
-})
+});
