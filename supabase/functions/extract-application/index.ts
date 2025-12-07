@@ -159,7 +159,6 @@ CRITICAL: Use web_search to get CURRENT accurate dates and statistics.`;
       systemPrompt,
       userPrompt,
       enableWebSearch: true,
-      maxWebSearchUses: 15, // Increased for better accuracy
       temperature: 0.3,
       maxTokens: 4096,
     });
@@ -259,9 +258,9 @@ CRITICAL: Use web_search to get CURRENT accurate dates and statistics.`;
         },
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error in extract-application:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
