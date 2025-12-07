@@ -67,16 +67,16 @@ serve(async (req) => {
         console.log("Cache hit! Returning cached explanation");
 
         // Increment usage count asynchronously (don't wait)
-        supabase
-          .rpc("increment_explanation_usage", {
-            explanation_id: cachedExplanation.id,
-          })
-          .then(() => {
+        (async () => {
+          try {
+            await supabase.rpc("increment_explanation_usage", {
+              explanation_id: cachedExplanation.id,
+            });
             console.log("Usage count incremented");
-          })
-          .catch((err) => {
+          } catch (err) {
             console.error("Failed to increment usage count:", err);
-          });
+          }
+        })();
 
         // Return cached result
         return new Response(
@@ -186,10 +186,11 @@ IMPORTANT:
     let explanationData;
     try {
       explanationData = JSON.parse(cleanedJson);
-    } catch (parseError) {
+    } catch (parseError: unknown) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      throw new Error(`Failed to parse explanation: ${parseError.message}`);
+      const errorMessage = parseError instanceof Error ? parseError.message : "Unknown parse error";
+      throw new Error(`Failed to parse explanation: ${errorMessage}`);
     }
 
     console.log("Explanation generated successfully");
@@ -232,12 +233,13 @@ IMPORTANT:
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error in explain-text:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
     return new Response(
       JSON.stringify({
-        error: error.message,
+        error: errorMessage,
         success: false,
       }),
       {
