@@ -1,8 +1,8 @@
 // Extract Application - Extract details from a specific opportunity
-// Model: Claude Sonnet 4.5 with web search
+// Model: Sonar Pro with GPT-4-turbo fallback with web search
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { callClaude, logClaudeUsage } from "../_shared/claude-client.ts";
+import { callAI, logAIUsage } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -155,7 +155,7 @@ STATISTICS EXTRACTION (MANDATORY):
 CRITICAL: Use web_search to get CURRENT accurate dates and statistics.`;
 
     // Call Claude API using shared client
-    const response = await callClaude({
+    const response = await callAI({
       systemPrompt,
       userPrompt,
       enableWebSearch: true,
@@ -164,8 +164,8 @@ CRITICAL: Use web_search to get CURRENT accurate dates and statistics.`;
       maxTokens: 4096,
     });
 
-    logClaudeUsage("extract-application", response.tokensUsed, response.webSearchUsed);
-    console.log("Claude response received, parsing JSON...");
+    logAIUsage("extract-application", response.tokensUsed, response.webSearchUsed, response.modelUsed);
+    console.log("AI response received, parsing JSON...");
 
     // Parse JSON response with robust extraction
     try {
@@ -244,7 +244,7 @@ CRITICAL: Use web_search to get CURRENT accurate dates and statistics.`;
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (parseError) {
-      console.error("Failed to parse Claude response:", parseError);
+      console.error("Failed to parse AI response:", parseError);
       console.error("Raw response:", response.content);
 
       return new Response(
@@ -261,8 +261,7 @@ CRITICAL: Use web_search to get CURRENT accurate dates and statistics.`;
     }
   } catch (error) {
     console.error("Error in extract-application:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
