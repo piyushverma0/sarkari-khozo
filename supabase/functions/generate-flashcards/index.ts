@@ -132,10 +132,10 @@ Generate ${Math.min(20, Math.max(10, Math.ceil(contentForPrompt.length / 500)))}
     let flashcardsData;
     try {
       flashcardsData = JSON.parse(cleanedJson);
-    } catch (parseError: unknown) {
+    } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      throw new Error(`Failed to parse flashcards: ${parseError instanceof Error ? parseError.message : "Unknown parse error"}`);
+      throw new Error(`Failed to parse flashcards: ${parseError.message}`);
     }
 
     if (!flashcardsData.flashcards || !Array.isArray(flashcardsData.flashcards)) {
@@ -187,10 +187,10 @@ Generate ${Math.min(20, Math.max(10, Math.ceil(contentForPrompt.length / 500)))}
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Error in generate-flashcards:", error);
 
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
