@@ -1,9 +1,9 @@
 // Explain Text - AI-powered text explanations with web search
-// Uses Gemini 2.0 Flash with web grounding for comprehensive explanations
+// Uses Sonar Pro with GPT-4-turbo fallback with web grounding for comprehensive explanations
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { callGemini, logGeminiUsage } from "../_shared/gemini-client.ts";
+import { callAI, logAIUsage } from "../_shared/ai-client.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -67,16 +67,16 @@ serve(async (req) => {
         console.log("Cache hit! Returning cached explanation");
 
         // Increment usage count asynchronously (don't wait)
-        (async () => {
-          try {
-            await supabase.rpc("increment_explanation_usage", {
-              explanation_id: cachedExplanation.id,
-            });
+        supabase
+          .rpc("increment_explanation_usage", {
+            explanation_id: cachedExplanation.id,
+          })
+          .then(() => {
             console.log("Usage count incremented");
-          } catch (err) {
+          })
+          .catch((err) => {
             console.error("Failed to increment usage count:", err);
-          }
-        })();
+          });
 
         // Return cached result
         return new Response(
@@ -153,8 +153,8 @@ IMPORTANT:
 - Use web search if current information is needed`;
 
     // Call Gemini API with web grounding enabled
-    console.log("Calling Gemini API with web grounding...");
-    const geminiResponse = await callGemini({
+    console.log("Calling AI (Sonar Pro → GPT-4-turbo) with web grounding...");
+    const aiResponse = await callAI({
       systemPrompt,
       userPrompt,
       temperature: 0.3,
@@ -163,15 +163,15 @@ IMPORTANT:
       enableWebSearch: true, // Enable web search for current information
     });
 
-    logGeminiUsage("explain-text", geminiResponse.tokensUsed, geminiResponse.webSearchUsed);
+    logAIUsage("explain-text", aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed);
 
-    console.log("Gemini explanation generation complete");
+    console.log("AI explanation generation complete");
 
     // Extract response text
-    let responseText = geminiResponse.content;
+    let responseText = aiResponse.content;
 
     if (!responseText.trim()) {
-      throw new Error("Empty response from Gemini");
+      throw new Error("Empty response from AI");
     }
 
     // Clean up response (remove markdown code blocks if present)
@@ -186,11 +186,10 @@ IMPORTANT:
     let explanationData;
     try {
       explanationData = JSON.parse(cleanedJson);
-    } catch (parseError: unknown) {
+    } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      const errorMessage = parseError instanceof Error ? parseError.message : "Unknown parse error";
-      throw new Error(`Failed to parse explanation: ${errorMessage}`);
+      throw new Error(`Failed to parse explanation: ${parseError.message}`);
     }
 
     console.log("Explanation generated successfully");
@@ -233,13 +232,12 @@ IMPORTANT:
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Error in explain-text:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
     return new Response(
       JSON.stringify({
-        error: errorMessage,
+        error: error.message,
         success: false,
       }),
       {
