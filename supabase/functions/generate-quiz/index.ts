@@ -1,10 +1,11 @@
 // Generate Quiz - Create AI-powered quizzes from study notes
 // Supports MCQ, True/False, Short Answer, and Mixed types
+// Uses Gemini 2.0 Flash for intelligent question generation
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { callGemini, logGeminiUsage } from "../_shared/gemini-client.ts";
 
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -84,7 +85,10 @@ serve(async (req) => {
       mixed: "Mix of MCQ (60%), True/False (20%), and Short Answer (20%).",
     };
 
-    const prompt = `You are an expert exam creator for Indian government exams. Generate a high-quality quiz with ${question_count} questions from the following study notes.
+    const systemPrompt =
+      "You are an expert exam creator for Indian government exams. Always return valid JSON without markdown.";
+
+    const userPrompt = `Generate a high-quality quiz with ${question_count} questions from the following study notes.
 
 QUIZ TYPE: ${quiz_type.toUpperCase().replace("_", " ")}
 ${quizTypeInstructions[quiz_type]}
@@ -134,47 +138,22 @@ OUTPUT FORMAT: Return ONLY valid JSON (no markdown):
 
 Generate exactly ${question_count} questions. Return ONLY the JSON.`;
 
-    // Call Claude API
-    console.log("Calling Claude API for quiz generation...");
-    const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5-20250929",
-        max_tokens: 6000,
-        temperature: 0.4,
-        system: "You are an expert exam creator. Always return valid JSON without markdown.",
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-      }),
+    // Call Gemini API
+    console.log("Calling Gemini API for quiz generation...");
+    const geminiResponse = await callGemini({
+      systemPrompt,
+      userPrompt,
+      temperature: 0.4,
+      maxTokens: 6000,
+      responseFormat: "json",
     });
 
-    if (!anthropicResponse.ok) {
-      const errorText = await anthropicResponse.text();
-      console.error("Claude API error:", errorText);
-      throw new Error(`Claude API error: ${errorText}`);
-    }
+    logGeminiUsage("generate-quiz", geminiResponse.tokensUsed, geminiResponse.webSearchUsed);
 
-    const anthropicData = await anthropicResponse.json();
-    console.log("Claude quiz generation complete");
+    console.log("Gemini quiz generation complete");
 
     // Extract response text
-    let responseText = "";
-    if (anthropicData.content && anthropicData.content.length > 0) {
-      for (const block of anthropicData.content) {
-        if (block.type === "text") {
-          responseText += block.text;
-        }
-      }
-    }
+    let responseText = geminiResponse.content;
 
     // Clean up response
     let cleanedJson = responseText.trim();
@@ -191,7 +170,7 @@ Generate exactly ${question_count} questions. Return ONLY the JSON.`;
     } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
       console.error("Response text:", responseText.substring(0, 500));
-      throw new Error(`Failed to parse quiz: ${parseError instanceof Error ? parseError.message : "Unknown parse error"}`);
+      throw new Error(`Failed to parse quiz: ${parseError.message}`);
     }
 
     if (!quizData.questions || !Array.isArray(quizData.questions)) {
@@ -255,7 +234,7 @@ Generate exactly ${question_count} questions. Return ONLY the JSON.`;
   } catch (error) {
     console.error("Error in generate-quiz:", error);
 
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
