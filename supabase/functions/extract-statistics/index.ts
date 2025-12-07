@@ -1,11 +1,11 @@
 // Extract Statistics - Dedicated function for comprehensive statistics extraction
-// Model: Claude Sonnet 4.5 with web search
+// Model: Sonar Pro with GPT-4-turbo fallback with web search
 // Purpose: Extract vacancy counts, applicant numbers, competition ratios from official sources
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAI, logAIUsage } from "../_shared/ai-client.ts";
 
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -42,13 +42,10 @@ serve(async (req) => {
     const { applicationId, title, url, extractHistorical = true }: ExtractStatisticsRequest = await req.json();
 
     if (!applicationId || !title || !url) {
-      return new Response(
-        JSON.stringify({ error: "applicationId, title, and url are required" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: "applicationId, title, and url are required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     console.log("Extracting statistics for:", title, url);
@@ -146,111 +143,27 @@ Example CORRECT output:
 
 Your output will be parsed directly as JSON.`;
 
-    // Tool use loop for comprehensive extraction
-    const messages: any[] = [
-      {
-        role: "user",
-        content: userPrompt,
-      },
-    ];
+    console.log("Calling AI (Sonar Pro → GPT-4-turbo) to extract statistics...");
 
-    let finalResponse = "";
-    let iterationCount = 0;
-    const maxIterations = 10; // Allow more iterations for comprehensive search
+    // Call AI with web search enabled
+    const aiResponse = await callAI({
+      systemPrompt,
+      userPrompt,
+      enableWebSearch: true,
+      temperature: 0.3,
+      maxTokens: 4096,
+      responseFormat: "json",
+    });
 
-    while (iterationCount < maxIterations) {
-      iterationCount++;
-      console.log(`Statistics extraction iteration ${iterationCount}`);
+    logAIUsage("extract-statistics", aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed);
+    console.log("AI response received, parsing JSON...");
 
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5-20250929",
-          max_tokens: 4096,
-          temperature: 0.3,
-          system: systemPrompt,
-          messages: messages,
-          tools: [
-            {
-              name: "web_search",
-              description: "Search the web for statistics from official and reliable sources",
-              input_schema: {
-                type: "object",
-                properties: {
-                  query: {
-                    type: "string",
-                    description: "The search query to find statistics",
-                  },
-                },
-                required: ["query"],
-              },
-            },
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        console.error("Anthropic API error:", error);
-        return new Response(
-          JSON.stringify({ error: "Failed to extract statistics", details: error }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
-
-      const data = await response.json();
-      console.log(`Iteration ${iterationCount} response:`, JSON.stringify(data, null, 2));
-
-      // Check if Claude wants to use tools
-      let hasToolUse = false;
-      const toolResults: any[] = [];
-
-      for (const block of data.content) {
-        if (block.type === "tool_use") {
-          hasToolUse = true;
-          console.log("Tool use requested:", block.name, block.input);
-
-          // Mock web search (in production, integrate with real search API)
-          const searchQuery = block.input.query;
-          const mockResults = `Search results for "${searchQuery}": Please check official sources like government portals, sarkariresult.com, testbook.com, and careers360.com for verified statistics.`;
-
-          toolResults.push({
-            type: "tool_result",
-            tool_use_id: block.id,
-            content: mockResults,
-          });
-        } else if (block.type === "text") {
-          finalResponse = block.text;
-        }
-      }
-
-      if (!hasToolUse) {
-        break;
-      }
-
-      messages.push({
-        role: "assistant",
-        content: data.content,
-      });
-
-      messages.push({
-        role: "user",
-        content: toolResults,
-      });
-    }
+    const finalResponse = aiResponse.content;
 
     // Parse the JSON response
     try {
       if (!finalResponse || finalResponse.trim().length === 0) {
-        console.error("No response received from Claude");
+        console.error("No response received from AI");
         return new Response(
           JSON.stringify({
             error: "Unable to extract statistics",
@@ -259,7 +172,7 @@ Your output will be parsed directly as JSON.`;
           {
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+          },
         );
       }
 
@@ -285,7 +198,7 @@ Your output will be parsed directly as JSON.`;
           {
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+          },
         );
       }
 
@@ -318,7 +231,7 @@ Your output will be parsed directly as JSON.`;
             },
             {
               onConflict: "application_id,year",
-            }
+            },
           )
           .select();
 
@@ -349,7 +262,7 @@ Your output will be parsed directly as JSON.`;
         {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       );
     } catch (parseError) {
       console.error("Failed to parse statistics response:", parseError);
@@ -363,18 +276,14 @@ Your output will be parsed directly as JSON.`;
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       );
     }
   } catch (error) {
     console.error("Error in extract-statistics:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
