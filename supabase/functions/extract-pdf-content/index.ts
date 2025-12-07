@@ -208,14 +208,15 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
 
       const summaryData = await summaryResponse.json();
       console.log("Summarization completed:", summaryData);
-    } catch (summaryError) {
+    } catch (summaryError: unknown) {
       console.error("Failed to trigger summarization:", summaryError);
+      const errorMessage = summaryError instanceof Error ? summaryError.message : String(summaryError);
       // Update note with error
       await supabase
         .from("study_notes")
         .update({
           processing_status: "failed",
-          processing_error: `Summarization failed: ${summaryError.message}`,
+          processing_error: `Summarization failed: ${errorMessage}`,
         })
         .eq("id", note_id);
 
@@ -233,8 +234,9 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error in extract-pdf-content:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
 
     // Update note status to failed
     try {
@@ -247,7 +249,7 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: error.message || "PDF extraction failed",
+            processing_error: errorMessage || "PDF extraction failed",
           })
           .eq("id", body.note_id);
       }
@@ -255,7 +257,7 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
       console.error("Failed to update error status:", e);
     }
 
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
