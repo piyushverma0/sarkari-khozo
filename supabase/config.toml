@@ -236,3 +236,6 @@ verify_jwt = false
 
 [functions.generate-mind-map]
 verify_jwt = true
+
+[functions.find-category-opportunities]
+verify_jwt = false
