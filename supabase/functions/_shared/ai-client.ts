@@ -166,9 +166,8 @@ async function callSonarPro(options: AICallOptions): Promise<AIResponse> {
     max_tokens: maxTokens,
   };
 
-  // Enable web search if requested
+  // Enable web search if requested (no domain filter = search all domains)
   if (enableWebSearch) {
-    requestBody.search_domain_filter = ["*"]; // Search all domains
     requestBody.search_recency_filter = "month"; // Recent results
   }
 
