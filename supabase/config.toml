@@ -239,3 +239,6 @@ verify_jwt = true
 
 [functions.find-category-opportunities]
 verify_jwt = false
+
+[functions.extract-docx-content]
+verify_jwt = false
