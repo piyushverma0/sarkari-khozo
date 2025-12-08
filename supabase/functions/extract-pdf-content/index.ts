@@ -26,8 +26,12 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  let note_id: string | undefined;
+
   try {
-    const { note_id, source_url, language }: ExtractRequest = await req.json();
+    const requestData: ExtractRequest = await req.json();
+    note_id = requestData.note_id;
+    const { source_url, language } = requestData;
 
     if (!note_id || !source_url) {
       return new Response(JSON.stringify({ error: "note_id and source_url are required" }), {
@@ -159,8 +163,9 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
       fileBuffer: pdfBuffer,
       mimeType: "application/pdf",
       displayName: `pdf_${note_id}.pdf`,
+      fileUrl: source_url, // Use public URL to avoid base64 encoding overhead
       temperature: 0.2,
-      maxTokens: 16000,
+      maxTokens: 4096, // GPT-4-turbo max completion tokens
     });
 
     logAIUsage("extract-pdf-content", aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed);
@@ -208,15 +213,14 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
 
       const summaryData = await summaryResponse.json();
       console.log("Summarization completed:", summaryData);
-    } catch (summaryError: unknown) {
+    } catch (summaryError) {
       console.error("Failed to trigger summarization:", summaryError);
-      const errorMessage = summaryError instanceof Error ? summaryError.message : String(summaryError);
       // Update note with error
       await supabase
         .from("study_notes")
         .update({
           processing_status: "failed",
-          processing_error: `Summarization failed: ${errorMessage}`,
+          processing_error: `Summarization failed: ${summaryError.message}`,
         })
         .eq("id", note_id);
 
@@ -234,30 +238,27 @@ CRITICAL: Do NOT summarize or skip content. Extract EVERYTHING from the document
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Error in extract-pdf-content:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
 
     // Update note status to failed
-    try {
-      const bodyText = await req.text();
-      const body = JSON.parse(bodyText);
-      if (body.note_id) {
+    if (note_id) {
+      try {
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
         await supabase
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: errorMessage || "PDF extraction failed",
+            processing_error: error.message || "PDF extraction failed",
           })
-          .eq("id", body.note_id);
+          .eq("id", note_id);
+      } catch (e) {
+        console.error("Failed to update error status:", e);
       }
-    } catch (e) {
-      console.error("Failed to update error status:", e);
     }
 
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
