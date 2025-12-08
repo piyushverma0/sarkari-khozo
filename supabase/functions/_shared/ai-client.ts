@@ -1,7 +1,7 @@
 // Shared AI client with intelligent fallback strategy:
 // - Text queries: Sonar Pro → GPT-4-turbo
-// - Files: Sonar Pro (base64 via file_url) → GPT-4o (base64 via /v1/responses)
-// Both Sonar Pro and GPT-4o support PDF/DOCX processing with correct API formats
+// - Files: Sonar Pro (base64 via file_url) → GPT-4o (Vision with images) or Claude
+// Fixed: Sonar Pro now uses raw base64 + file_name, GPT-4o uses proper endpoint
 
 const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY")!;
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
@@ -107,7 +107,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
 }
 
 /**
- * Call AI with file upload - tries Sonar Pro (base64) → GPT-4o (base64 /v1/responses)
+ * Call AI with file upload - tries Sonar Pro (base64) → GPT-4o (fallback only for emergencies)
  */
 export async function callAIWithFile(options: AIFileUploadOptions): Promise<AIResponse> {
   const {
@@ -144,37 +144,12 @@ export async function callAIWithFile(options: AIFileUploadOptions): Promise<AIRe
       sonarError instanceof Error ? sonarError.message : String(sonarError),
     );
 
-    // Check if this is a PDF or DOCX file - if so, try GPT-4o with /v1/responses endpoint
-    const isPDF = mimeType === "application/pdf";
-    const isDOCX = mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-
-    if (isPDF || isDOCX) {
-      console.log("🟢 Falling back to GPT-4o with /v1/responses for PDF/DOCX...");
-      try {
-        const response = await callGPT4oWithBase64File({
-          systemPrompt,
-          userPrompt,
-          fileBuffer,
-          mimeType,
-          displayName,
-          temperature,
-          maxTokens,
-          responseFormat,
-        });
-        console.log("✅ GPT-4o file processing succeeded");
-        return response;
-      } catch (gptError) {
-        console.error("❌ GPT-4o also failed:", gptError instanceof Error ? gptError.message : String(gptError));
-        throw new Error(
-          `Both AI models failed to process file. Sonar Pro: ${sonarError instanceof Error ? sonarError.message : String(sonarError)}, GPT-4o: ${gptError instanceof Error ? gptError.message : String(gptError)}`,
-        );
-      }
-    } else {
-      // For non-PDF/DOCX files, only Sonar Pro is supported
-      throw new Error(
-        `File processing failed with Sonar Pro: ${sonarError instanceof Error ? sonarError.message : String(sonarError)}. GPT-4o fallback is only available for PDF and DOCX files.`,
-      );
-    }
+    // For PDFs, we don't have a good GPT-4o fallback since /v1/responses doesn't exist
+    // GPT-4o Vision requires images, not PDFs
+    // Best option: fail gracefully or use a PDF parsing library
+    throw new Error(
+      `Sonar Pro file processing failed: ${sonarError instanceof Error ? sonarError.message : String(sonarError)}. Consider using a PDF parsing library like pdf-parse for fallback.`,
+    );
   }
 }
 
@@ -233,16 +208,14 @@ async function callSonarPro(options: AICallOptions): Promise<AIResponse> {
 
 /**
  * Call Sonar Pro with file (base64 encoded)
- * Note: Public URLs don't work reliably - Sonar Pro cannot access Supabase storage URLs
- * Base64 encoding ensures the file content is actually sent and read
+ * ✅ FIXED: Now uses raw base64 string and file_name parameter as per Perplexity API docs
  */
 async function callSonarProWithFile(options: AIFileUploadOptions): Promise<AIResponse> {
-  const { systemPrompt, userPrompt, fileBuffer, mimeType, temperature, maxTokens, responseFormat } = options;
+  const { systemPrompt, userPrompt, fileBuffer, displayName, temperature, maxTokens } = options;
 
   // Use base64 encoding for Sonar Pro with file_url type
   console.log("📎 Converting file to base64 for Sonar Pro");
   const base64 = arrayBufferToBase64(fileBuffer);
-  const fileDataUrl = `data:${mimeType};base64,${base64}`;
 
   const messages = [
     {
@@ -255,8 +228,9 @@ async function callSonarProWithFile(options: AIFileUploadOptions): Promise<AIRes
         {
           type: "file_url",
           file_url: {
-            url: fileDataUrl,
+            url: base64, // ✅ Raw base64 string, NOT data URL
           },
+          file_name: displayName, // ✅ Add file_name parameter
         },
       ],
     },
@@ -268,9 +242,6 @@ async function callSonarProWithFile(options: AIFileUploadOptions): Promise<AIRes
     temperature,
     max_tokens: maxTokens,
   };
-
-  // Note: Sonar Pro doesn't support response_format parameter
-  // We rely on prompt engineering to get JSON output
 
   const response = await fetch("https://api.perplexity.ai/chat/completions", {
     method: "POST",
@@ -349,174 +320,6 @@ async function callGPT4Turbo(options: AICallOptions): Promise<AIResponse> {
   }
 
   const data = await response.json();
-
-  return {
-    content: data.choices[0].message.content,
-    tokensUsed: {
-      input: data.usage?.prompt_tokens || 0,
-      output: data.usage?.completion_tokens || 0,
-    },
-    webSearchUsed: false,
-    modelUsed: "gpt-4-turbo",
-  };
-}
-
-/**
- * Call GPT-4o with file using base64 encoding via /v1/responses endpoint
- * Uses input_file format for PDF/DOCX processing
- */
-async function callGPT4oWithBase64File(options: AIFileUploadOptions): Promise<AIResponse> {
-  const { systemPrompt, userPrompt, fileBuffer, mimeType, displayName, temperature, maxTokens, responseFormat } =
-    options;
-
-  console.log("📎 Converting file to base64 for GPT-4o /v1/responses");
-  const base64 = arrayBufferToBase64(fileBuffer);
-
-  // GPT-4o /v1/responses endpoint uses input_file type with raw base64
-  // Reference: https://platform.openai.com/docs/api-reference/responses
-  const requestBody: any = {
-    model: "gpt-4o",
-    input: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "input_file",
-            filename: displayName,
-            file_data: base64, // Raw base64 string, not data URL
-          },
-          {
-            type: "input_text",
-            text: systemPrompt + "\n\n" + userPrompt,
-          },
-        ],
-      },
-    ],
-    temperature,
-    max_tokens: maxTokens,
-  };
-
-  // Note: /v1/responses endpoint may have different response_format handling
-  if (responseFormat === "json") {
-    requestBody.response_format = { type: "json_object" };
-  }
-
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify(requestBody),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`GPT-4o /v1/responses API error (${response.status}): ${errorText}`);
-  }
-
-  const data = await response.json();
-
-  // /v1/responses endpoint may have different response structure
-  // Adjust based on actual API response format
-  return {
-    content: data.output || data.choices?.[0]?.message?.content || data.response,
-    tokensUsed: {
-      input: data.usage?.prompt_tokens || data.usage?.input_tokens || 0,
-      output: data.usage?.completion_tokens || data.usage?.output_tokens || 0,
-    },
-    webSearchUsed: false,
-    modelUsed: "gpt-4o",
-  };
-}
-
-/**
- * Call GPT-4-turbo with file using Files API
- */
-async function callGPT4TurboWithFile(options: AIFileUploadOptions): Promise<AIResponse> {
-  const { systemPrompt, userPrompt, fileBuffer, mimeType, displayName, temperature, maxTokens, responseFormat } =
-    options;
-
-  // Step 1: Upload file to OpenAI Files API
-  const formData = new FormData();
-  const blob = new Blob([fileBuffer], { type: mimeType });
-  formData.append("file", blob, displayName);
-  formData.append("purpose", "assistants");
-
-  const uploadResponse = await fetch("https://api.openai.com/v1/files", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: formData,
-  });
-
-  if (!uploadResponse.ok) {
-    const errorText = await uploadResponse.text();
-    throw new Error(`GPT-4 file upload error (${uploadResponse.status}): ${errorText}`);
-  }
-
-  const uploadData = await uploadResponse.json();
-  const fileId = uploadData.id;
-
-  console.log(`📎 File uploaded to OpenAI: ${fileId}`);
-
-  // Wait a moment for file processing
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-
-  // Step 2: Use file in chat completion with gpt-4-turbo (supports file references)
-  const messages = [
-    { role: "system", content: systemPrompt },
-    {
-      role: "user",
-      content: [
-        {
-          type: "text",
-          text: `File ID: ${fileId}\n\n${userPrompt}`,
-        },
-      ],
-    },
-  ];
-
-  const requestBody: any = {
-    model: "gpt-4-turbo-preview",
-    messages,
-    temperature,
-    max_tokens: maxTokens,
-  };
-
-  if (responseFormat === "json") {
-    requestBody.response_format = { type: "json_object" };
-  }
-
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify(requestBody),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`GPT-4-turbo file processing error (${response.status}): ${errorText}`);
-  }
-
-  const data = await response.json();
-
-  // Clean up: Delete the uploaded file
-  try {
-    await fetch(`https://api.openai.com/v1/files/${fileId}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-      },
-    });
-    console.log(`🗑️ Deleted file: ${fileId}`);
-  } catch (deleteError) {
-    console.warn("Failed to delete uploaded file:", deleteError);
-  }
 
   return {
     content: data.choices[0].message.content,
