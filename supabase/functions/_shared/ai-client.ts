@@ -1,8 +1,28 @@
-// Shared AI client with Sonar Pro (primary) and GPT-4-turbo (fallback)
-// Supports web search and file processing
+// Shared AI client with intelligent fallback strategy:
+// - Text: Sonar Pro → GPT-4-turbo
+// - Files: Sonar Pro (base64) → GPT-4o (base64, PDF/DOCX only)
+// All file processing uses base64 encoding to ensure reliability
 
 const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY")!;
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
+
+/**
+ * Convert ArrayBuffer to base64 with chunking to avoid stack overflow
+ * Uses 8KB chunks to safely process large files
+ */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const uint8Array = new Uint8Array(buffer);
+  let binaryString = "";
+  const chunkSize = 8192; // 8KB chunks - safe for String.fromCharCode.apply()
+
+  // Process in chunks to avoid "Maximum call stack size exceeded" error
+  for (let i = 0; i < uint8Array.length; i += chunkSize) {
+    const chunk = uint8Array.slice(i, Math.min(i + chunkSize, uint8Array.length));
+    binaryString += String.fromCharCode.apply(null, Array.from(chunk));
+  }
+
+  return btoa(binaryString);
+}
 
 interface AICallOptions {
   systemPrompt: string;
@@ -32,7 +52,7 @@ interface AIResponse {
     output: number;
   };
   webSearchUsed: boolean;
-  modelUsed: "sonar-pro" | "gpt-4-turbo";
+  modelUsed: "sonar-pro" | "gpt-4-turbo" | "gpt-4o";
 }
 
 /**
@@ -87,7 +107,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
 }
 
 /**
- * Call AI with file upload - tries Sonar Pro (base64) → GPT-4-turbo (Files API)
+ * Call AI with file upload - tries Sonar Pro (base64) → GPT-4o (base64 for PDF/DOCX only)
  */
 export async function callAIWithFile(options: AIFileUploadOptions): Promise<AIResponse> {
   const {
@@ -102,7 +122,7 @@ export async function callAIWithFile(options: AIFileUploadOptions): Promise<AIRe
     responseFormat = "text",
   } = options;
 
-  // Try Sonar Pro with file URL (preferred) or base64 upload
+  // Try Sonar Pro with base64 upload first
   try {
     console.log("🔵 Trying Sonar Pro with file...");
     const response = await callSonarProWithFile({
@@ -119,17 +139,42 @@ export async function callAIWithFile(options: AIFileUploadOptions): Promise<AIRe
     console.log("✅ Sonar Pro file processing succeeded");
     return response;
   } catch (sonarError) {
-    console.error(
-      "❌ Sonar Pro file processing failed:",
+    console.warn(
+      "⚠️ Sonar Pro file processing failed:",
       sonarError instanceof Error ? sonarError.message : String(sonarError),
     );
 
-    // GPT-4-turbo doesn't support direct file processing via chat completions
-    // Files API is for Assistants only, which requires complex implementation
-    // For now, we rely on Sonar Pro for file processing
-    throw new Error(
-      `File processing failed with Sonar Pro: ${sonarError instanceof Error ? sonarError.message : String(sonarError)}. Please try again or contact support if the issue persists.`,
-    );
+    // Check if this is a PDF or DOCX file - if so, try GPT-4o with base64
+    const isPDF = mimeType === "application/pdf";
+    const isDOCX = mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+    if (isPDF || isDOCX) {
+      console.log("🟢 Falling back to GPT-4o with base64 for PDF/DOCX...");
+      try {
+        const response = await callGPT4oWithBase64File({
+          systemPrompt,
+          userPrompt,
+          fileBuffer,
+          mimeType,
+          displayName,
+          temperature,
+          maxTokens,
+          responseFormat,
+        });
+        console.log("✅ GPT-4o file processing succeeded");
+        return response;
+      } catch (gptError) {
+        console.error("❌ GPT-4o also failed:", gptError instanceof Error ? gptError.message : String(gptError));
+        throw new Error(
+          `Both AI models failed to process file. Sonar Pro: ${sonarError instanceof Error ? sonarError.message : String(sonarError)}, GPT-4o: ${gptError instanceof Error ? gptError.message : String(gptError)}`,
+        );
+      }
+    } else {
+      // For non-PDF/DOCX files, only Sonar Pro is supported
+      throw new Error(
+        `File processing failed with Sonar Pro: ${sonarError instanceof Error ? sonarError.message : String(sonarError)}. GPT-4o fallback is only available for PDF and DOCX files.`,
+      );
+    }
   }
 }
 
@@ -187,33 +232,18 @@ async function callSonarPro(options: AICallOptions): Promise<AIResponse> {
 }
 
 /**
- * Call Sonar Pro with file (uses public URL if available, otherwise base64 encoded)
+ * Call Sonar Pro with file (base64 encoded)
+ * Note: Public URLs don't work reliably - Sonar Pro cannot access Supabase storage URLs
+ * Base64 encoding ensures the file content is actually sent and read
  */
 async function callSonarProWithFile(options: AIFileUploadOptions): Promise<AIResponse> {
-  const { systemPrompt, userPrompt, fileBuffer, mimeType, fileUrl, temperature, maxTokens, responseFormat } = options;
+  const { systemPrompt, userPrompt, fileBuffer, mimeType, temperature, maxTokens, responseFormat } = options;
 
-  // Prefer public URL to avoid base64 encoding overhead (~33% size increase)
-  let fileDataUrl: string;
-
-  if (fileUrl) {
-    // Use public URL directly (no size overhead)
-    console.log("📎 Using public file URL for Sonar Pro");
-    fileDataUrl = fileUrl;
-  } else {
-    // Fallback: Convert file to base64 (handle large files by processing in chunks)
-    console.log("📎 Converting file to base64 for Sonar Pro");
-    const uint8Array = new Uint8Array(fileBuffer);
-    let base64 = "";
-    const chunkSize = 8192;
-
-    for (let i = 0; i < uint8Array.length; i += chunkSize) {
-      const chunk = uint8Array.slice(i, i + chunkSize);
-      base64 += String.fromCharCode.apply(null, Array.from(chunk));
-    }
-
-    base64 = btoa(base64);
-    fileDataUrl = `data:${mimeType};base64,${base64}`;
-  }
+  // Always use base64 encoding for Sonar Pro
+  // Public URLs don't work - Sonar Pro hallucinates content instead of reading the file
+  console.log("📎 Converting file to base64 for Sonar Pro (ensures file is actually read)");
+  const base64 = arrayBufferToBase64(fileBuffer);
+  const fileDataUrl = `data:${mimeType};base64,${base64}`;
 
   const messages = [
     { role: "system", content: systemPrompt },
@@ -332,6 +362,75 @@ async function callGPT4Turbo(options: AICallOptions): Promise<AIResponse> {
 }
 
 /**
+ * Call GPT-4o with file using base64 encoding (for PDF/DOCX)
+ * Uses vision API format to pass base64 encoded files
+ */
+async function callGPT4oWithBase64File(options: AIFileUploadOptions): Promise<AIResponse> {
+  const { systemPrompt, userPrompt, fileBuffer, mimeType, temperature, maxTokens, responseFormat } = options;
+
+  console.log("📎 Converting file to base64 for GPT-4o");
+  const base64 = arrayBufferToBase64(fileBuffer);
+  const fileDataUrl = `data:${mimeType};base64,${base64}`;
+
+  // GPT-4o supports vision API format for file processing
+  const messages = [
+    { role: "system", content: systemPrompt },
+    {
+      role: "user",
+      content: [
+        {
+          type: "image_url", // GPT-4o uses image_url type even for PDFs
+          image_url: {
+            url: fileDataUrl,
+          },
+        },
+        {
+          type: "text",
+          text: userPrompt,
+        },
+      ],
+    },
+  ];
+
+  const requestBody: any = {
+    model: "gpt-4o",
+    messages,
+    temperature,
+    max_tokens: maxTokens,
+  };
+
+  if (responseFormat === "json") {
+    requestBody.response_format = { type: "json_object" };
+  }
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GPT-4o file API error (${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+
+  return {
+    content: data.choices[0].message.content,
+    tokensUsed: {
+      input: data.usage?.prompt_tokens || 0,
+      output: data.usage?.completion_tokens || 0,
+    },
+    webSearchUsed: false,
+    modelUsed: "gpt-4o",
+  };
+}
+
+/**
  * Call GPT-4-turbo with file using Files API
  */
 async function callGPT4TurboWithFile(options: AIFileUploadOptions): Promise<AIResponse> {
@@ -437,7 +536,7 @@ export function logAIUsage(
   functionName: string,
   tokensUsed: { input: number; output: number },
   webSearchUsed: boolean,
-  modelUsed: "sonar-pro" | "gpt-4-turbo",
+  modelUsed: "sonar-pro" | "gpt-4-turbo" | "gpt-4o",
 ) {
   console.log(`[${functionName}] AI usage:`, {
     model: modelUsed,
