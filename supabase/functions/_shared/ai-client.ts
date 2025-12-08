@@ -19,6 +19,7 @@ interface AIFileUploadOptions {
   fileBuffer: ArrayBuffer;
   mimeType: string;
   displayName: string;
+  fileUrl?: string; // Optional: Public URL to file (avoids base64 encoding overhead)
   temperature?: number;
   maxTokens?: number;
   responseFormat?: "text" | "json";
@@ -95,12 +96,13 @@ export async function callAIWithFile(options: AIFileUploadOptions): Promise<AIRe
     fileBuffer,
     mimeType,
     displayName,
+    fileUrl,
     temperature = 0.3,
     maxTokens = 8192,
     responseFormat = "text",
   } = options;
 
-  // Try Sonar Pro with base64 file upload
+  // Try Sonar Pro with file URL (preferred) or base64 upload
   try {
     console.log("🔵 Trying Sonar Pro with file...");
     const response = await callSonarProWithFile({
@@ -109,6 +111,7 @@ export async function callAIWithFile(options: AIFileUploadOptions): Promise<AIRe
       fileBuffer,
       mimeType,
       displayName,
+      fileUrl,
       temperature,
       maxTokens,
       responseFormat,
@@ -202,14 +205,33 @@ async function callSonarPro(options: AICallOptions): Promise<AIResponse> {
 }
 
 /**
- * Call Sonar Pro with file (base64 encoded)
+ * Call Sonar Pro with file (uses public URL if available, otherwise base64 encoded)
  */
 async function callSonarProWithFile(options: AIFileUploadOptions): Promise<AIResponse> {
-  const { systemPrompt, userPrompt, fileBuffer, mimeType, temperature, maxTokens, responseFormat } = options;
+  const { systemPrompt, userPrompt, fileBuffer, mimeType, fileUrl, temperature, maxTokens, responseFormat } = options;
 
-  // Convert file to base64
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
-  const dataUrl = `data:${mimeType};base64,${base64}`;
+  // Prefer public URL to avoid base64 encoding overhead (~33% size increase)
+  let fileDataUrl: string;
+
+  if (fileUrl) {
+    // Use public URL directly (no size overhead)
+    console.log("📎 Using public file URL for Sonar Pro");
+    fileDataUrl = fileUrl;
+  } else {
+    // Fallback: Convert file to base64 (handle large files by processing in chunks)
+    console.log("📎 Converting file to base64 for Sonar Pro");
+    const uint8Array = new Uint8Array(fileBuffer);
+    let base64 = "";
+    const chunkSize = 8192;
+
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.slice(i, i + chunkSize);
+      base64 += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+
+    base64 = btoa(base64);
+    fileDataUrl = `data:${mimeType};base64,${base64}`;
+  }
 
   const messages = [
     { role: "system", content: systemPrompt },
@@ -218,7 +240,7 @@ async function callSonarProWithFile(options: AIFileUploadOptions): Promise<AIRes
       content: [
         {
           type: "image_url",
-          image_url: { url: dataUrl },
+          image_url: { url: fileDataUrl },
         },
         {
           type: "text",
