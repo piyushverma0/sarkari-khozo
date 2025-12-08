@@ -176,6 +176,22 @@ Your output will be parsed directly as JSON.`;
         );
       }
 
+      // Check if AI returned an error message instead of statistics
+      if (finalResponse.includes('"error"') || finalResponse.toLowerCase().includes("unable to")) {
+        console.error("AI returned error:", finalResponse);
+        return new Response(
+          JSON.stringify({
+            error: "AI could not extract statistics",
+            message: "The AI model could not find statistics for this application.",
+            ai_response: finalResponse,
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
       // Extract JSON from response
       let jsonText = finalResponse.trim();
       const jsonBlockMatch = jsonText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
@@ -203,6 +219,21 @@ Your output will be parsed directly as JSON.`;
       }
 
       const statisticsArray: StatisticsData[] = JSON.parse(jsonText);
+
+      // Validate that we got an array
+      if (!Array.isArray(statisticsArray)) {
+        console.error("Response is not an array:", statisticsArray);
+        return new Response(
+          JSON.stringify({
+            error: "Invalid response format",
+            message: "Expected statistics array but got different format.",
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
 
       // Validate and insert into database
       const insertResults = [];
@@ -279,10 +310,9 @@ Your output will be parsed directly as JSON.`;
         },
       );
     }
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Error in extract-statistics:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
