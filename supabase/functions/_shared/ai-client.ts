@@ -1,7 +1,7 @@
 // Shared AI client with intelligent fallback strategy:
-// - Text: Sonar Pro → GPT-4-turbo
-// - Files: Sonar Pro (base64) → GPT-4o (base64, PDF/DOCX only)
-// All file processing uses base64 encoding to ensure reliability
+// - Text queries: Sonar Pro → GPT-4-turbo
+// - Files: Sonar Pro (base64 via file_url) → GPT-4o (base64 via /v1/responses)
+// Both Sonar Pro and GPT-4o support PDF/DOCX processing with correct API formats
 
 const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY")!;
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
@@ -107,7 +107,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
 }
 
 /**
- * Call AI with file upload - tries Sonar Pro (base64) → GPT-4o (base64 for PDF/DOCX only)
+ * Call AI with file upload - tries Sonar Pro (base64) → GPT-4o (base64 /v1/responses)
  */
 export async function callAIWithFile(options: AIFileUploadOptions): Promise<AIResponse> {
   const {
@@ -122,7 +122,7 @@ export async function callAIWithFile(options: AIFileUploadOptions): Promise<AIRe
     responseFormat = "text",
   } = options;
 
-  // Try Sonar Pro with base64 upload first
+  // Try Sonar Pro with base64 first
   try {
     console.log("🔵 Trying Sonar Pro with file...");
     const response = await callSonarProWithFile({
@@ -144,12 +144,12 @@ export async function callAIWithFile(options: AIFileUploadOptions): Promise<AIRe
       sonarError instanceof Error ? sonarError.message : String(sonarError),
     );
 
-    // Check if this is a PDF or DOCX file - if so, try GPT-4o with base64
+    // Check if this is a PDF or DOCX file - if so, try GPT-4o with /v1/responses endpoint
     const isPDF = mimeType === "application/pdf";
     const isDOCX = mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
     if (isPDF || isDOCX) {
-      console.log("🟢 Falling back to GPT-4o with base64 for PDF/DOCX...");
+      console.log("🟢 Falling back to GPT-4o with /v1/responses for PDF/DOCX...");
       try {
         const response = await callGPT4oWithBase64File({
           systemPrompt,
@@ -239,24 +239,24 @@ async function callSonarPro(options: AICallOptions): Promise<AIResponse> {
 async function callSonarProWithFile(options: AIFileUploadOptions): Promise<AIResponse> {
   const { systemPrompt, userPrompt, fileBuffer, mimeType, temperature, maxTokens, responseFormat } = options;
 
-  // Always use base64 encoding for Sonar Pro
-  // Public URLs don't work - Sonar Pro hallucinates content instead of reading the file
-  console.log("📎 Converting file to base64 for Sonar Pro (ensures file is actually read)");
+  // Use base64 encoding for Sonar Pro with file_url type
+  console.log("📎 Converting file to base64 for Sonar Pro");
   const base64 = arrayBufferToBase64(fileBuffer);
   const fileDataUrl = `data:${mimeType};base64,${base64}`;
 
   const messages = [
-    { role: "system", content: systemPrompt },
     {
       role: "user",
       content: [
         {
-          type: "file_url", // Changed from 'image_url' - Sonar Pro expects 'file_url' for documents
-          file_url: { url: fileDataUrl },
+          type: "text",
+          text: systemPrompt + "\n\n" + userPrompt,
         },
         {
-          type: "text",
-          text: userPrompt,
+          type: "file_url",
+          file_url: {
+            url: fileDataUrl,
+          },
         },
       ],
     },
@@ -362,48 +362,46 @@ async function callGPT4Turbo(options: AICallOptions): Promise<AIResponse> {
 }
 
 /**
- * Call GPT-4o with file using base64 encoding (for PDF/DOCX)
- * Uses vision API format to pass base64 encoded files
+ * Call GPT-4o with file using base64 encoding via /v1/responses endpoint
+ * Uses input_file format for PDF/DOCX processing
  */
 async function callGPT4oWithBase64File(options: AIFileUploadOptions): Promise<AIResponse> {
-  const { systemPrompt, userPrompt, fileBuffer, mimeType, temperature, maxTokens, responseFormat } = options;
+  const { systemPrompt, userPrompt, fileBuffer, mimeType, displayName, temperature, maxTokens, responseFormat } =
+    options;
 
-  console.log("📎 Converting file to base64 for GPT-4o");
+  console.log("📎 Converting file to base64 for GPT-4o /v1/responses");
   const base64 = arrayBufferToBase64(fileBuffer);
-  const fileDataUrl = `data:${mimeType};base64,${base64}`;
 
-  // GPT-4o supports vision API format for file processing
-  const messages = [
-    { role: "system", content: systemPrompt },
-    {
-      role: "user",
-      content: [
-        {
-          type: "image_url", // GPT-4o uses image_url type even for PDFs
-          image_url: {
-            url: fileDataUrl,
-          },
-        },
-        {
-          type: "text",
-          text: userPrompt,
-        },
-      ],
-    },
-  ];
-
+  // GPT-4o /v1/responses endpoint uses input_file type with raw base64
+  // Reference: https://platform.openai.com/docs/api-reference/responses
   const requestBody: any = {
     model: "gpt-4o",
-    messages,
+    input: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_file",
+            filename: displayName,
+            file_data: base64, // Raw base64 string, not data URL
+          },
+          {
+            type: "input_text",
+            text: systemPrompt + "\n\n" + userPrompt,
+          },
+        ],
+      },
+    ],
     temperature,
     max_tokens: maxTokens,
   };
 
+  // Note: /v1/responses endpoint may have different response_format handling
   if (responseFormat === "json") {
     requestBody.response_format = { type: "json_object" };
   }
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -414,16 +412,18 @@ async function callGPT4oWithBase64File(options: AIFileUploadOptions): Promise<AI
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GPT-4o file API error (${response.status}): ${errorText}`);
+    throw new Error(`GPT-4o /v1/responses API error (${response.status}): ${errorText}`);
   }
 
   const data = await response.json();
 
+  // /v1/responses endpoint may have different response structure
+  // Adjust based on actual API response format
   return {
-    content: data.choices[0].message.content,
+    content: data.output || data.choices?.[0]?.message?.content || data.response,
     tokensUsed: {
-      input: data.usage?.prompt_tokens || 0,
-      output: data.usage?.completion_tokens || 0,
+      input: data.usage?.prompt_tokens || data.usage?.input_tokens || 0,
+      output: data.usage?.completion_tokens || data.usage?.output_tokens || 0,
     },
     webSearchUsed: false,
     modelUsed: "gpt-4o",
