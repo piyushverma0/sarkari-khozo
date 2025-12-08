@@ -119,35 +119,17 @@ export async function callAIWithFile(options: AIFileUploadOptions): Promise<AIRe
     console.log("✅ Sonar Pro file processing succeeded");
     return response;
   } catch (sonarError) {
-    console.warn(
-      "⚠️ Sonar Pro file processing failed:",
+    console.error(
+      "❌ Sonar Pro file processing failed:",
       sonarError instanceof Error ? sonarError.message : String(sonarError),
     );
-    console.log("🟢 Falling back to GPT-4-turbo with file...");
 
-    // Fallback to GPT-4-turbo with Files API
-    try {
-      const response = await callGPT4TurboWithFile({
-        systemPrompt,
-        userPrompt,
-        fileBuffer,
-        mimeType,
-        displayName,
-        temperature,
-        maxTokens,
-        responseFormat,
-      });
-      console.log("✅ GPT-4-turbo file processing succeeded");
-      return response;
-    } catch (gptError) {
-      console.error(
-        "❌ GPT-4-turbo file processing also failed:",
-        gptError instanceof Error ? gptError.message : String(gptError),
-      );
-      throw new Error(
-        `Both AI models failed for file processing. Sonar: ${sonarError instanceof Error ? sonarError.message : String(sonarError)}, GPT-4: ${gptError instanceof Error ? gptError.message : String(gptError)}`,
-      );
-    }
+    // GPT-4-turbo doesn't support direct file processing via chat completions
+    // Files API is for Assistants only, which requires complex implementation
+    // For now, we rely on Sonar Pro for file processing
+    throw new Error(
+      `File processing failed with Sonar Pro: ${sonarError instanceof Error ? sonarError.message : String(sonarError)}. Please try again or contact support if the issue persists.`,
+    );
   }
 }
 
@@ -239,8 +221,8 @@ async function callSonarProWithFile(options: AIFileUploadOptions): Promise<AIRes
       role: "user",
       content: [
         {
-          type: "image_url",
-          image_url: { url: fileDataUrl },
+          type: "file_url", // Changed from 'image_url' - Sonar Pro expects 'file_url' for documents
+          file_url: { url: fileDataUrl },
         },
         {
           type: "text",
