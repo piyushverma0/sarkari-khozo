@@ -2429,6 +2429,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      get_feature_usage: {
+        Args: { feature_name: string; user_uuid: string }
+        Returns: number
+      }
       get_flashcards_due_today: {
         Args: { p_user_id: string }
         Returns: {
@@ -2476,12 +2480,17 @@ export type Database = {
         Args: { p_note_id: string; p_user_id: string }
         Returns: boolean
       }
+      has_premium_access: { Args: { user_uuid: string }; Returns: boolean }
       increment_daily_notification_count: {
         Args: { p_user_id: string }
         Returns: undefined
       }
       increment_explanation_usage: {
         Args: { explanation_id: string }
+        Returns: undefined
+      }
+      increment_feature_usage: {
+        Args: { feature_name: string; user_uuid: string }
         Returns: undefined
       }
       is_active_collaborator: {
