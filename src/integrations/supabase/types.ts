@@ -2058,6 +2058,54 @@ export type Database = {
         }
         Relationships: []
       }
+      user_feature_usage: {
+        Row: {
+          article_notes_count: number | null
+          created_at: string | null
+          docx_notes_count: number | null
+          id: string
+          pdf_notes_count: number | null
+          pdf_notes_first_used_at: string | null
+          record_lecture_count: number | null
+          record_lecture_first_used_at: string | null
+          updated_at: string | null
+          upload_audio_count: number | null
+          user_id: string
+          youtube_notes_count: number | null
+          youtube_notes_first_used_at: string | null
+        }
+        Insert: {
+          article_notes_count?: number | null
+          created_at?: string | null
+          docx_notes_count?: number | null
+          id?: string
+          pdf_notes_count?: number | null
+          pdf_notes_first_used_at?: string | null
+          record_lecture_count?: number | null
+          record_lecture_first_used_at?: string | null
+          updated_at?: string | null
+          upload_audio_count?: number | null
+          user_id: string
+          youtube_notes_count?: number | null
+          youtube_notes_first_used_at?: string | null
+        }
+        Update: {
+          article_notes_count?: number | null
+          created_at?: string | null
+          docx_notes_count?: number | null
+          id?: string
+          pdf_notes_count?: number | null
+          pdf_notes_first_used_at?: string | null
+          record_lecture_count?: number | null
+          record_lecture_first_used_at?: string | null
+          updated_at?: string | null
+          upload_audio_count?: number | null
+          user_id?: string
+          youtube_notes_count?: number | null
+          youtube_notes_first_used_at?: string | null
+        }
+        Relationships: []
+      }
       user_notification_preferences: {
         Row: {
           categories: Json | null
