@@ -19,6 +19,8 @@ interface ExtractStatisticsRequest {
   title: string;
   url: string;
   extractHistorical?: boolean; // If true, extract last 5 years of data
+  description?: string; // Application description for better context
+  category?: string; // Application category (SSC, Railway, Banking, etc.)
 }
 
 interface StatisticsData {
@@ -39,7 +41,14 @@ serve(async (req) => {
   }
 
   try {
-    const { applicationId, title, url, extractHistorical = true }: ExtractStatisticsRequest = await req.json();
+    const {
+      applicationId,
+      title,
+      url,
+      extractHistorical = true,
+      description,
+      category,
+    }: ExtractStatisticsRequest = await req.json();
 
     if (!applicationId || !title || !url) {
       return new Response(JSON.stringify({ error: "applicationId, title, and url are required" }), {
@@ -48,7 +57,7 @@ serve(async (req) => {
       });
     }
 
-    console.log("Extracting statistics for:", title, url);
+    console.log("Extracting statistics for:", title, url, category ? `(${category})` : "");
 
     // Initialize Supabase client
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -57,7 +66,7 @@ serve(async (req) => {
     const userPrompt = extractHistorical
       ? `You are an expert at extracting statistical data about Indian government exams, jobs, and schemes.
 
-Application: "${title}"
+Application: "${title}"${category ? `\nCategory: ${category}` : ""}${description ? `\nDescription: ${description}` : ""}
 Official URL: ${url}
 Current Year: ${currentYear}
 
@@ -109,7 +118,7 @@ CRITICAL INSTRUCTIONS:
 CRITICAL: You MUST use web_search extensively to find accurate current data. Search multiple sources to verify statistics.`
       : `You are an expert at extracting statistical data about Indian government exams, jobs, and schemes.
 
-Application: "${title}"
+Application: "${title}"${category ? `\nCategory: ${category}` : ""}${description ? `\nDescription: ${description}` : ""}
 Official URL: ${url}
 Current Year: ${currentYear}
 
@@ -310,10 +319,9 @@ Your output will be parsed directly as JSON.`;
         },
       );
     }
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Error in extract-statistics:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
