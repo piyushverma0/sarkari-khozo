@@ -1476,6 +1476,57 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_history: {
+        Row: {
+          acknowledged: boolean | null
+          acknowledged_at: string | null
+          created_at: string | null
+          id: string
+          order_id: string | null
+          price_amount_micros: number | null
+          price_currency_code: string | null
+          product_id: string
+          purchase_state: string | null
+          purchase_time: string
+          purchase_token: string
+          user_id: string
+          verified: boolean | null
+          verified_at: string | null
+        }
+        Insert: {
+          acknowledged?: boolean | null
+          acknowledged_at?: string | null
+          created_at?: string | null
+          id?: string
+          order_id?: string | null
+          price_amount_micros?: number | null
+          price_currency_code?: string | null
+          product_id: string
+          purchase_state?: string | null
+          purchase_time: string
+          purchase_token: string
+          user_id: string
+          verified?: boolean | null
+          verified_at?: string | null
+        }
+        Update: {
+          acknowledged?: boolean | null
+          acknowledged_at?: string | null
+          created_at?: string | null
+          id?: string
+          order_id?: string | null
+          price_amount_micros?: number | null
+          price_currency_code?: string | null
+          product_id?: string
+          purchase_state?: string | null
+          purchase_time?: string
+          purchase_token?: string
+          user_id?: string
+          verified?: boolean | null
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       quiz_attempts: {
         Row: {
           answers: Json
