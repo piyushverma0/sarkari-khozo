@@ -2208,6 +2208,57 @@ export type Database = {
           },
         ]
       }
+      user_subscriptions: {
+        Row: {
+          auto_renewing: boolean | null
+          created_at: string | null
+          id: string
+          last_verified_at: string | null
+          order_id: string | null
+          plan_type: string | null
+          pricing_region: string | null
+          product_id: string | null
+          purchase_token: string | null
+          subscription_end_date: string | null
+          subscription_start_date: string | null
+          subscription_status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          auto_renewing?: boolean | null
+          created_at?: string | null
+          id?: string
+          last_verified_at?: string | null
+          order_id?: string | null
+          plan_type?: string | null
+          pricing_region?: string | null
+          product_id?: string | null
+          purchase_token?: string | null
+          subscription_end_date?: string | null
+          subscription_start_date?: string | null
+          subscription_status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          auto_renewing?: boolean | null
+          created_at?: string | null
+          id?: string
+          last_verified_at?: string | null
+          order_id?: string | null
+          plan_type?: string | null
+          pricing_region?: string | null
+          product_id?: string | null
+          purchase_token?: string | null
+          subscription_end_date?: string | null
+          subscription_start_date?: string | null
+          subscription_status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       story_analytics: {
