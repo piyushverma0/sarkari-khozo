@@ -77,6 +77,8 @@ inspector_port = 8083
 "0 0 * * *" = "generate-audio-news-bulletin"
 # Generate evening audio bulletin at 6:00 PM IST (12:30 PM UTC)
 "30 12 * * *" = "generate-audio-news-bulletin"
+# Sync subscriptions daily at 2 AM UTC
+"0 2 * * *" = "sync-subscriptions"
 
 [analytics]
 enabled = false
@@ -244,4 +246,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.check-subscription-status]
+verify_jwt = false
+
+[functions.sync-subscriptions]
 verify_jwt = false
