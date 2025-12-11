@@ -1791,12 +1791,14 @@ export type Database = {
           audio_last_played_at: string | null
           audio_script_english: Json | null
           audio_script_hindi: Json | null
+          cheat_code_blocks: Json | null
           created_at: string | null
           current_language: string | null
           edit_permissions: string | null
           estimated_read_time: number | null
           folder_id: string | null
           has_audio: boolean | null
+          has_cheat_codes: boolean | null
           has_flashcards: boolean | null
           has_mind_map: boolean | null
           has_quiz: boolean | null
@@ -1845,12 +1847,14 @@ export type Database = {
           audio_last_played_at?: string | null
           audio_script_english?: Json | null
           audio_script_hindi?: Json | null
+          cheat_code_blocks?: Json | null
           created_at?: string | null
           current_language?: string | null
           edit_permissions?: string | null
           estimated_read_time?: number | null
           folder_id?: string | null
           has_audio?: boolean | null
+          has_cheat_codes?: boolean | null
           has_flashcards?: boolean | null
           has_mind_map?: boolean | null
           has_quiz?: boolean | null
@@ -1899,12 +1903,14 @@ export type Database = {
           audio_last_played_at?: string | null
           audio_script_english?: Json | null
           audio_script_hindi?: Json | null
+          cheat_code_blocks?: Json | null
           created_at?: string | null
           current_language?: string | null
           edit_permissions?: string | null
           estimated_read_time?: number | null
           folder_id?: string | null
           has_audio?: boolean | null
+          has_cheat_codes?: boolean | null
           has_flashcards?: boolean | null
           has_mind_map?: boolean | null
           has_quiz?: boolean | null
