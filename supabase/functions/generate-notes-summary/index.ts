@@ -445,6 +445,32 @@ Remember: Return ONLY the JSON object, nothing else.`
 
     console.log('Summary stored in database, note processing complete')
 
+    // Trigger recall questions generation asynchronously (fire and forget)
+    try {
+      console.log('Triggering recall questions generation for note:', note_id)
+
+      fetch(`${SUPABASE_URL}/functions/v1/generate-recall-questions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+        },
+        body: JSON.stringify({
+          note_id,
+          structured_content: { sections: structuredContent.sections || [] },
+          max_questions_per_section: 3
+        })
+      }).catch(err => {
+        console.error('Failed to trigger recall questions generation:', err)
+        // Don't fail the main process
+      })
+
+      console.log('Recall questions generation triggered (async)')
+    } catch (triggerError) {
+      console.error('Error triggering recall questions:', triggerError)
+      // Continue without failing
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
