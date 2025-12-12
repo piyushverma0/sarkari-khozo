@@ -1802,6 +1802,7 @@ export type Database = {
           has_flashcards: boolean | null
           has_mind_map: boolean | null
           has_quiz: boolean | null
+          has_recall_questions: boolean | null
           has_translation: boolean | null
           id: string
           is_collaborative: boolean | null
@@ -1818,6 +1819,8 @@ export type Database = {
           processing_progress: number | null
           processing_status: string | null
           raw_content: string | null
+          recall_questions: Json | null
+          recall_questions_generated_at: string | null
           source_audio_duration: number | null
           source_audio_file_size: number | null
           source_audio_format: string | null
@@ -1858,6 +1861,7 @@ export type Database = {
           has_flashcards?: boolean | null
           has_mind_map?: boolean | null
           has_quiz?: boolean | null
+          has_recall_questions?: boolean | null
           has_translation?: boolean | null
           id?: string
           is_collaborative?: boolean | null
@@ -1874,6 +1878,8 @@ export type Database = {
           processing_progress?: number | null
           processing_status?: string | null
           raw_content?: string | null
+          recall_questions?: Json | null
+          recall_questions_generated_at?: string | null
           source_audio_duration?: number | null
           source_audio_file_size?: number | null
           source_audio_format?: string | null
@@ -1914,6 +1920,7 @@ export type Database = {
           has_flashcards?: boolean | null
           has_mind_map?: boolean | null
           has_quiz?: boolean | null
+          has_recall_questions?: boolean | null
           has_translation?: boolean | null
           id?: string
           is_collaborative?: boolean | null
@@ -1930,6 +1937,8 @@ export type Database = {
           processing_progress?: number | null
           processing_status?: string | null
           raw_content?: string | null
+          recall_questions?: Json | null
+          recall_questions_generated_at?: string | null
           source_audio_duration?: number | null
           source_audio_file_size?: number | null
           source_audio_format?: string | null
