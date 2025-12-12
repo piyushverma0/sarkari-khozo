@@ -253,3 +253,6 @@ verify_jwt = false
 
 [functions.verify-purchase]
 verify_jwt = false
+
+[functions.generate-recall-questions]
+verify_jwt = false
