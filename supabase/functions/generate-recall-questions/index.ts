@@ -28,13 +28,13 @@ interface GenerateRecallQuestionsRequest {
 interface RecallQuestionResponse {
   id: string
   type: 'fill_blank' | 'true_false' | 'mcq' | 'connect_dots'
-  sectionId: string | null
-  afterParagraph: number
+  section_id: string | null       // snake_case for Kotlin @SerialName
+  after_paragraph: number         // snake_case for Kotlin @SerialName
   question: string
   options: string[] | null
-  correctAnswer: string
+  correct_answer: string          // snake_case for Kotlin @SerialName
   explanation: string
-  relatedConcept: string
+  related_concept: string         // snake_case for Kotlin @SerialName
   difficulty: 'easy' | 'medium' | 'hard'
 }
 
@@ -102,11 +102,19 @@ serve(async (req) => {
         const sectionQuestions = parsedResponse.questions || []
 
         // Add section context and generate IDs
+        // Convert camelCase from AI response to snake_case for Kotlin
         sectionQuestions.forEach((q: any, index: number) => {
           allQuestions.push({
-            ...q,
             id: `${note_id}_${section.title.replace(/\s+/g, '_')}_q${index + 1}`,
-            sectionId: section.title
+            type: q.type,
+            section_id: section.title,
+            after_paragraph: q.afterParagraph ?? q.after_paragraph ?? 0,
+            question: q.question,
+            options: q.options,
+            correct_answer: q.correctAnswer ?? q.correct_answer ?? '',
+            explanation: q.explanation ?? '',
+            related_concept: q.relatedConcept ?? q.related_concept ?? '',
+            difficulty: q.difficulty ?? 'medium'
           })
         })
 
@@ -150,11 +158,11 @@ serve(async (req) => {
       }
     )
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error in generate-recall-questions:', error)
 
     return new Response(
-      JSON.stringify({ error: error.message || 'Unknown error' }),
+      JSON.stringify({ error: error.message }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -217,19 +225,19 @@ QUALITY RULES:
 PARAGRAPH DETECTION:
 - Split content by double newlines (\\n\\n) or markdown headings
 - Number paragraphs starting from 0
-- Specify "afterParagraph" index where question should appear
+- Specify "after_paragraph" index where question should appear
 
 OUTPUT FORMAT (JSON only, no markdown):
 {
   "questions": [
     {
-      "afterParagraph": 2,
+      "after_paragraph": 2,
       "type": "fill_blank" | "true_false" | "mcq" | "connect_dots",
       "question": "The _____ Amendment introduced Panchayati Raj system",
       "options": ["72nd", "73rd", "74th", "75th"],
-      "correctAnswer": "73rd",
+      "correct_answer": "73rd",
       "explanation": "As stated in the previous paragraph, the 73rd Amendment Act of 1992 gave constitutional status to Panchayati Raj institutions.",
-      "relatedConcept": "Constitutional Amendments",
+      "related_concept": "Constitutional Amendments",
       "difficulty": "easy" | "medium" | "hard"
     }
   ]
@@ -237,6 +245,7 @@ OUTPUT FORMAT (JSON only, no markdown):
 
 IMPORTANT:
 - Return ONLY valid JSON
+- Use snake_case for all field names (after_paragraph, correct_answer, related_concept)
 - Ensure "options" is always an array for fill_blank, mcq, connect_dots
 - For true_false, set "options" to null
 - Generate questions that genuinely test understanding
