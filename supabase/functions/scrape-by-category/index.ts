@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { callClaude } from "../_shared/claude-client.ts";
+import { callParallel } from "../_shared/parallel-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -93,11 +93,11 @@ Find 4-5 articles. Sources: PIB, Gazette notifications, ministry portals`
 };
 
 async function discoverCategory(
-  category: string, 
+  category: string,
   currentDate: string,
   maxArticles: number = 4
 ): Promise<Array<{ url: string; headline: string; published_date: string; source_name: string; category: string }>> {
-  
+
   const categoryPrompt = CATEGORY_PROMPTS[category as keyof typeof CATEGORY_PROMPTS];
   if (!categoryPrompt) {
     console.warn(`Unknown category: ${category}`);
@@ -118,15 +118,15 @@ Return a JSON array with:
 
 ONLY return the JSON array, nothing else.`;
 
-  const response = await callClaude({
-    systemPrompt: `You are a news discovery assistant for Indian ${category} content. 
-Use web_search to find recent, relevant articles.
+  const response = await callParallel({
+    systemPrompt: `You are a news discovery assistant for Indian ${category} content.
+Use web search to find recent, relevant articles.
 Return ONLY a JSON array. No markdown, no explanations.`,
     userPrompt: fullPrompt,
     enableWebSearch: true,
-    forceWebSearch: true,
     maxTokens: 2000,
-    temperature: 0.1
+    temperature: 0.1,
+    jsonMode: true
   });
 
   console.log(`📊 [${category}] Response length: ${response.content.length} chars`);
@@ -134,7 +134,7 @@ Return ONLY a JSON array. No markdown, no explanations.`,
   let articles = [];
   try {
     let cleanContent = response.content.trim();
-    
+
     // Parse JSON
     const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/);
     if (jsonBlockMatch) {
@@ -193,7 +193,7 @@ serve(async (req) => {
     // All available categories
     const allCategories = [
       'current-affairs',
-      'international', 
+      'international',
       'education',
       'diplomatic',
       'exams',
@@ -224,18 +224,18 @@ serve(async (req) => {
     console.log(`🎯 Starting balanced scraping for: ${targetCategories.join(', ')}`);
     console.log('📈 Priority order (least to most represented):', sortedCategories.map(c => `${c}(${countByCategory[c] || 0})`).join(', '));
 
-    const allArticles: Array<{ 
-      url: string; 
-      headline: string; 
-      published_date: string; 
-      source_name: string; 
-      category: string 
+    const allArticles: Array<{
+      url: string;
+      headline: string;
+      published_date: string;
+      source_name: string;
+      category: string
     }> = [];
 
     // Search each category separately with limits
     for (const category of targetCategories) {
       const currentCount = countByCategory[category] || 0;
-      
+
       // Adjust article limit based on current representation
       let maxArticles = 4; // default
       if (currentCount > 30) {
@@ -281,8 +281,8 @@ serve(async (req) => {
 
       } catch (error) {
         console.error('Article processing failed:', error);
-        errors.push({ 
-          article: article.headline, 
+        errors.push({
+          article: article.headline,
           error: error instanceof Error ? error.message : String(error)
         });
         skipped++;
@@ -309,8 +309,8 @@ serve(async (req) => {
   } catch (error) {
     console.error('❌ Scrape-by-category error:', error);
     return new Response(
-      JSON.stringify({ 
-        success: false, 
+      JSON.stringify({
+        success: false,
         error: error instanceof Error ? error.message : String(error)
       }),
       {
