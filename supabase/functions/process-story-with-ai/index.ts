@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { callClaude, logClaudeUsage } from "../_shared/claude-client.ts";
+import { callParallel, logParallelUsage } from "../_shared/parallel-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -108,25 +108,25 @@ const GOVERNMENT_DOMAINS: Record<string, string> = {
 
 // Function to infer government URL from content
 function inferGovernmentUrl(
-  category: string, 
-  subcategory: string | null, 
-  headline: string, 
+  category: string,
+  subcategory: string | null,
+  headline: string,
   tags: string[]
 ): string | null {
   // Only for government-related categories
   if (!['jobs', 'exams', 'schemes', 'policies'].includes(category)) {
     return null;
   }
-  
+
   const searchText = `${headline} ${subcategory || ''} ${tags.join(' ')}`.toUpperCase();
-  
+
   // Check for known organization mentions
   for (const [org, url] of Object.entries(GOVERNMENT_DOMAINS)) {
     if (searchText.includes(org)) {
       return url;
     }
   }
-  
+
   return null;
 }
 
@@ -156,16 +156,16 @@ serve(async (req) => {
     if (existingStory) {
       console.log('Story already exists, skipping:', url);
       return new Response(
-        JSON.stringify({ 
-          success: true, 
+        JSON.stringify({
+          success: true,
           message: 'Story already exists',
-          story_id: existingStory.id 
+          story_id: existingStory.id
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Claude Prompt
+    // System Prompt for Parallel AI
     const systemPrompt = `You are an expert Indian news analyst specializing in government schemes, competitive exams, public sector jobs, current affairs, international relations, and education.
 
 CRITICAL: Your response MUST be ONLY valid JSON with no explanatory text, no markdown formatting, no commentary before or after.
@@ -204,7 +204,7 @@ Please analyze this article and provide a JSON response with the following field
    - Use "diplomatic" for: Bilateral relations, treaties, state visits, multilateral forums
 4. **subcategory**: Specific type (e.g., "SSC Exam", "Railway Recruitment", "PM Kisan Scheme", "Budget Announcement")
 5. **tags**: Array of 5-8 relevant keywords (use common search terms, include Hindi transliterations if needed)
-6. **region**: 
+6. **region**:
    - "National" if applies to all of India
    - Specific state name(s) if region-specific
    - Format: "Maharashtra" or "UP, Bihar" for multiple states
@@ -216,42 +216,42 @@ Please analyze this article and provide a JSON response with the following field
    - Focus on most important/actionable information
    - Include dates, amounts, eligibility in simple terms
 10. **relevance_score**: Rate 0-10 based on category:
-    
+
     **For exams/jobs/schemes:**
     - Recency: Within 7 days = +3, 7-14 days = +2, 14-30 days = +1
     - Clarity: Clear dates/deadlines = +2
     - Actionability: Clear application steps = +2
     - Audience size: National = +2, Multi-state = +1, Single state = 0
     - Impact: High monetary benefit or major opportunity = +1
-    
+
     **For current-affairs:**
     - Recency: Within 24h = +3, 3 days = +2, 7 days = +1
     - Exam importance: Supreme Court/Parliament/Budget = +3, National events = +2, General = +1
     - Source credibility: Government/PIB = +2, Major outlet = +1
     - Competitive exam value: Key dates/facts/names = +2
-    
+
     **For international:**
     - India involvement: Bilateral treaty/trade deal = +4, Economic impact = +3, Regional = +2
     - Recency: Within 3 days = +2, Within week = +1
     - Exam relevance: G20/UN/Major events = +2, General = +1
-    
+
     **For diplomatic:**
     - Type: State visit/Treaty signing = +4, Bilateral meeting = +3, Multilateral forum = +2
     - India's role: Primary participant = +2, Observer = +1
     - Recency: Within week = +2
-    
+
     **For education:**
     - Impact: Ranking/Research breakthrough = +3, Policy change = +2, Scholarship = +2
     - Institution: IIT/IISc/Central = +2, State = +1
     - Relevance: Student opportunities = +2, General awareness = +1
-    
+
     **For policies:**
     - Impact: Major regulatory change = +3, Compliance requirement = +2
     - Recency: Within 7 days = +2, Within 30 days = +1
     - Recency: Within 3 days = +2, 7 days = +1
     - Exam importance: UPSC relevant = +2
     - Source: Official MEA/UN = +1
-    
+
     **For education:**
     - Impact: National policy = +3, Major university = +2, General = +1
     - Opportunity: Scholarship/admission = +2
@@ -281,27 +281,27 @@ CRITICAL: Return ONLY valid JSON with no explanatory text.
 Format: {"headline": "...", "summary": "...", ...}
 Do not include markdown code blocks, do not include any text before or after the JSON.`;
 
-    // Call Claude with web search (with retry logic)
+    // Call Parallel AI with web search (with retry logic)
     const MAX_RETRIES = 3;
     let response;
     let storyData;
-    
+
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        console.log(`Calling Claude API with web search (attempt ${attempt}/${MAX_RETRIES})...`);
-        response = await callClaude({
+        console.log(`Calling Parallel AI with web search (attempt ${attempt}/${MAX_RETRIES})...`);
+        response = await callParallel({
           systemPrompt,
           userPrompt,
           enableWebSearch: true,
-          forceWebSearch: true,
           maxTokens: 2500,
-          temperature: 0.3
+          temperature: 0.3,
+          jsonMode: true
         });
 
-        console.log('Claude response received, tokens used:', response.tokensUsed);
+        console.log('Parallel AI response received, tokens used:', response.tokensUsed.total);
 
-        // Log Claude usage
-        await logClaudeUsage('process-story-with-ai', response.tokensUsed, response.webSearchUsed || false);
+        // Log Parallel usage
+        await logParallelUsage('process-story-with-ai', response.tokensUsed, response.webSearchUsed);
 
         // Parse JSON response with multiple extraction strategies
         let cleanContent = response.content.trim();
@@ -355,7 +355,7 @@ Do not include markdown code blocks, do not include any text before or after the
 
       } catch (error) {
         console.error(`Attempt ${attempt} failed:`, error);
-        
+
         if (attempt < MAX_RETRIES) {
           const delayMs = 1000 * attempt;
           console.log(`Retry attempt ${attempt}/${MAX_RETRIES} after ${delayMs}ms`);
@@ -368,7 +368,7 @@ Do not include markdown code blocks, do not include any text before or after the
       }
     }
 
-    // Strip cite tags from all text fields
+    // Strip cite tags from all text fields (Parallel AI may include citations)
     const stripCiteTags = (obj: any): any => {
       if (typeof obj === 'string') {
         return obj.replace(/<cite[^>]*>/g, '').replace(/<\/cite>/g, '');
@@ -403,12 +403,12 @@ Do not include markdown code blocks, do not include any text before or after the
     // Check relevance score - Lower threshold for current-affairs, international, diplomatic, education
     const diverseCategories = ['current-affairs', 'international', 'diplomatic', 'education'];
     const relevanceThreshold = diverseCategories.includes(cleanedData.category) ? 2 : 3;
-    
+
     if (cleanedData.relevance_score < relevanceThreshold) {
       console.log(`Low relevance score for ${cleanedData.category}, skipping save:`, cleanedData.relevance_score);
       return new Response(
-        JSON.stringify({ 
-          success: false, 
+        JSON.stringify({
+          success: false,
           message: 'Story relevance too low',
           relevance_score: cleanedData.relevance_score,
           threshold: relevanceThreshold
@@ -419,20 +419,20 @@ Do not include markdown code blocks, do not include any text before or after the
 
     // Determine official government URL
     let officialGovUrl = cleanedData.official_government_url || null;
-    
+
     // Validate it's actually a government domain
     if (officialGovUrl) {
       const isValidGovDomain = /\.(gov\.in|nic\.in|ac\.in|org\.in)/.test(officialGovUrl) ||
         officialGovUrl.includes('ibps.in') ||
         officialGovUrl.includes('iimcat.ac.in') ||
         officialGovUrl.includes('consortiumofnlus.ac.in');
-      
+
       if (!isValidGovDomain) {
         console.log('AI returned non-government URL, discarding:', officialGovUrl);
         officialGovUrl = null;
       }
     }
-    
+
     // Fallback: infer from content if AI didn't provide valid URL
     if (!officialGovUrl) {
       officialGovUrl = inferGovernmentUrl(
@@ -484,8 +484,8 @@ Do not include markdown code blocks, do not include any text before or after the
     console.log('Story saved successfully:', savedStory.id, 'official_gov_url:', officialGovUrl);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         story_id: savedStory.id,
         relevance_score: cleanedData.relevance_score,
         official_government_url: officialGovUrl
@@ -497,11 +497,11 @@ Do not include markdown code blocks, do not include any text before or after the
     console.error('Error processing story:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
-      JSON.stringify({ 
-        success: false, 
+      JSON.stringify({
+        success: false,
         error: errorMessage
       }),
-      { 
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500
       }
