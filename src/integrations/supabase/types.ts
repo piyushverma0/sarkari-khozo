@@ -2005,6 +2005,74 @@ export type Database = {
           },
         ]
       }
+      teach_me_sessions: {
+        Row: {
+          completed_at: string | null
+          concept_weak_areas: string[]
+          created_at: string
+          current_step: number
+          exam_mistake_areas: string[]
+          exam_risk_areas: Json | null
+          exam_tags: string[]
+          id: string
+          is_completed: boolean
+          note_id: string
+          performance_breakdown: Json | null
+          recommended_revision: Json | null
+          steps: Json
+          total_steps: number
+          updated_at: string
+          user_id: string
+          writing_weak_areas: string[]
+        }
+        Insert: {
+          completed_at?: string | null
+          concept_weak_areas?: string[]
+          created_at?: string
+          current_step?: number
+          exam_mistake_areas?: string[]
+          exam_risk_areas?: Json | null
+          exam_tags?: string[]
+          id?: string
+          is_completed?: boolean
+          note_id: string
+          performance_breakdown?: Json | null
+          recommended_revision?: Json | null
+          steps?: Json
+          total_steps?: number
+          updated_at?: string
+          user_id: string
+          writing_weak_areas?: string[]
+        }
+        Update: {
+          completed_at?: string | null
+          concept_weak_areas?: string[]
+          created_at?: string
+          current_step?: number
+          exam_mistake_areas?: string[]
+          exam_risk_areas?: Json | null
+          exam_tags?: string[]
+          id?: string
+          is_completed?: boolean
+          note_id?: string
+          performance_breakdown?: Json | null
+          recommended_revision?: Json | null
+          steps?: Json
+          total_steps?: number
+          updated_at?: string
+          user_id?: string
+          writing_weak_areas?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teach_me_sessions_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "study_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       text_highlights: {
         Row: {
           color: string
