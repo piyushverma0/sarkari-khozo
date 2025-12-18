@@ -27,7 +27,7 @@ interface CallParallelOptions {
   maxTokens?: number;
   temperature?: number;
   jsonMode?: boolean;
-  jsonSchema?: object | null;
+  jsonSchema?: object;
 }
 
 /**
@@ -45,7 +45,7 @@ export async function callParallel({
 
   const apiKey = Deno.env.get('PARALLEL_API_KEY');
   if (!apiKey) {
-    throw new Error('PARALLEL_API_KEY environment variable not set');
+    throw new Error('PARALLEL_API_KEY environment variable not set. Please set it in Supabase Edge Functions secrets.');
   }
 
   const messages: ParallelMessage[] = [
@@ -60,7 +60,7 @@ export async function callParallel({
   ];
 
   const requestBody: any = {
-    model: 'speed', // Parallel's fast model for quick responses
+    model: 'lite', // Parallel's lite model for simple lookups and research with basis support
     messages: messages,
     max_tokens: maxTokens,
     temperature: temperature
@@ -102,6 +102,14 @@ export async function callParallel({
     if (!response.ok) {
       const errorText = await response.text();
       console.error('❌ Parallel API error:', response.status, errorText);
+
+      // Provide helpful error messages
+      if (response.status === 401) {
+        throw new Error(`Parallel API authentication failed. Please check your PARALLEL_API_KEY in Supabase Edge Functions secrets. Error: ${errorText}`);
+      } else if (response.status === 429) {
+        throw new Error(`Parallel API rate limit exceeded. Please try again later.`);
+      }
+
       throw new Error(`Parallel API error: ${response.status} - ${errorText}`);
     }
 
