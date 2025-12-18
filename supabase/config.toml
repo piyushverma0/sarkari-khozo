@@ -256,3 +256,6 @@ verify_jwt = false
 
 [functions.generate-recall-questions]
 verify_jwt = false
+
+[functions.generate-teach-me-completion]
+verify_jwt = false
