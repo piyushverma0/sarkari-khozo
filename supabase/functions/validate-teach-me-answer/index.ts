@@ -5,6 +5,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
 import { callParallel } from '../_shared/parallel-client.ts'
+import { callAI } from '../_shared/ai-client.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -24,38 +25,13 @@ interface ValidateAnswerRequest {
 const EXAM_TYPES = ['CBSE', 'SSC', 'UPSC', 'Railway', 'Banking', 'State PSC', 'Teaching', 'Police', 'Defence', 'Judiciary']
 
 // Step types configuration
-const STEP_CONFIGS: Record<number, { type: string; question_type: string }> = {
+const STEP_CONFIGS = {
   1: { type: 'warm_up', question_type: 'TRUE_FALSE' },
   2: { type: 'core_thinking', question_type: 'ANSWER_WRITING' },
   3: { type: 'core_thinking', question_type: 'ANSWER_WRITING' },
   4: { type: 'core_thinking', question_type: 'ANSWER_WRITING' },
   5: { type: 'application', question_type: 'MCQ' },
   6: { type: 'integration', question_type: 'CONCEPT_SEQUENCING' }
-}
-
-interface StepData {
-  step_number: number
-  step_type: string
-  question_type: string
-  question_text: string
-  correct_answer: string
-  exam_tag: string
-  exam_context: string
-  hint?: string
-  options?: string[]
-  items_to_sequence?: string[]
-  user_answer?: string
-  validation_result?: ValidationResult
-  answered_at?: string
-}
-
-interface ValidationResult {
-  is_correct: boolean
-  feedback_type: string
-  feedback_message: string
-  score_percentage: number
-  improvement_tip: string | null
-  exam_relevance: string
 }
 
 serve(async (req) => {
@@ -108,8 +84,8 @@ serve(async (req) => {
     }
 
     // Get current step data
-    const steps: StepData[] = session.steps || []
-    const currentStep = steps.find((s) => s.step_number === step_number)
+    const steps = session.steps || []
+    const currentStep = steps.find((s: any) => s.step_number === step_number)
 
     if (!currentStep) {
       throw new Error('Current step data not found')
@@ -118,7 +94,7 @@ serve(async (req) => {
     console.log('🔍 Validating against:', currentStep.question_type)
 
     // Validate answer based on question type
-    let validationResult: ValidationResult
+    let validationResult: any = {}
     let isCorrect = false
     let feedbackType = 'CONCEPT_ISSUE' // Default for wrong answers
 
@@ -153,7 +129,8 @@ OUTPUT FORMAT (return ONLY this JSON):
   "exam_relevance": "How this relates to exam scoring"
 }`
 
-      let aiResponse: { content: string; tokensUsed: { prompt: number; completion: number; total: number } }
+      let aiResponse: any
+      let modelUsed = 'parallel-speed'
 
       try {
         aiResponse = await callParallel({
@@ -181,9 +158,23 @@ OUTPUT FORMAT (return ONLY this JSON):
           }
         })
         console.log('✅ Parallel AI validation succeeded')
-      } catch (error) {
-        console.error('❌ AI validation failed:', error)
-        throw new Error(`AI validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      } catch (parallelError) {
+        console.log('⚠️ Parallel AI failed, falling back:', parallelError.message)
+
+        const fallbackResponse = await callAI({
+          systemPrompt,
+          userPrompt,
+          temperature: 0.4,
+          maxTokens: 800,
+          responseFormat: 'json'
+        })
+
+        aiResponse = {
+          content: fallbackResponse.content,
+          tokensUsed: fallbackResponse.tokensUsed
+        }
+        modelUsed = fallbackResponse.modelUsed || 'fallback-ai'
+        console.log(`✅ Fallback AI validation succeeded with model: ${modelUsed}`)
       }
 
       // Parse validation result
@@ -221,9 +212,9 @@ OUTPUT FORMAT (return ONLY this JSON):
 
     // Track weak areas based on feedback type
     const updatedWeakAreas = {
-      concept_weak_areas: [...(session.concept_weak_areas || [])],
-      writing_weak_areas: [...(session.writing_weak_areas || [])],
-      exam_mistake_areas: [...(session.exam_mistake_areas || [])]
+      concept_weak_areas: [...session.concept_weak_areas],
+      writing_weak_areas: [...session.writing_weak_areas],
+      exam_mistake_areas: [...session.exam_mistake_areas]
     }
 
     if (!isCorrect) {
@@ -239,41 +230,41 @@ OUTPUT FORMAT (return ONLY this JSON):
     }
 
     // Update current step with user answer and validation
-    const updatedStep: StepData = {
+    const updatedStep = {
       ...currentStep,
       user_answer,
       validation_result: validationResult,
       answered_at: new Date().toISOString()
     }
 
-    const updatedSteps = steps.map((s) =>
+    const updatedSteps = steps.map((s: any) =>
       s.step_number === step_number ? updatedStep : s
     )
 
     // Check if session is complete
     const isLastStep = step_number === session.total_steps
-    let nextStepData: StepData | null = null
+    let nextStepData = null
     let modelUsed = 'none'
 
     if (!isLastStep) {
       // Generate next step
       const nextStepNumber = step_number + 1
-      const nextStepConfig = STEP_CONFIGS[nextStepNumber]
+      const nextStepConfig = STEP_CONFIGS[nextStepNumber as keyof typeof STEP_CONFIGS]
 
       console.log(`🎯 Generating Step ${nextStepNumber} (${nextStepConfig.type})...`)
 
       // Fetch note content for context
       const { data: note } = await supabase
-        .from('study_notes')
-        .select('title, summary, key_points, structured_content')
+        .from('generated_notes')
+        .select('title, summary, key_points, detailed_content')
         .eq('id', session.note_id)
         .single()
 
       const contentForPrompt = `
-Title: ${note?.title || 'Unknown'}
-Summary: ${note?.summary || 'N/A'}
-Key Points: ${Array.isArray(note?.key_points) ? note.key_points.join('\n') : 'N/A'}
-Detailed Content: ${typeof note?.structured_content === 'object' ? JSON.stringify(note.structured_content) : note?.structured_content || 'N/A'}
+Title: ${note.title}
+Summary: ${note.summary || 'N/A'}
+Key Points: ${Array.isArray(note.key_points) ? note.key_points.join('\n') : 'N/A'}
+Detailed Content: ${note.detailed_content || 'N/A'}
 `.trim().substring(0, 8000)
 
       const systemPrompt = `You are an expert Socratic teacher for Indian competitive exams.
@@ -299,7 +290,7 @@ Return ONLY valid JSON without markdown.`
 ${contentForPrompt}
 
 PREVIOUS STEPS CONTEXT:
-${updatedSteps.map((s) => `Step ${s.step_number}: ${s.question_text}`).join('\n')}
+${updatedSteps.map((s: any) => `Step ${s.step_number}: ${s.question_text}`).join('\n')}
 
 OUTPUT FORMAT (return ONLY this JSON):
 {
@@ -315,8 +306,40 @@ OUTPUT FORMAT (return ONLY this JSON):
   "hint": "Optional hint"
 }`
 
-      let aiResponse: { content: string; tokensUsed: { prompt: number; completion: number; total: number } }
+      let aiResponse: any
       modelUsed = 'parallel-speed'
+
+      // Build JSON schema based on question type
+      const baseSchema: any = {
+        type: "object",
+        properties: {
+          step_number: { type: "number" },
+          step_type: { type: "string" },
+          question_type: { type: "string" },
+          question_text: { type: "string" },
+          correct_answer: { type: "string" },
+          exam_tag: { type: "string" },
+          exam_context: { type: "string" },
+          hint: { type: ["string", "null"] }
+        },
+        required: ["step_number", "step_type", "question_type", "question_text", "correct_answer", "exam_tag", "exam_context"],
+        additionalProperties: false
+      }
+
+      // Add type-specific fields
+      if (nextStepConfig.question_type === 'MCQ') {
+        baseSchema.properties.options = {
+          type: "array",
+          items: { type: "string" }
+        }
+        baseSchema.required.push("options")
+      } else if (nextStepConfig.question_type === 'CONCEPT_SEQUENCING') {
+        baseSchema.properties.items_to_sequence = {
+          type: "array",
+          items: { type: "string" }
+        }
+        baseSchema.required.push("items_to_sequence")
+      }
 
       try {
         aiResponse = await callParallel({
@@ -324,12 +347,31 @@ OUTPUT FORMAT (return ONLY this JSON):
           userPrompt,
           temperature: 0.6,
           maxTokens: 1200,
-          jsonMode: true
+          jsonMode: true,
+          jsonSchema: {
+            name: "teach_me_step",
+            strict: true,
+            schema: baseSchema
+          }
         })
         console.log('✅ Parallel AI step generation succeeded')
-      } catch (error) {
-        console.error('❌ AI step generation failed:', error)
-        throw new Error(`AI step generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      } catch (parallelError) {
+        console.log('⚠️ Parallel AI failed, falling back:', parallelError.message)
+
+        const fallbackResponse = await callAI({
+          systemPrompt,
+          userPrompt,
+          temperature: 0.6,
+          maxTokens: 1200,
+          responseFormat: 'json'
+        })
+
+        aiResponse = {
+          content: fallbackResponse.content,
+          tokensUsed: fallbackResponse.tokensUsed
+        }
+        modelUsed = fallbackResponse.modelUsed || 'fallback-ai'
+        console.log(`✅ Fallback AI step generation succeeded with model: ${modelUsed}`)
       }
 
       const cleanedJson = aiResponse.content.trim()
@@ -337,16 +379,28 @@ OUTPUT FORMAT (return ONLY this JSON):
         .replace(/^```\s*/, '')
         .replace(/\s*```$/, '')
 
-      nextStepData = JSON.parse(cleanedJson)
-      if (nextStepData) {
-        updatedSteps.push(nextStepData)
-      }
+      try {
+        nextStepData = JSON.parse(cleanedJson)
 
-      console.log(`✅ Step ${nextStepNumber} generated`)
+        // Validate that nextStepData has the required structure
+        if (!nextStepData.step_number || !nextStepData.question_text) {
+          console.error('⚠️ Invalid step structure from AI:', JSON.stringify(nextStepData))
+          throw new Error('AI returned invalid step structure')
+        }
+
+        updatedSteps.push(nextStepData)
+        console.log(`✅ Step ${nextStepNumber} generated`)
+      } catch (parseError) {
+        console.error('❌ Failed to parse AI response:', parseError.message)
+        console.error('Raw AI content:', aiResponse.content)
+
+        // Don't include invalid step in response
+        nextStepData = null
+      }
     }
 
     // Update session
-    const updateData: Record<string, unknown> = {
+    const updateData: any = {
       steps: updatedSteps,
       current_step: isLastStep ? step_number : step_number + 1,
       ...updatedWeakAreas
@@ -391,7 +445,7 @@ OUTPUT FORMAT (return ONLY this JSON):
     console.error('❌ Error in validate-teach-me-answer:', error)
 
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ error: error.message }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
