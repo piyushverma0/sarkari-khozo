@@ -246,7 +246,7 @@ IMPORTANT:
       })
       console.log('✅ Parallel AI completion analysis succeeded')
     } catch (parallelError) {
-      console.log('⚠️ Parallel AI failed, falling back:', parallelError instanceof Error ? parallelError.message : 'Unknown error')
+      console.log('⚠️ Parallel AI failed, falling back:', parallelError.message)
 
       const fallbackResponse = await callAI({
         systemPrompt,
@@ -316,7 +316,7 @@ IMPORTANT:
     console.error('❌ Error in generate-teach-me-completion:', error)
 
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ error: error.message }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
