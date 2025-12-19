@@ -40,7 +40,7 @@ export async function callParallel({
   maxTokens = 2000,
   temperature = 0.3,
   jsonMode = false,
-  jsonSchema = null
+  jsonSchema
 }: CallParallelOptions): Promise<ParallelResponse> {
 
   const apiKey = Deno.env.get('PARALLEL_API_KEY');

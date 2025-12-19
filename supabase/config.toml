@@ -259,3 +259,9 @@ verify_jwt = false
 
 [functions.generate-teach-me-completion]
 verify_jwt = false
+
+[functions.generate-teach-me-session]
+verify_jwt = false
+
+[functions.validate-teach-me-answer]
+verify_jwt = false
