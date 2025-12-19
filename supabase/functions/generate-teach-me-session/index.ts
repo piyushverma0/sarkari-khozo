@@ -56,9 +56,9 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-    // Fetch note content from generated_notes table
+    // Fetch note content from study_notes table
     const { data: note, error: fetchError } = await supabase
-      .from('generated_notes')
+      .from('study_notes')
       .select('title, summary, key_points, detailed_content')
       .eq('id', note_id)
       .eq('user_id', user_id)
@@ -94,34 +94,56 @@ Detailed Content:
 ${note.detailed_content || 'N/A'}
 `.trim().substring(0, 10000)
 
-    // Generate Step 1 (Warm-up with True/False question)
-    const systemPrompt = `You are an expert Socratic teacher for Indian competitive exams. You guide students through logical thinking checkpoints.
+    console.log('🤖 Generating ALL 6 steps for complete session...')
 
-STEP 1 GUIDELINES (Warm-up):
-- Create ONE True/False question to activate prior knowledge
-- Question should be simple but fundamental to the topic
-- Tag with relevant exam (${EXAM_TYPES.join(', ')})
-- Include warm context ("Asked in [EXAM] basics" or "Common in [EXAM]")
+    // Generate all steps in one AI call for efficiency
+    const systemPrompt = `You are an expert Socratic teacher for Indian competitive exams. Generate a complete 6-step teaching session.
 
-Return ONLY valid JSON without markdown.`
+STEP REQUIREMENTS:
+Step 1 (warm_up, TRUE_FALSE): Simple true/false to activate prior knowledge
+Step 2 (core_thinking, ANSWER_WRITING): Basic application question (2-3 sentences)
+Step 3 (core_thinking, ANSWER_WRITING): Deeper analysis question (2-3 sentences)
+Step 4 (core_thinking, ANSWER_WRITING): Critical thinking question (2-3 sentences)
+Step 5 (application, MCQ): Multiple choice with 4 options testing practical application
+Step 6 (integration, CONCEPT_SEQUENCING): Arrange 4 items in correct order
 
-    const userPrompt = `Create Step 1 warm-up question for this content:
+For NON-ANSWER_WRITING questions (Steps 1, 5, 6):
+- Include "explanation" field with why the answer is correct and why wrong options are wrong
+- Explanation should be educational and exam-focused
+
+Return ONLY valid JSON array without markdown.`
+
+    const userPrompt = `Create complete 6-step session for this content:
 
 ${contentForPrompt}
 
-OUTPUT FORMAT (return ONLY this JSON):
-{
-  "step_number": 1,
-  "step_type": "warm_up",
-  "question_type": "TRUE_FALSE",
-  "question_text": "Clear true/false statement",
-  "correct_answer": "TRUE" or "FALSE",
-  "exam_tag": "Relevant exam from: ${EXAM_TYPES.join(', ')}",
-  "exam_context": "e.g., 'Asked in CBSE Class 10 basics' or 'Common in SSC CGL prelims'",
-  "hint": "Optional gentle nudge if stuck"
-}`
+OUTPUT FORMAT (return ONLY this JSON array):
+[
+  {
+    "step_number": 1,
+    "step_type": "warm_up",
+    "question_type": "TRUE_FALSE",
+    "question_text": "...",
+    "correct_answer": "TRUE" or "FALSE",
+    "exam_tag": "Relevant exam",
+    "exam_context": "Exam relevance",
+    "hint": "Optional hint",
+    "explanation": "Why this is true/false and exam relevance"
+  },
+  {
+    "step_number": 2,
+    "step_type": "core_thinking",
+    "question_type": "ANSWER_WRITING",
+    "question_text": "...",
+    "correct_answer": "Model answer",
+    "exam_tag": "Relevant exam",
+    "exam_context": "Exam relevance",
+    "hint": "Optional hint"
+  },
+  ... (steps 3-6 following same pattern)
+]`
 
-    console.log('🤖 Calling Parallel AI for Step 1 generation...')
+    console.log('🤖 Calling AI for complete session generation...')
 
     let aiResponse: any
     let modelUsed = 'parallel-speed'
@@ -131,40 +153,19 @@ OUTPUT FORMAT (return ONLY this JSON):
       aiResponse = await callParallel({
         systemPrompt,
         userPrompt,
-        temperature: 0.5,
-        maxTokens: 1000,
-        jsonMode: true,
-        jsonSchema: {
-          name: "teach_me_step_1",
-          strict: true,
-          schema: {
-            type: "object",
-            properties: {
-              step_number: { type: "number" },
-              step_type: { type: "string" },
-              question_type: { type: "string" },
-              question_text: { type: "string" },
-              correct_answer: { type: "string" },
-              exam_tag: { type: "string" },
-              exam_context: { type: "string" },
-              hint: { type: "string" }
-            },
-            required: ["step_number", "step_type", "question_type", "question_text", "correct_answer", "exam_tag", "exam_context"],
-            additionalProperties: false
-          }
-        }
+        temperature: 0.6,
+        maxTokens: 4000,
+        jsonMode: true
       })
       console.log('✅ Parallel AI succeeded')
-    } catch (parallelError: unknown) {
-      const errMsg = parallelError instanceof Error ? parallelError.message : 'Unknown error'
-      console.log('⚠️ Parallel AI failed, falling back to ai-client (Sonar Pro → GPT-4):', errMsg)
+    } catch (parallelError) {
+      console.log('⚠️ Parallel AI failed, falling back to ai-client:', parallelError.message)
 
-      // Fallback to ai-client (Sonar Pro → GPT-4)
       const fallbackResponse = await callAI({
         systemPrompt,
         userPrompt,
-        temperature: 0.5,
-        maxTokens: 1000,
+        temperature: 0.6,
+        maxTokens: 4000,
         responseFormat: 'json'
       })
 
@@ -179,26 +180,35 @@ OUTPUT FORMAT (return ONLY this JSON):
     console.log(`🎯 AI response complete (${modelUsed})`)
 
     // Parse AI response
-    let stepData
+    let allSteps: any[]
     try {
       const cleanedJson = aiResponse.content.trim()
         .replace(/^```json\s*/, '')
         .replace(/^```\s*/, '')
         .replace(/\s*```$/, '')
 
-      stepData = JSON.parse(cleanedJson)
-    } catch (parseError: unknown) {
+      allSteps = JSON.parse(cleanedJson)
+
+      if (!Array.isArray(allSteps) || allSteps.length !== 6) {
+        throw new Error(`Expected 6 steps, got ${Array.isArray(allSteps) ? allSteps.length : 'non-array'}`)
+      }
+    } catch (parseError) {
       console.error('Failed to parse JSON:', parseError)
       console.error('Response text:', aiResponse.content.substring(0, 500))
-      throw new Error(`Failed to parse AI response: ${parseError instanceof Error ? parseError.message : 'Parse error'}`)
+      throw new Error(`Failed to parse AI response: ${parseError.message}`)
     }
 
-    // Validate step data
-    if (!stepData.question_text || !stepData.correct_answer || !stepData.exam_tag) {
-      throw new Error('Invalid step data from AI')
+    // Validate all steps
+    for (const step of allSteps) {
+      if (!step.question_text || !step.correct_answer || !step.exam_tag) {
+        throw new Error(`Invalid step ${step.step_number}: missing required fields`)
+      }
     }
 
-    console.log('✅ Step 1 generated:', stepData.question_text.substring(0, 50) + '...')
+    console.log('✅ All 6 steps generated and validated')
+
+    // Extract first step for response
+    const firstStep = allSteps[0]
 
     // Create session record
     const { data: session, error: sessionError } = await supabase
@@ -208,8 +218,8 @@ OUTPUT FORMAT (return ONLY this JSON):
         note_id,
         current_step: 1,
         total_steps: 6,
-        steps: [stepData],
-        exam_tags: [stepData.exam_tag],
+        steps: allSteps,
+        exam_tags: allSteps.map(s => s.exam_tag).filter((tag, idx, arr) => arr.indexOf(tag) === idx),
         is_completed: false
       })
       .select()
@@ -229,7 +239,7 @@ OUTPUT FORMAT (return ONLY this JSON):
         note_id,
         current_step: 1,
         total_steps: 6,
-        step_data: stepData,
+        step_data: firstStep,
         model_used: modelUsed,
         session
       }),
@@ -239,11 +249,11 @@ OUTPUT FORMAT (return ONLY this JSON):
       }
     )
 
-  } catch (error: unknown) {
+  } catch (error) {
     console.error('❌ Error in generate-teach-me-session:', error)
 
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ error: error.message }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
