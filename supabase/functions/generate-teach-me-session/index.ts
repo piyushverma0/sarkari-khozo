@@ -1,10 +1,11 @@
 // Generate Teach Me Session - Create Socratic teaching sessions from study notes
-// Uses Parallel AI with fallback for exam-focused guidance
+// Uses Parallel AI with Sonar Pro → GPT-4-turbo fallback for exam-focused guidance
 // Implements step-by-step learning with 3-dimensional feedback (Concept/Writing/Exam Mistake)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
 import { callParallel } from '../_shared/parallel-client.ts'
+import { callAI } from '../_shared/ai-client.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -20,6 +21,16 @@ interface GenerateSessionRequest {
 }
 
 const EXAM_TYPES = ['CBSE', 'SSC', 'UPSC', 'Railway', 'Banking', 'State PSC', 'Teaching', 'Police', 'Defence', 'Judiciary']
+
+// Step type configurations for all 6 steps
+const STEP_CONFIGS = {
+  1: { type: 'warm_up', question_type: 'TRUE_FALSE' },
+  2: { type: 'core_thinking', question_type: 'ANSWER_WRITING' },
+  3: { type: 'core_thinking', question_type: 'ANSWER_WRITING' },
+  4: { type: 'core_thinking', question_type: 'ANSWER_WRITING' },
+  5: { type: 'application', question_type: 'MCQ' },
+  6: { type: 'integration', question_type: 'CONCEPT_SEQUENCING' }
+}
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -45,10 +56,10 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-    // Fetch note content from study_notes table
+    // Fetch note content from generated_notes table
     const { data: note, error: fetchError } = await supabase
-      .from('study_notes')
-      .select('title, summary, key_points, structured_content')
+      .from('generated_notes')
+      .select('title, summary, key_points, detailed_content')
       .eq('id', note_id)
       .eq('user_id', user_id)
       .single()
@@ -65,7 +76,7 @@ serve(async (req) => {
     console.log('📝 Note fetched:', note.title)
 
     // Check if note has content
-    if (!note.summary && !note.key_points && !note.structured_content) {
+    if (!note.summary && !note.key_points && !note.detailed_content) {
       throw new Error('Note has no content. Please ensure the note has been fully processed.')
     }
 
@@ -80,7 +91,7 @@ Key Points:
 ${Array.isArray(note.key_points) ? note.key_points.join('\n') : 'N/A'}
 
 Detailed Content:
-${typeof note.structured_content === 'object' ? JSON.stringify(note.structured_content) : note.structured_content || 'N/A'}
+${note.detailed_content || 'N/A'}
 `.trim().substring(0, 10000)
 
     // Generate Step 1 (Warm-up with True/False question)
@@ -112,9 +123,10 @@ OUTPUT FORMAT (return ONLY this JSON):
 
     console.log('🤖 Calling Parallel AI for Step 1 generation...')
 
-    let aiResponse: { content: string; tokensUsed: { prompt: number; completion: number; total: number } }
-    const modelUsed = 'parallel-speed'
+    let aiResponse: any
+    let modelUsed = 'parallel-speed'
 
+    // Try Parallel AI first
     try {
       aiResponse = await callParallel({
         systemPrompt,
@@ -143,9 +155,24 @@ OUTPUT FORMAT (return ONLY this JSON):
         }
       })
       console.log('✅ Parallel AI succeeded')
-    } catch (error) {
-      console.error('❌ Parallel AI failed:', error)
-      throw new Error(`AI generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } catch (parallelError) {
+      console.log('⚠️ Parallel AI failed, falling back to ai-client (Sonar Pro → GPT-4):', parallelError.message)
+
+      // Fallback to ai-client (Sonar Pro → GPT-4)
+      const fallbackResponse = await callAI({
+        systemPrompt,
+        userPrompt,
+        temperature: 0.5,
+        maxTokens: 1000,
+        responseFormat: 'json'
+      })
+
+      aiResponse = {
+        content: fallbackResponse.content,
+        tokensUsed: fallbackResponse.tokensUsed
+      }
+      modelUsed = fallbackResponse.modelUsed || 'fallback-ai'
+      console.log(`✅ Fallback AI succeeded with model: ${modelUsed}`)
     }
 
     console.log(`🎯 AI response complete (${modelUsed})`)
@@ -162,7 +189,7 @@ OUTPUT FORMAT (return ONLY this JSON):
     } catch (parseError) {
       console.error('Failed to parse JSON:', parseError)
       console.error('Response text:', aiResponse.content.substring(0, 500))
-      throw new Error(`Failed to parse AI response: ${parseError instanceof Error ? parseError.message : 'Parse error'}`)
+      throw new Error(`Failed to parse AI response: ${parseError.message}`)
     }
 
     // Validate step data
@@ -215,7 +242,7 @@ OUTPUT FORMAT (return ONLY this JSON):
     console.error('❌ Error in generate-teach-me-session:', error)
 
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ error: error.message }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
