@@ -155,8 +155,9 @@ OUTPUT FORMAT (return ONLY this JSON):
         }
       })
       console.log('✅ Parallel AI succeeded')
-    } catch (parallelError) {
-      console.log('⚠️ Parallel AI failed, falling back to ai-client (Sonar Pro → GPT-4):', parallelError.message)
+    } catch (parallelError: unknown) {
+      const errMsg = parallelError instanceof Error ? parallelError.message : 'Unknown error'
+      console.log('⚠️ Parallel AI failed, falling back to ai-client (Sonar Pro → GPT-4):', errMsg)
 
       // Fallback to ai-client (Sonar Pro → GPT-4)
       const fallbackResponse = await callAI({
@@ -186,10 +187,10 @@ OUTPUT FORMAT (return ONLY this JSON):
         .replace(/\s*```$/, '')
 
       stepData = JSON.parse(cleanedJson)
-    } catch (parseError) {
+    } catch (parseError: unknown) {
       console.error('Failed to parse JSON:', parseError)
       console.error('Response text:', aiResponse.content.substring(0, 500))
-      throw new Error(`Failed to parse AI response: ${parseError.message}`)
+      throw new Error(`Failed to parse AI response: ${parseError instanceof Error ? parseError.message : 'Parse error'}`)
     }
 
     // Validate step data
@@ -238,11 +239,11 @@ OUTPUT FORMAT (return ONLY this JSON):
       }
     )
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Error in generate-teach-me-session:', error)
 
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

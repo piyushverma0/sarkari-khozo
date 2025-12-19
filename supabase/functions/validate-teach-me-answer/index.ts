@@ -158,8 +158,9 @@ OUTPUT FORMAT (return ONLY this JSON):
           }
         })
         console.log('✅ Parallel AI validation succeeded')
-      } catch (parallelError) {
-        console.log('⚠️ Parallel AI failed, falling back:', parallelError.message)
+      } catch (parallelError: unknown) {
+        const errMsg = parallelError instanceof Error ? parallelError.message : 'Unknown error'
+        console.log('⚠️ Parallel AI failed, falling back:', errMsg)
 
         const fallbackResponse = await callAI({
           systemPrompt,
@@ -355,8 +356,9 @@ OUTPUT FORMAT (return ONLY this JSON):
           }
         })
         console.log('✅ Parallel AI step generation succeeded')
-      } catch (parallelError) {
-        console.log('⚠️ Parallel AI failed, falling back:', parallelError.message)
+      } catch (parallelError: unknown) {
+        const errMsg = parallelError instanceof Error ? parallelError.message : 'Unknown error'
+        console.log('⚠️ Parallel AI failed, falling back:', errMsg)
 
         const fallbackResponse = await callAI({
           systemPrompt,
@@ -390,8 +392,8 @@ OUTPUT FORMAT (return ONLY this JSON):
 
         updatedSteps.push(nextStepData)
         console.log(`✅ Step ${nextStepNumber} generated`)
-      } catch (parseError) {
-        console.error('❌ Failed to parse AI response:', parseError.message)
+    } catch (parseError: unknown) {
+      console.error('❌ Failed to parse AI response:', parseError instanceof Error ? parseError.message : 'Unknown error')
         console.error('Raw AI content:', aiResponse.content)
 
         // Don't include invalid step in response
@@ -441,11 +443,11 @@ OUTPUT FORMAT (return ONLY this JSON):
       }
     )
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Error in validate-teach-me-answer:', error)
 
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
