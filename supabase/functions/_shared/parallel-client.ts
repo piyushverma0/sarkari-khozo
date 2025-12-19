@@ -90,7 +90,7 @@ export async function callParallel({
   console.log('📝 Max tokens:', maxTokens);
 
   try {
-    const response = await fetch('https://api.parallel.ai/v1/chat/completions', {
+    const response = await fetch('https://api.parallel.ai/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
