@@ -28,7 +28,7 @@ interface ConversationTurn {
   type: string
   timestamp: string
   question_type?: string
-  validation_result?: Record<string, unknown>
+  validation_result?: any
 }
 
 interface Concept {
@@ -132,7 +132,7 @@ Analyze this student response and return ONLY valid JSON:
 
     console.log('🤖 Analyzing understanding with AI...')
 
-    let analysisResponse: { content: string }
+    let analysisResponse: any
     try {
       analysisResponse = await callParallel({
         systemPrompt: 'You are an expert educational psychologist. Return ONLY valid JSON.',
@@ -141,8 +141,8 @@ Analyze this student response and return ONLY valid JSON:
         maxTokens: 500,
         jsonMode: true
       })
-    } catch (err: unknown) {
-      console.log('⚠️ Parallel failed, using fallback:', err instanceof Error ? err.message : 'Unknown error')
+    } catch (error) {
+      console.log('⚠️ Parallel failed, using fallback:', error.message)
       const fallback = await callAI({
         systemPrompt: 'You are an expert educational psychologist. Return ONLY valid JSON.',
         userPrompt: analysisPrompt,
@@ -153,12 +153,44 @@ Analyze this student response and return ONLY valid JSON:
       analysisResponse = { content: fallback.content }
     }
 
-    const cleanedAnalysis = analysisResponse.content.trim()
-      .replace(/^```json\s*/, '')
-      .replace(/^```\s*/, '')
-      .replace(/\s*```$/, '')
+    // Parse analysis with multi-stage parsing to handle various formats
+    let analysis: any
+    try {
+      let cleanContent = analysisResponse.content.trim()
 
-    const analysis = JSON.parse(cleanedAnalysis)
+      // Step 1: Remove markdown code blocks if present
+      const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/)
+      if (jsonBlockMatch) {
+        cleanContent = jsonBlockMatch[1].trim()
+      } else {
+        // Also try removing generic code blocks
+        cleanContent = cleanContent
+          .replace(/^```\s*/, '')
+          .replace(/\s*```$/, '')
+          .trim()
+      }
+
+      // Step 2: Handle escaped JSON strings (AI sometimes returns \"{...\" instead of {...})
+      if (cleanContent.startsWith('"') && cleanContent.endsWith('"')) {
+        try {
+          // First unescape the string
+          cleanContent = JSON.parse(cleanContent)
+          console.log('✅ Unescaped analysis JSON string wrapper')
+        } catch (e) {
+          console.warn('⚠️ Failed to unescape analysis JSON string, trying as-is')
+        }
+      }
+
+      // Step 3: Parse the JSON
+      analysis = JSON.parse(cleanContent)
+
+      console.log('✅ Successfully parsed analysis response')
+
+    } catch (parseError) {
+      console.error('❌ Failed to parse analysis JSON:', parseError)
+      console.error('❌ Analysis response preview:', analysisResponse.content.substring(0, 300))
+      throw new Error(`Failed to parse analysis response: ${parseError.message}`)
+    }
 
     console.log(`📊 Analysis: ${analysis.understanding_demonstrated} understanding, ${analysis.reasoning_quality} reasoning`)
     console.log(`💡 Key insight: ${analysis.key_insight}`)
@@ -170,21 +202,21 @@ Analyze this student response and return ONLY valid JSON:
 
     let nextAction = analysis.recommended_action
     let nextQuestion = ''
-    let nextQuestionType: string | null = ''
+    let nextQuestionType = ''
     let turnType = ''
     let conceptMastered = false
     let moveToNextConcept = false
 
     // Update understanding score
-    const understandingScoreDelta: Record<string, number> = {
+    const understandingScoreDelta = {
       'none': -10,
       'partial': 5,
       'good': 15,
       'excellent': 25
-    }
+    }[analysis.understanding_demonstrated] || 0
 
     const newUnderstandingScore = Math.max(0, Math.min(100,
-      currentConcept.understanding_score + (understandingScoreDelta[analysis.understanding_demonstrated] || 0)
+      currentConcept.understanding_score + understandingScoreDelta
     ))
 
     // Check if concept is mastered
@@ -329,7 +361,7 @@ Return ONLY the question text, no JSON, no explanation.`
       message: nextQuestion,
       type: turnType,
       timestamp: new Date().toISOString(),
-      question_type: nextQuestionType || undefined
+      question_type: nextQuestionType
     }
 
     const updatedConversation = [...currentConversation, studentTurn, aiTurn]
@@ -356,7 +388,7 @@ Return ONLY the question text, no JSON, no explanation.`
     )
 
     // Prepare database update
-    const updatePayload: Record<string, unknown> = {
+    const updatePayload: any = {
       current_conversation: updatedConversation,
       concepts: updatedConcepts,
       total_conversation_turns: session.total_conversation_turns + 2,
@@ -439,11 +471,11 @@ Return ONLY the question text, no JSON, no explanation.`
       }
     )
 
-  } catch (error: unknown) {
+  } catch (error) {
     console.error('❌ Error in generate-next-socratic-question:', error)
 
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ error: error.message }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
