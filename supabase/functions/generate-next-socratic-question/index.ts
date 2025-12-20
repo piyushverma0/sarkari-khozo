@@ -141,8 +141,8 @@ Analyze this student response and return ONLY valid JSON:
         maxTokens: 500,
         jsonMode: true
       })
-    } catch (error) {
-      console.log('⚠️ Parallel failed, using fallback:', error.message)
+    } catch (error: unknown) {
+      console.log('⚠️ Parallel failed, using fallback:', error instanceof Error ? error.message : 'Unknown error')
       const fallback = await callAI({
         systemPrompt: 'You are an expert educational psychologist. Return ONLY valid JSON.',
         userPrompt: analysisPrompt,
@@ -186,10 +186,10 @@ Analyze this student response and return ONLY valid JSON:
 
       console.log('✅ Successfully parsed analysis response')
 
-    } catch (parseError) {
+    } catch (parseError: unknown) {
       console.error('❌ Failed to parse analysis JSON:', parseError)
       console.error('❌ Analysis response preview:', analysisResponse.content.substring(0, 300))
-      throw new Error(`Failed to parse analysis response: ${parseError.message}`)
+      throw new Error(`Failed to parse analysis response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`)
     }
 
     console.log(`📊 Analysis: ${analysis.understanding_demonstrated} understanding, ${analysis.reasoning_quality} reasoning`)
@@ -202,18 +202,19 @@ Analyze this student response and return ONLY valid JSON:
 
     let nextAction = analysis.recommended_action
     let nextQuestion = ''
-    let nextQuestionType = ''
+    let nextQuestionType: string = ''
     let turnType = ''
     let conceptMastered = false
     let moveToNextConcept = false
 
     // Update understanding score
-    const understandingScoreDelta = {
+    const understandingMap: Record<string, number> = {
       'none': -10,
       'partial': 5,
       'good': 15,
       'excellent': 25
-    }[analysis.understanding_demonstrated] || 0
+    }
+    const understandingScoreDelta = understandingMap[analysis.understanding_demonstrated as string] || 0
 
     const newUnderstandingScore = Math.max(0, Math.min(100,
       currentConcept.understanding_score + understandingScoreDelta
@@ -237,7 +238,7 @@ Analyze this student response and return ONLY valid JSON:
         ? `Let's move on to our next concept.`
         : `You've completed all concepts! Let me prepare your summary.`
       turnType = 'VALIDATION'
-      nextQuestionType = null
+      nextQuestionType = ''
 
     } else if (nextAction === 'SCAFFOLD' || analysis.needs_scaffolding) {
       // Provide scaffolding for struggling students
@@ -471,11 +472,11 @@ Return ONLY the question text, no JSON, no explanation.`
       }
     )
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Error in generate-next-socratic-question:', error)
 
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
