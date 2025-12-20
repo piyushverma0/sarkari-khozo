@@ -135,19 +135,33 @@ Return ONLY a JSON array. No markdown, no explanations.`,
   try {
     let cleanContent = response.content.trim();
 
-    // Parse JSON
+    // Remove markdown code blocks if present
     const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/);
     if (jsonBlockMatch) {
-      articles = JSON.parse(jsonBlockMatch[1]);
-    } else {
-      const arrayMatch = cleanContent.match(/\[[\s\S]*\]/);
-      if (arrayMatch) {
-        articles = JSON.parse(arrayMatch[0]);
+      cleanContent = jsonBlockMatch[1].trim();
+    }
+
+    // Handle escaped JSON strings (AI sometimes returns \"[...\" instead of [...])
+    if (cleanContent.startsWith('"') && cleanContent.endsWith('"')) {
+      try {
+        // First unescape the string
+        cleanContent = JSON.parse(cleanContent);
+      } catch (e) {
+        console.warn(`⚠️ [${category}] Failed to unescape JSON string, trying as-is`);
       }
     }
 
+    // Extract JSON array
+    const arrayMatch = cleanContent.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+      articles = JSON.parse(arrayMatch[0]);
+    } else {
+      // Try parsing the whole content
+      articles = JSON.parse(cleanContent);
+    }
+
     if (!Array.isArray(articles)) {
-      console.warn(`⚠️ [${category}] Not an array`);
+      console.warn(`⚠️ [${category}] Not an array, got: ${typeof articles}`);
       return [];
     }
 
@@ -159,6 +173,7 @@ Return ONLY a JSON array. No markdown, no explanations.`,
 
   } catch (error) {
     console.error(`❌ [${category}] Parse error:`, error);
+    console.error(`❌ [${category}] Content preview:`, response.content.substring(0, 200));
     return [];
   }
 }
