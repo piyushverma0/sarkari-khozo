@@ -49,7 +49,7 @@ serve(async (req) => {
     // Fetch note content
     const { data: note, error: fetchError } = await supabase
       .from('study_notes')
-      .select('title, summary, key_points, structured_content')
+      .select('title, summary, key_points, detailed_content')
       .eq('id', note_id)
       .eq('user_id', user_id)
       .single()
@@ -66,7 +66,7 @@ serve(async (req) => {
     console.log('📝 Note fetched:', note.title)
 
     // Check if note has content
-    if (!note.summary && !note.key_points && !note.structured_content) {
+    if (!note.summary && !note.key_points && !note.detailed_content) {
       throw new Error('Note has no content. Please ensure the note has been fully processed.')
     }
 
@@ -80,8 +80,8 @@ ${note.summary || 'N/A'}
 Key Points:
 ${Array.isArray(note.key_points) ? note.key_points.join('\n') : 'N/A'}
 
-Structured Content:
-${note.structured_content ? JSON.stringify(note.structured_content).substring(0, 5000) : 'N/A'}
+Detailed Content:
+${note.detailed_content || 'N/A'}
 `.trim().substring(0, 12000)
 
     console.log('🤖 Generating 9 learning concepts with AI...')
@@ -134,7 +134,7 @@ OUTPUT FORMAT (return ONLY this JSON array):
   ... (concepts 3-9 following the framework)
 ]`
 
-    let aiResponse: { content: string }
+    let aiResponse: any
     let modelUsed = 'parallel-speed'
 
     // Try Parallel AI first
@@ -147,8 +147,8 @@ OUTPUT FORMAT (return ONLY this JSON array):
         jsonMode: true
       })
       console.log('✅ Parallel AI succeeded')
-    } catch (parallelError: unknown) {
-      console.log('⚠️ Parallel AI failed, falling back to ai-client:', parallelError instanceof Error ? parallelError.message : 'Unknown error')
+    } catch (parallelError) {
+      console.log('⚠️ Parallel AI failed, falling back to ai-client:', parallelError.message)
 
       const fallbackResponse = await callAI({
         systemPrompt,
@@ -159,7 +159,8 @@ OUTPUT FORMAT (return ONLY this JSON array):
       })
 
       aiResponse = {
-        content: fallbackResponse.content
+        content: fallbackResponse.content,
+        tokensUsed: fallbackResponse.tokensUsed
       }
       modelUsed = fallbackResponse.modelUsed || 'fallback-ai'
       console.log(`✅ Fallback AI succeeded with model: ${modelUsed}`)
@@ -167,30 +168,63 @@ OUTPUT FORMAT (return ONLY this JSON array):
 
     console.log(`🎯 AI response complete (${modelUsed})`)
 
-    // Parse AI response
-    let conceptsData: Array<{
-      concept_number: number
-      concept_name: string
-      concept_difficulty: string
-      opening_question: string
-      exam_tag: string
-      exam_context?: string
-    }>
+    // Parse AI response with multi-stage parsing to handle various formats
+    let conceptsData: any[]
     try {
-      const cleanedJson = aiResponse.content.trim()
-        .replace(/^```json\s*/, '')
-        .replace(/^```\s*/, '')
-        .replace(/\s*```$/, '')
+      let cleanContent = aiResponse.content.trim()
 
-      conceptsData = JSON.parse(cleanedJson)
-
-      if (!Array.isArray(conceptsData) || conceptsData.length !== 9) {
-        throw new Error(`Expected 9 concepts, got ${Array.isArray(conceptsData) ? conceptsData.length : 'non-array'}`)
+      // Step 1: Remove markdown code blocks if present
+      const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/)
+      if (jsonBlockMatch) {
+        cleanContent = jsonBlockMatch[1].trim()
+      } else {
+        // Also try removing generic code blocks
+        cleanContent = cleanContent
+          .replace(/^```\s*/, '')
+          .replace(/\s*```$/, '')
+          .trim()
       }
-    } catch (parseError: unknown) {
-      console.error('Failed to parse JSON:', parseError)
-      console.error('Response text:', aiResponse.content.substring(0, 500))
-      throw new Error(`Failed to parse AI response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`)
+
+      // Step 2: Handle escaped JSON strings (AI sometimes returns \"[...\" instead of [...])
+      if (cleanContent.startsWith('"') && cleanContent.endsWith('"')) {
+        try {
+          // First unescape the string
+          cleanContent = JSON.parse(cleanContent)
+          console.log('✅ Unescaped JSON string wrapper')
+        } catch (e) {
+          console.warn('⚠️ Failed to unescape JSON string, trying as-is')
+        }
+      }
+
+      // Step 3: Extract JSON array using regex as fallback
+      const arrayMatch = cleanContent.match(/\[[\s\S]*\]/)
+      if (arrayMatch) {
+        conceptsData = JSON.parse(arrayMatch[0])
+      } else {
+        // Try parsing the whole content
+        conceptsData = JSON.parse(cleanContent)
+      }
+
+      // Step 4: Validate array
+      if (!Array.isArray(conceptsData)) {
+        throw new Error(`Expected array, got ${typeof conceptsData}`)
+      }
+
+      if (conceptsData.length !== 9) {
+        console.warn(`⚠️ Expected 9 concepts, got ${conceptsData.length}. Using what we have.`)
+        // Only throw if we got significantly fewer concepts
+        if (conceptsData.length < 5) {
+          throw new Error(`Too few concepts: got ${conceptsData.length}, need at least 5`)
+        }
+      }
+
+      console.log(`✅ Successfully parsed ${conceptsData.length} concepts`)
+
+    } catch (parseError) {
+      console.error('❌ Failed to parse JSON:', parseError)
+      console.error('❌ Response preview (first 500 chars):', aiResponse.content.substring(0, 500))
+      console.error('❌ Response preview (last 200 chars):', aiResponse.content.substring(Math.max(0, aiResponse.content.length - 200)))
+      throw new Error(`Failed to parse AI response: ${parseError.message}`)
     }
 
     // Validate all concepts
@@ -276,11 +310,11 @@ OUTPUT FORMAT (return ONLY this JSON array):
       }
     )
 
-  } catch (error: unknown) {
+  } catch (error) {
     console.error('❌ Error in generate-socratic-concepts:', error)
 
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ error: error.message }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
