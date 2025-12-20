@@ -11,14 +11,14 @@ const corsHeaders = {
 const CATEGORY_PROMPTS = {
   'current-affairs': `Search for CURRENT AFFAIRS news from last 24 hours in India:
 - Supreme Court rulings, High Court judgments
-- Parliament bills, committee reports
+- Parliament bills, committee reports, use sansad.in
 - RBI monetary policy, economic data releases
 - Major sports victories (cricket, Olympics, Asian Games)
 - Scientific breakthroughs from ISRO, DRDO, IIT/IISc
 - Environmental issues, climate policy
 - Social movements, cultural events
 
-Find 5-7 articles. Sources: The Hindu, Indian Express, PIB, PTI, Livemint`,
+Find 5-7 articles. Sources: The Hindu, Indian Express, PIB, PTI, Livemint, BBC Hindi`,
 
   'international': `Search for INTERNATIONAL news from last 3 days affecting India:
 - G20, BRICS, WTO summits/meetings
@@ -28,7 +28,7 @@ Find 5-7 articles. Sources: The Hindu, Indian Express, PIB, PTI, Livemint`,
 - International sports where India participated
 - Climate conferences, UN activities
 
-Find 4-6 articles. Sources: MEA, The Hindu International, Reuters India, BBC`,
+Find 4-6 articles. Sources: MEA, The Economics, The Hindu International, Reuters India, BBC`,
 
   'diplomatic': `Search for DIPLOMATIC news from last 3 days:
 - State visits (PM/President/Foreign Minister)
@@ -38,7 +38,7 @@ Find 4-6 articles. Sources: MEA, The Hindu International, Reuters India, BBC`,
 - Consular issues, visa policy changes
 - Cultural diplomacy, soft power
 
-Find 4-5 articles. Sources: Ministry of External Affairs, The Diplomat, PIB`,
+Find 4-5 articles. Sources: Ministry of External Affairs, Sansad, LokSabha, RajyaSabha, The Diplomat, PIB`,
 
   'education': `Search for EDUCATION news from last 7 days:
 - NIRF rankings released
@@ -49,7 +49,7 @@ Find 4-5 articles. Sources: Ministry of External Affairs, The Diplomat, PIB`,
 - University admissions, entrance exams
 - EdTech regulations
 
-Find 4-5 articles. Sources: UGC, AICTE, Education Ministry, university portals`,
+Find 4-5 articles. Sources: UGC, AICTE, Sarkari Result, Education Ministry, national and international university portals`,
 
   'exams': `Search for EXAM notifications from last 7 days:
 - UPSC exam dates, admit cards, results
@@ -59,7 +59,7 @@ Find 4-5 articles. Sources: UGC, AICTE, Education Ministry, university portals`,
 - State PSC notifications
 - Teaching exams (CTET, TET, NET/SET)
 
-Find 5-7 articles. Sources: Sarkari Result, Jagran Josh, official websites`,
+Find 5-7 articles. Sources: Sarkari Result, Jagran Josh, official government websites`,
 
   'jobs': `Search for JOB notifications from last 7 days:
 - PSU recruitment (NTPC, IOCL, ONGC, etc.)
@@ -108,23 +108,28 @@ async function discoverCategory(
 
 ${categoryPrompt}
 
-IMPORTANT: Return ONLY ${maxArticles} high-quality, recent articles. Focus on quality over quantity.
+CRITICAL: You MUST return a valid JSON array. No text, no explanations, no markdown - ONLY the JSON array.
 
-Return a JSON array with:
-- url: Full article URL
-- headline: Article headline
-- published_date: ISO format (YYYY-MM-DD)
-- source_name: Publication name
+Format each article EXACTLY like this:
+[
+  {
+    "url": "https://example.com/article",
+    "headline": "Article title here",
+    "published_date": "2025-12-20",
+    "source_name": "Source Name"
+  }
+]
 
-ONLY return the JSON array, nothing else.`;
+Find ${maxArticles} recent, high-quality articles.
+Return ONLY the JSON array starting with [ and ending with ].`;
 
   const response = await callParallel({
-    systemPrompt: `You are a news discovery assistant for Indian ${category} content.
-Use web search to find recent, relevant articles.
-Return ONLY a JSON array. No markdown, no explanations.`,
+    systemPrompt: `You are a JSON-only API. You MUST return ONLY valid JSON arrays. Never return text, explanations, or markdown.
+Task: Find Indian ${category} news articles using web search.
+Output format: JSON array of objects with url, headline, published_date, source_name.`,
     userPrompt: fullPrompt,
     enableWebSearch: true,
-    maxTokens: 2000,
+    maxTokens: 3000,
     temperature: 0.1,
     jsonMode: true
   });
@@ -135,45 +140,78 @@ Return ONLY a JSON array. No markdown, no explanations.`,
   try {
     let cleanContent = response.content.trim();
 
-    // Remove markdown code blocks if present
+    // Step 1: Remove markdown code blocks if present
     const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/);
     if (jsonBlockMatch) {
       cleanContent = jsonBlockMatch[1].trim();
+      console.log(`✅ [${category}] Removed markdown code block`);
+    } else {
+      // Also try removing generic code blocks
+      cleanContent = cleanContent
+        .replace(/^```\s*/, '')
+        .replace(/\s*```$/, '')
+        .trim();
     }
 
-    // Handle escaped JSON strings (AI sometimes returns \"[...\" instead of [...])
+    // Step 2: Handle escaped JSON strings (AI sometimes returns \"[...\" instead of [...])
     if (cleanContent.startsWith('"') && cleanContent.endsWith('"')) {
       try {
         // First unescape the string
         cleanContent = JSON.parse(cleanContent);
+        console.log(`✅ [${category}] Unescaped JSON string wrapper`);
       } catch (e) {
         console.warn(`⚠️ [${category}] Failed to unescape JSON string, trying as-is`);
       }
     }
 
-    // Extract JSON array
-    const arrayMatch = cleanContent.match(/\[[\s\S]*\]/);
-    if (arrayMatch) {
-      articles = JSON.parse(arrayMatch[0]);
-    } else {
-      // Try parsing the whole content
-      articles = JSON.parse(cleanContent);
-    }
-
-    if (!Array.isArray(articles)) {
-      console.warn(`⚠️ [${category}] Not an array, got: ${typeof articles}`);
+    // Step 3: Check if content looks like JSON at all
+    if (!cleanContent.includes('[') && !cleanContent.includes('{')) {
+      console.error(`❌ [${category}] Response contains no JSON. Content starts with: "${cleanContent.substring(0, 100)}"`);
       return [];
     }
 
-    // Add category to each article
-    articles = articles.map(a => ({ ...a, category }));
+    // Step 4: Extract JSON array using regex
+    const arrayMatch = cleanContent.match(/\[[\s\S]*?\]/);
+    if (arrayMatch) {
+      const jsonStr = arrayMatch[0];
+      console.log(`✅ [${category}] Extracted array from position ${cleanContent.indexOf(jsonStr)}`);
+      articles = JSON.parse(jsonStr);
+    } else {
+      // Try parsing the whole content as last resort
+      console.log(`⚠️ [${category}] No array pattern found, trying direct parse`);
+      articles = JSON.parse(cleanContent);
+    }
 
-    console.log(`✅ [${category}] Found ${articles.length} articles`);
-    return articles;
+    // Step 5: Validate array
+    if (!Array.isArray(articles)) {
+      console.error(`❌ [${category}] Parsed result is not an array, got: ${typeof articles}`);
+      return [];
+    }
+
+    if (articles.length === 0) {
+      console.warn(`⚠️ [${category}] Parsed array is empty`);
+      return [];
+    }
+
+    // Step 6: Validate article structure
+    const validArticles = articles.filter(a => {
+      if (!a.url || !a.headline) {
+        console.warn(`⚠️ [${category}] Skipping invalid article:`, a);
+        return false;
+      }
+      return true;
+    });
+
+    // Add category to each article
+    const finalArticles = validArticles.map(a => ({ ...a, category }));
+
+    console.log(`✅ [${category}] Found ${finalArticles.length} valid articles`);
+    return finalArticles;
 
   } catch (error) {
-    console.error(`❌ [${category}] Parse error:`, error);
-    console.error(`❌ [${category}] Content preview:`, response.content.substring(0, 200));
+    console.error(`❌ [${category}] Parse error:`, error.message);
+    console.error(`❌ [${category}] Content preview (first 300 chars):`, response.content.substring(0, 300));
+    console.error(`❌ [${category}] Content preview (last 100 chars):`, response.content.substring(Math.max(0, response.content.length - 100)));
     return [];
   }
 }
