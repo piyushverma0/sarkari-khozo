@@ -149,8 +149,8 @@ OUTPUT FORMAT (return ONLY this JSON array):
         jsonMode: true
       })
       console.log('✅ Parallel AI succeeded')
-    } catch (parallelError) {
-      console.log('⚠️ Parallel AI failed, falling back to ai-client:', parallelError.message)
+    } catch (parallelError: unknown) {
+      console.log('⚠️ Parallel AI failed, falling back to ai-client:', parallelError instanceof Error ? parallelError.message : 'Unknown error')
 
       const fallbackResponse = await callAI({
         systemPrompt,
@@ -222,11 +222,11 @@ OUTPUT FORMAT (return ONLY this JSON array):
 
       console.log(`✅ Successfully parsed ${conceptsData.length} concepts`)
 
-    } catch (parseError) {
+    } catch (parseError: unknown) {
       console.error('❌ Failed to parse JSON:', parseError)
       console.error('❌ Response preview (first 500 chars):', aiResponse.content.substring(0, 500))
       console.error('❌ Response preview (last 200 chars):', aiResponse.content.substring(Math.max(0, aiResponse.content.length - 200)))
-      throw new Error(`Failed to parse AI response: ${parseError.message}`)
+      throw new Error(`Failed to parse AI response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`)
     }
 
     // Validate all concepts
@@ -312,11 +312,11 @@ OUTPUT FORMAT (return ONLY this JSON array):
       }
     )
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Error in generate-socratic-concepts:', error)
 
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
