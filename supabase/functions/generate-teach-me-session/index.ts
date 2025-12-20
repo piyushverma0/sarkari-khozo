@@ -158,8 +158,8 @@ OUTPUT FORMAT (return ONLY this JSON array):
         jsonMode: true
       })
       console.log('✅ Parallel AI succeeded')
-    } catch (parallelError) {
-      console.log('⚠️ Parallel AI failed, falling back to ai-client:', parallelError.message)
+    } catch (parallelError: unknown) {
+      console.log('⚠️ Parallel AI failed, falling back to ai-client:', parallelError instanceof Error ? parallelError.message : 'Unknown error')
 
       const fallbackResponse = await callAI({
         systemPrompt,
@@ -192,10 +192,10 @@ OUTPUT FORMAT (return ONLY this JSON array):
       if (!Array.isArray(allSteps) || allSteps.length !== 6) {
         throw new Error(`Expected 6 steps, got ${Array.isArray(allSteps) ? allSteps.length : 'non-array'}`)
       }
-    } catch (parseError) {
+    } catch (parseError: unknown) {
       console.error('Failed to parse JSON:', parseError)
       console.error('Response text:', aiResponse.content.substring(0, 500))
-      throw new Error(`Failed to parse AI response: ${parseError.message}`)
+      throw new Error(`Failed to parse AI response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`)
     }
 
     // Validate all steps
@@ -249,11 +249,11 @@ OUTPUT FORMAT (return ONLY this JSON array):
       }
     )
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Error in generate-teach-me-session:', error)
 
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

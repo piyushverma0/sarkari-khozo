@@ -2007,57 +2007,93 @@ export type Database = {
       }
       teach_me_sessions: {
         Row: {
+          average_turns_per_concept: number | null
           completed_at: string | null
           concept_weak_areas: string[]
+          concepts: Json | null
+          concepts_mastered: number | null
+          concepts_skipped: string[] | null
+          concepts_to_revisit: string[] | null
           created_at: string
+          current_concept_index: number | null
+          current_conversation: Json | null
           current_step: number
           exam_mistake_areas: string[]
           exam_risk_areas: Json | null
           exam_tags: string[]
           id: string
           is_completed: boolean
+          misconceptions: Json | null
           note_id: string
           performance_breakdown: Json | null
           recommended_revision: Json | null
           steps: Json
+          student_understanding_level: string | null
+          teaching_mode: string | null
+          total_concepts: number | null
+          total_conversation_turns: number | null
           total_steps: number
           updated_at: string
           user_id: string
           writing_weak_areas: string[]
         }
         Insert: {
+          average_turns_per_concept?: number | null
           completed_at?: string | null
           concept_weak_areas?: string[]
+          concepts?: Json | null
+          concepts_mastered?: number | null
+          concepts_skipped?: string[] | null
+          concepts_to_revisit?: string[] | null
           created_at?: string
+          current_concept_index?: number | null
+          current_conversation?: Json | null
           current_step?: number
           exam_mistake_areas?: string[]
           exam_risk_areas?: Json | null
           exam_tags?: string[]
           id?: string
           is_completed?: boolean
+          misconceptions?: Json | null
           note_id: string
           performance_breakdown?: Json | null
           recommended_revision?: Json | null
           steps?: Json
+          student_understanding_level?: string | null
+          teaching_mode?: string | null
+          total_concepts?: number | null
+          total_conversation_turns?: number | null
           total_steps?: number
           updated_at?: string
           user_id: string
           writing_weak_areas?: string[]
         }
         Update: {
+          average_turns_per_concept?: number | null
           completed_at?: string | null
           concept_weak_areas?: string[]
+          concepts?: Json | null
+          concepts_mastered?: number | null
+          concepts_skipped?: string[] | null
+          concepts_to_revisit?: string[] | null
           created_at?: string
+          current_concept_index?: number | null
+          current_conversation?: Json | null
           current_step?: number
           exam_mistake_areas?: string[]
           exam_risk_areas?: Json | null
           exam_tags?: string[]
           id?: string
           is_completed?: boolean
+          misconceptions?: Json | null
           note_id?: string
           performance_breakdown?: Json | null
           recommended_revision?: Json | null
           steps?: Json
+          student_understanding_level?: string | null
+          teaching_mode?: string | null
+          total_concepts?: number | null
+          total_conversation_turns?: number | null
           total_steps?: number
           updated_at?: string
           user_id?: string
@@ -2587,6 +2623,10 @@ export type Database = {
       is_note_owner: {
         Args: { p_note_id: string; p_user_id: string }
         Returns: boolean
+      }
+      migrate_session_to_socratic: {
+        Args: { session_id: string }
+        Returns: undefined
       }
       notify_approaching_deadlines: { Args: never; Returns: undefined }
       reset_daily_notification_counts: { Args: never; Returns: undefined }
