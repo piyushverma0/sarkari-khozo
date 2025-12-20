@@ -265,3 +265,9 @@ verify_jwt = false
 
 [functions.validate-teach-me-answer]
 verify_jwt = false
+
+[functions.generate-next-socratic-question]
+verify_jwt = false
+
+[functions.generate-socratic-concepts]
+verify_jwt = false
