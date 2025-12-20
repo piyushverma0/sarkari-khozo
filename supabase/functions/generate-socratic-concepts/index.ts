@@ -49,7 +49,7 @@ serve(async (req) => {
     // Fetch note content
     const { data: note, error: fetchError } = await supabase
       .from('study_notes')
-      .select('title, summary, key_points, detailed_content')
+      .select('title, summary, key_points, extracted_text, raw_content')
       .eq('id', note_id)
       .eq('user_id', user_id)
       .single()
@@ -66,11 +66,13 @@ serve(async (req) => {
     console.log('📝 Note fetched:', note.title)
 
     // Check if note has content
-    if (!note.summary && !note.key_points && !note.detailed_content) {
+    if (!note.summary && !note.key_points && !note.extracted_text && !note.raw_content) {
       throw new Error('Note has no content. Please ensure the note has been fully processed.')
     }
 
-    // Build content for AI prompt
+    // Build content for AI prompt (prioritize extracted_text, fall back to raw_content)
+    const detailedContent = note.extracted_text || note.raw_content || 'N/A'
+
     const contentForPrompt = `
 Title: ${note.title}
 
@@ -81,7 +83,7 @@ Key Points:
 ${Array.isArray(note.key_points) ? note.key_points.join('\n') : 'N/A'}
 
 Detailed Content:
-${note.detailed_content || 'N/A'}
+${detailedContent}
 `.trim().substring(0, 12000)
 
     console.log('🤖 Generating 9 learning concepts with AI...')
@@ -147,8 +149,8 @@ OUTPUT FORMAT (return ONLY this JSON array):
         jsonMode: true
       })
       console.log('✅ Parallel AI succeeded')
-    } catch (parallelError: unknown) {
-      console.log('⚠️ Parallel AI failed, falling back to ai-client:', parallelError instanceof Error ? parallelError.message : 'Unknown error')
+    } catch (parallelError) {
+      console.log('⚠️ Parallel AI failed, falling back to ai-client:', parallelError.message)
 
       const fallbackResponse = await callAI({
         systemPrompt,
@@ -220,11 +222,11 @@ OUTPUT FORMAT (return ONLY this JSON array):
 
       console.log(`✅ Successfully parsed ${conceptsData.length} concepts`)
 
-    } catch (parseError: unknown) {
+    } catch (parseError) {
       console.error('❌ Failed to parse JSON:', parseError)
       console.error('❌ Response preview (first 500 chars):', aiResponse.content.substring(0, 500))
       console.error('❌ Response preview (last 200 chars):', aiResponse.content.substring(Math.max(0, aiResponse.content.length - 200)))
-      throw new Error(`Failed to parse AI response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`)
+      throw new Error(`Failed to parse AI response: ${parseError.message}`)
     }
 
     // Validate all concepts
@@ -310,11 +312,11 @@ OUTPUT FORMAT (return ONLY this JSON array):
       }
     )
 
-  } catch (error: unknown) {
+  } catch (error) {
     console.error('❌ Error in generate-socratic-concepts:', error)
 
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ error: error.message }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
