@@ -139,24 +139,25 @@ Output format: JSON array of objects with url, headline, published_date, source_
   let articles = [];
   try {
     let cleanContent = response.content.trim();
+    console.log(`📝 [${category}] Raw response length: ${cleanContent.length}`);
 
     // Step 1: Remove markdown code blocks if present
     const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/);
     if (jsonBlockMatch) {
       cleanContent = jsonBlockMatch[1].trim();
-      console.log(`✅ [${category}] Removed markdown code block`);
+      console.log(`✅ [${category}] Extracted JSON from json code block`);
     } else {
-      // Also try removing generic code blocks
-      cleanContent = cleanContent
-        .replace(/^```\s*/, '')
-        .replace(/\s*```$/, '')
-        .trim();
+      // Try generic code blocks
+      const genericBlockMatch = cleanContent.match(/```\s*([\s\S]*?)\s*```/);
+      if (genericBlockMatch) {
+        cleanContent = genericBlockMatch[1].trim();
+        console.log(`✅ [${category}] Extracted JSON from generic code block`);
+      }
     }
 
     // Step 2: Handle escaped JSON strings (AI sometimes returns \"[...\" instead of [...])
     if (cleanContent.startsWith('"') && cleanContent.endsWith('"')) {
       try {
-        // First unescape the string
         cleanContent = JSON.parse(cleanContent);
         console.log(`✅ [${category}] Unescaped JSON string wrapper`);
       } catch (e) {
@@ -164,25 +165,33 @@ Output format: JSON array of objects with url, headline, published_date, source_
       }
     }
 
-    // Step 3: Check if content looks like JSON at all
+    // Step 3: Try to extract JSON array from prose text (GREEDY regex - critical fix)
+    if (!cleanContent.startsWith('[')) {
+      const arrayMatch = cleanContent.match(/\[[\s\S]*\]/);  // Greedy - captures full array
+      if (arrayMatch) {
+        cleanContent = arrayMatch[0];
+        console.log(`✅ [${category}] Extracted JSON array from prose text`);
+      }
+    }
+
+    // Step 4: Check if content looks like JSON at all
     if (!cleanContent.includes('[') && !cleanContent.includes('{')) {
       console.error(`❌ [${category}] Response contains no JSON. Content starts with: "${cleanContent.substring(0, 100)}"`);
       return [];
     }
 
-    // Step 4: Extract JSON array using regex
-    const arrayMatch = cleanContent.match(/\[[\s\S]*?\]/);
-    if (arrayMatch) {
-      const jsonStr = arrayMatch[0];
-      console.log(`✅ [${category}] Extracted array from position ${cleanContent.indexOf(jsonStr)}`);
-      articles = JSON.parse(jsonStr);
-    } else {
-      // Try parsing the whole content as last resort
-      console.log(`⚠️ [${category}] No array pattern found, trying direct parse`);
-      articles = JSON.parse(cleanContent);
-    }
+    // Step 5: Clean up common JSON formatting issues
+    cleanContent = cleanContent
+      .replace(/,\s*]/g, ']')   // Remove trailing commas before ]
+      .replace(/,\s*}/g, '}')   // Remove trailing commas before }
+      .replace(/'/g, '"')       // Replace single quotes with double quotes
+      .trim();
 
-    // Step 5: Validate array
+    // Step 6: Parse the JSON
+    articles = JSON.parse(cleanContent);
+    console.log(`✅ [${category}] Successfully parsed JSON`);
+
+    // Step 7: Validate array
     if (!Array.isArray(articles)) {
       console.error(`❌ [${category}] Parsed result is not an array, got: ${typeof articles}`);
       return [];
@@ -193,7 +202,7 @@ Output format: JSON array of objects with url, headline, published_date, source_
       return [];
     }
 
-    // Step 6: Validate article structure
+    // Step 8: Validate article structure
     const validArticles = articles.filter(a => {
       if (!a.url || !a.headline) {
         console.warn(`⚠️ [${category}] Skipping invalid article:`, a);
@@ -209,10 +218,10 @@ Output format: JSON array of objects with url, headline, published_date, source_
     return finalArticles;
 
   } catch (error: unknown) {
-    const errMsg = error instanceof Error ? error.message : String(error)
+    const errMsg = error instanceof Error ? error.message : String(error);
     console.error(`❌ [${category}] Parse error:`, errMsg);
-    console.error(`❌ [${category}] Content preview (first 300 chars):`, response.content.substring(0, 300));
-    console.error(`❌ [${category}] Content preview (last 100 chars):`, response.content.substring(Math.max(0, response.content.length - 100)));
+    console.error(`❌ [${category}] Content preview (first 300):`, response.content.substring(0, 300));
+    console.error(`❌ [${category}] Content preview (last 200):`, response.content.substring(Math.max(0, response.content.length - 200)));
     return [];
   }
 }
