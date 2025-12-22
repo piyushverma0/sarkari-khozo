@@ -157,39 +157,68 @@ Analyze this student response and return ONLY valid JSON:
     let analysis: any
     try {
       let cleanContent = analysisResponse.content.trim()
+      console.log('📝 Raw analysis response length:', cleanContent.length)
 
       // Step 1: Remove markdown code blocks if present
       const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/)
       if (jsonBlockMatch) {
         cleanContent = jsonBlockMatch[1].trim()
+        console.log('✅ Extracted JSON from ```json code block')
       } else {
-        // Also try removing generic code blocks
-        cleanContent = cleanContent
-          .replace(/^```\s*/, '')
-          .replace(/\s*```$/, '')
-          .trim()
-      }
-
-      // Step 2: Handle escaped JSON strings (AI sometimes returns \"{...\" instead of {...})
-      if (cleanContent.startsWith('"') && cleanContent.endsWith('"')) {
-        try {
-          // First unescape the string
-          cleanContent = JSON.parse(cleanContent)
-          console.log('✅ Unescaped analysis JSON string wrapper')
-        } catch (e) {
-          console.warn('⚠️ Failed to unescape analysis JSON string, trying as-is')
+        // Try generic code blocks
+        const genericBlockMatch = cleanContent.match(/```\s*([\s\S]*?)\s*```/)
+        if (genericBlockMatch) {
+          cleanContent = genericBlockMatch[1].trim()
+          console.log('✅ Extracted JSON from generic code block')
         }
       }
 
-      // Step 3: Parse the JSON
-      analysis = JSON.parse(cleanContent)
+      // Step 2: Try to extract JSON object from prose text
+      if (!cleanContent.startsWith('{')) {
+        const jsonObjectMatch = cleanContent.match(/\{[\s\S]*\}/)
+        if (jsonObjectMatch) {
+          cleanContent = jsonObjectMatch[0]
+          console.log('✅ Extracted JSON object from prose text')
+        }
+      }
 
+      // Step 3: Handle escaped JSON strings (AI sometimes returns \"{...\" instead of {...})
+      if (cleanContent.startsWith('"') && cleanContent.endsWith('"')) {
+        try {
+          cleanContent = JSON.parse(cleanContent)
+          console.log('✅ Unescaped JSON string wrapper')
+        } catch (e) {
+          console.warn('⚠️ Failed to unescape JSON string, trying as-is')
+        }
+      }
+
+      // Step 4: Clean up common JSON formatting issues
+      cleanContent = cleanContent
+        .replace(/,\s*}/g, '}')  // Remove trailing commas before }
+        .replace(/,\s*]/g, ']')  // Remove trailing commas before ]
+        .trim()
+
+      // Step 5: Parse the JSON
+      analysis = JSON.parse(cleanContent)
       console.log('✅ Successfully parsed analysis response')
 
     } catch (parseError: unknown) {
-      console.error('❌ Failed to parse analysis JSON:', parseError)
-      console.error('❌ Analysis response preview:', analysisResponse.content.substring(0, 300))
-      throw new Error(`Failed to parse analysis response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`)
+      console.error('❌ Failed to parse analysis JSON:', parseError instanceof Error ? parseError.message : String(parseError))
+      console.error('❌ Response preview (first 300):', analysisResponse.content.substring(0, 300))
+      console.error('❌ Response preview (last 200):', analysisResponse.content.substring(Math.max(0, analysisResponse.content.length - 200)))
+      
+      // Step 6: Fallback to default analysis to prevent crashes
+      console.log('⚠️ Using default analysis fallback')
+      analysis = {
+        understanding_demonstrated: 'partial',
+        reasoning_quality: 'moderate',
+        misconceptions_detected: [],
+        needs_probing: true,
+        needs_scaffolding: false,
+        concept_grasped: false,
+        key_insight: 'Unable to parse AI response - defaulting to probing',
+        recommended_action: 'PROBE'
+      }
     }
 
     console.log(`📊 Analysis: ${analysis.understanding_demonstrated} understanding, ${analysis.reasoning_quality} reasoning`)
