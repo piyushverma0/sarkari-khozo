@@ -208,8 +208,9 @@ Output format: JSON array of objects with url, headline, published_date, source_
     console.log(`✅ [${category}] Found ${finalArticles.length} valid articles`);
     return finalArticles;
 
-  } catch (error) {
-    console.error(`❌ [${category}] Parse error:`, error.message);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error)
+    console.error(`❌ [${category}] Parse error:`, errMsg);
     console.error(`❌ [${category}] Content preview (first 300 chars):`, response.content.substring(0, 300));
     console.error(`❌ [${category}] Content preview (last 100 chars):`, response.content.substring(Math.max(0, response.content.length - 100)));
     return [];
