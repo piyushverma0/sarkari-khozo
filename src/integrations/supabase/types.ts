@@ -686,6 +686,124 @@ export type Database = {
           },
         ]
       }
+      exam_attempts: {
+        Row: {
+          exam_paper_id: string
+          grade: string | null
+          graded_at: string | null
+          grading_result: Json | null
+          id: string
+          percentage: number | null
+          started_at: string
+          status: string
+          submitted_at: string | null
+          total_marks_obtained: number | null
+          user_answers: Json
+          user_id: string
+        }
+        Insert: {
+          exam_paper_id: string
+          grade?: string | null
+          graded_at?: string | null
+          grading_result?: Json | null
+          id?: string
+          percentage?: number | null
+          started_at?: string
+          status?: string
+          submitted_at?: string | null
+          total_marks_obtained?: number | null
+          user_answers?: Json
+          user_id: string
+        }
+        Update: {
+          exam_paper_id?: string
+          grade?: string | null
+          graded_at?: string | null
+          grading_result?: Json | null
+          id?: string
+          percentage?: number | null
+          started_at?: string
+          status?: string
+          submitted_at?: string | null
+          total_marks_obtained?: number | null
+          user_answers?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_attempts_exam_paper_id_fkey"
+            columns: ["exam_paper_id"]
+            isOneToOne: false
+            referencedRelation: "exam_papers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_papers: {
+        Row: {
+          class_level: string | null
+          created_at: string
+          current_phase: number | null
+          duration_minutes: number
+          error_message: string | null
+          exam_outline: Json
+          exam_type: string
+          formatted_paper: Json
+          generated_at: string | null
+          generation_status: string
+          id: string
+          note_id: string | null
+          subject: string
+          total_marks: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          class_level?: string | null
+          created_at?: string
+          current_phase?: number | null
+          duration_minutes: number
+          error_message?: string | null
+          exam_outline?: Json
+          exam_type: string
+          formatted_paper?: Json
+          generated_at?: string | null
+          generation_status?: string
+          id?: string
+          note_id?: string | null
+          subject: string
+          total_marks: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          class_level?: string | null
+          created_at?: string
+          current_phase?: number | null
+          duration_minutes?: number
+          error_message?: string | null
+          exam_outline?: Json
+          exam_type?: string
+          formatted_paper?: Json
+          generated_at?: string | null
+          generation_status?: string
+          id?: string
+          note_id?: string | null
+          subject?: string
+          total_marks?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_papers_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "study_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       friendships: {
         Row: {
           created_at: string
