@@ -271,3 +271,6 @@ verify_jwt = false
 
 [functions.generate-socratic-concepts]
 verify_jwt = false
+
+[functions.generate-exam-outline]
+verify_jwt = true
