@@ -378,7 +378,7 @@ Return ONLY the question text, no JSON, no explanation.`;
         nextAction = "VALIDATE";
         nextQuestion = `Good progress! You've shown ${analysis.understanding_demonstrated} understanding. Let's move forward.`;
         turnType = "VALIDATION";
-        nextQuestionType = null;
+        nextQuestionType = '';
 
         // Mark as mastered if score is decent
         if (newUnderstandingScore >= masteryThreshold - 10) {
