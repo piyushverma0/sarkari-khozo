@@ -1,15 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callParallel } from "../_shared/parallel-client.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 // Category-specific search prompts for better diversity
 const CATEGORY_PROMPTS = {
-  'current-affairs': `Search for CURRENT AFFAIRS news from last 24 hours in India:
+  "current-affairs": `Search for CURRENT AFFAIRS news from last 24 hours in India:
 - Supreme Court rulings, High Court judgments
 - Parliament bills, committee reports, use sansad.in
 - RBI monetary policy, economic data releases
@@ -20,7 +20,7 @@ const CATEGORY_PROMPTS = {
 
 Find 5-7 articles. Sources: The Hindu, Indian Express, PIB, PTI, Livemint, BBC Hindi`,
 
-  'international': `Search for INTERNATIONAL news from last 3 days affecting India:
+  international: `Search for INTERNATIONAL news from last 3 days affecting India:
 - G20, BRICS, WTO summits/meetings
 - Trade deals, FTAs, tariff negotiations
 - Border disputes, territorial issues
@@ -30,7 +30,7 @@ Find 5-7 articles. Sources: The Hindu, Indian Express, PIB, PTI, Livemint, BBC H
 
 Find 4-6 articles. Sources: MEA, The Economics, The Hindu International, Reuters India, BBC`,
 
-  'diplomatic': `Search for DIPLOMATIC news from last 3 days:
+  diplomatic: `Search for DIPLOMATIC news from last 3 days:
 - State visits (PM/President/Foreign Minister)
 - Bilateral treaties, MoUs signed
 - India's stance at UN, WTO, WHO
@@ -40,7 +40,7 @@ Find 4-6 articles. Sources: MEA, The Economics, The Hindu International, Reuters
 
 Find 4-5 articles. Sources: Ministry of External Affairs, Sansad, LokSabha, RajyaSabha, The Diplomat, PIB`,
 
-  'education': `Search for EDUCATION news from last 7 days:
+  education: `Search for EDUCATION news from last 7 days:
 - NIRF rankings released
 - IIT/IISc research publications, patents
 - NEP 2020 implementation updates
@@ -51,7 +51,7 @@ Find 4-5 articles. Sources: Ministry of External Affairs, Sansad, LokSabha, Rajy
 
 Find 4-5 articles. Sources: UGC, AICTE, Sarkari Result, Education Ministry, national and international university portals`,
 
-  'exams': `Search for EXAM notifications from last 7 days:
+  exams: `Search for EXAM notifications from last 7 days:
 - UPSC exam dates, admit cards, results
 - SSC (CGL, CHSL, MTS) notifications
 - Banking exams (IBPS, SBI, RBI)
@@ -61,7 +61,7 @@ Find 4-5 articles. Sources: UGC, AICTE, Sarkari Result, Education Ministry, nati
 
 Find 5-7 articles. Sources: Sarkari Result, Jagran Josh, official government websites`,
 
-  'jobs': `Search for JOB notifications from last 7 days:
+  jobs: `Search for JOB notifications from last 7 days:
 - PSU recruitment (NTPC, IOCL, ONGC, etc.)
 - Central government job notifications
 - State government recruitment
@@ -71,7 +71,7 @@ Find 5-7 articles. Sources: Sarkari Result, Jagran Josh, official government web
 
 Find 5-7 articles. Sources: FreeJobAlert, Employment News, official portals`,
 
-  'schemes': `Search for GOVERNMENT SCHEMES from last 7 days:
+  schemes: `Search for GOVERNMENT SCHEMES from last 7 days:
 - New scheme launches (PM/CM schemes)
 - Existing scheme updates, deadline extensions
 - Subsidy programs for farmers, students, entrepreneurs
@@ -81,7 +81,7 @@ Find 5-7 articles. Sources: FreeJobAlert, Employment News, official portals`,
 
 Find 4-5 articles. Sources: PIB, MyGov, ministry websites`,
 
-  'policies': `Search for POLICY news from last 7 days:
+  policies: `Search for POLICY news from last 7 days:
 - New regulations, ordinances
 - Budget announcements, GST changes
 - Agricultural policies, MSP updates
@@ -89,15 +89,14 @@ Find 4-5 articles. Sources: PIB, MyGov, ministry websites`,
 - Technology policies (5G, AI, data protection)
 - Labor law changes
 
-Find 4-5 articles. Sources: PIB, Gazette notifications, ministry portals`
+Find 4-5 articles. Sources: PIB, Gazette notifications, ministry portals`,
 };
 
 async function discoverCategory(
   category: string,
   currentDate: string,
-  maxArticles: number = 4
+  maxArticles: number = 4,
 ): Promise<Array<{ url: string; headline: string; published_date: string; source_name: string; category: string }>> {
-
   const categoryPrompt = CATEGORY_PROMPTS[category as keyof typeof CATEGORY_PROMPTS];
   if (!categoryPrompt) {
     console.warn(`Unknown category: ${category}`);
@@ -108,7 +107,14 @@ async function discoverCategory(
 
 ${categoryPrompt}
 
-CRITICAL: You MUST return a valid JSON array. No text, no explanations, no markdown - ONLY the JSON array.
+CRITICAL JSON FORMATTING RULES:
+1. Return ONLY a valid JSON array - no text, explanations, or markdown
+2. Properly escape ALL special characters in strings:
+   - Use \\" for double quotes in headlines
+   - Headlines like "India's 'new' policy" are fine (single quotes don't need escaping)
+   - But "Minister says \\"quoted text\\" here" needs escaped double quotes
+3. Use valid ISO date format: YYYY-MM-DD
+4. Ensure all URLs are complete and valid
 
 Format each article EXACTLY like this:
 [
@@ -126,12 +132,13 @@ Return ONLY the JSON array starting with [ and ending with ].`;
   const response = await callParallel({
     systemPrompt: `You are a JSON-only API. You MUST return ONLY valid JSON arrays. Never return text, explanations, or markdown.
 Task: Find Indian ${category} news articles using web search.
-Output format: JSON array of objects with url, headline, published_date, source_name.`,
+Output format: JSON array of objects with url, headline, published_date, source_name.
+CRITICAL: Properly escape all double quotes within string values using \\". Single quotes (apostrophes) don't need escaping.`,
     userPrompt: fullPrompt,
     enableWebSearch: true,
     maxTokens: 3000,
     temperature: 0.1,
-    jsonMode: true
+    jsonMode: true,
   });
 
   console.log(`📊 [${category}] Response length: ${response.content.length} chars`);
@@ -139,25 +146,24 @@ Output format: JSON array of objects with url, headline, published_date, source_
   let articles = [];
   try {
     let cleanContent = response.content.trim();
-    console.log(`📝 [${category}] Raw response length: ${cleanContent.length}`);
 
     // Step 1: Remove markdown code blocks if present
     const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/);
     if (jsonBlockMatch) {
       cleanContent = jsonBlockMatch[1].trim();
-      console.log(`✅ [${category}] Extracted JSON from json code block`);
+      console.log(`✅ [${category}] Removed markdown code block`);
     } else {
-      // Try generic code blocks
-      const genericBlockMatch = cleanContent.match(/```\s*([\s\S]*?)\s*```/);
-      if (genericBlockMatch) {
-        cleanContent = genericBlockMatch[1].trim();
-        console.log(`✅ [${category}] Extracted JSON from generic code block`);
-      }
+      // Also try removing generic code blocks
+      cleanContent = cleanContent
+        .replace(/^```\s*/, "")
+        .replace(/\s*```$/, "")
+        .trim();
     }
 
     // Step 2: Handle escaped JSON strings (AI sometimes returns \"[...\" instead of [...])
     if (cleanContent.startsWith('"') && cleanContent.endsWith('"')) {
       try {
+        // First unescape the string
         cleanContent = JSON.parse(cleanContent);
         console.log(`✅ [${category}] Unescaped JSON string wrapper`);
       } catch (e) {
@@ -165,33 +171,62 @@ Output format: JSON array of objects with url, headline, published_date, source_
       }
     }
 
-    // Step 3: Try to extract JSON array from prose text (GREEDY regex - critical fix)
-    if (!cleanContent.startsWith('[')) {
-      const arrayMatch = cleanContent.match(/\[[\s\S]*\]/);  // Greedy - captures full array
-      if (arrayMatch) {
-        cleanContent = arrayMatch[0];
-        console.log(`✅ [${category}] Extracted JSON array from prose text`);
-      }
-    }
-
-    // Step 4: Check if content looks like JSON at all
-    if (!cleanContent.includes('[') && !cleanContent.includes('{')) {
-      console.error(`❌ [${category}] Response contains no JSON. Content starts with: "${cleanContent.substring(0, 100)}"`);
+    // Step 3: Check if content looks like JSON at all
+    if (!cleanContent.includes("[") && !cleanContent.includes("{")) {
+      console.error(
+        `❌ [${category}] Response contains no JSON. Content starts with: "${cleanContent.substring(0, 100)}"`,
+      );
       return [];
     }
 
-    // Step 5: Clean up common JSON formatting issues
-    cleanContent = cleanContent
-      .replace(/,\s*]/g, ']')   // Remove trailing commas before ]
-      .replace(/,\s*}/g, '}')   // Remove trailing commas before }
-      .replace(/'/g, '"')       // Replace single quotes with double quotes
-      .trim();
+    // Step 4: Extract JSON array using regex
+    const arrayMatch = cleanContent.match(/\[[\s\S]*?\]/);
+    let jsonStr = arrayMatch ? arrayMatch[0] : cleanContent;
 
-    // Step 6: Parse the JSON
-    articles = JSON.parse(cleanContent);
-    console.log(`✅ [${category}] Successfully parsed JSON`);
+    if (arrayMatch) {
+      console.log(`✅ [${category}] Extracted array from position ${cleanContent.indexOf(jsonStr)}`);
+    } else {
+      console.log(`⚠️ [${category}] No array pattern found, trying direct parse`);
+    }
 
-    // Step 7: Validate array
+    // Step 5: Try to parse JSON with error recovery
+    try {
+      articles = JSON.parse(jsonStr);
+    } catch (parseError: any) {
+      console.warn(`⚠️ [${category}] Initial parse failed: ${parseError.message}`);
+      console.log(`🔧 [${category}] Attempting JSON repair...`);
+
+      // Common fix: Handle unescaped double quotes in string values
+      // Replace patterns like "headline": "India's "new" policy" with properly escaped quotes
+      try {
+        // Strategy: Find property values and escape internal double quotes
+        let repairedJson = jsonStr;
+
+        // Fix unescaped double quotes within string property values
+        // This regex finds "key": "value with "quotes" here" patterns
+        repairedJson = repairedJson.replace(/:\s*"([^"]*?"[^"]*?)"/g, (match, value) => {
+          // Escape all internal double quotes in the value
+          const escaped = value.replace(/"/g, '\\"');
+          return `: "${escaped}"`;
+        });
+
+        console.log(`✅ [${category}] Applied quote repair strategy`);
+        articles = JSON.parse(repairedJson);
+        console.log(`✅ [${category}] Successfully parsed repaired JSON`);
+      } catch (repairError: any) {
+        console.error(`❌ [${category}] JSON repair failed: ${repairError.message}`);
+        console.error(
+          `❌ [${category}] Problematic JSON snippet around error:`,
+          jsonStr.substring(
+            Math.max(0, parseError.message.match(/\d+/)?.[0] - 50 || 0),
+            parseError.message.match(/\d+/)?.[0] + 50 || 100,
+          ),
+        );
+        throw parseError; // Re-throw original error
+      }
+    }
+
+    // Step 6: Validate array
     if (!Array.isArray(articles)) {
       console.error(`❌ [${category}] Parsed result is not an array, got: ${typeof articles}`);
       return [];
@@ -202,8 +237,8 @@ Output format: JSON array of objects with url, headline, published_date, source_
       return [];
     }
 
-    // Step 8: Validate article structure
-    const validArticles = articles.filter(a => {
+    // Step 6: Validate article structure
+    const validArticles = articles.filter((a) => {
       if (!a.url || !a.headline) {
         console.warn(`⚠️ [${category}] Skipping invalid article:`, a);
         return false;
@@ -212,57 +247,52 @@ Output format: JSON array of objects with url, headline, published_date, source_
     });
 
     // Add category to each article
-    const finalArticles = validArticles.map(a => ({ ...a, category }));
+    const finalArticles = validArticles.map((a) => ({ ...a, category }));
 
     console.log(`✅ [${category}] Found ${finalArticles.length} valid articles`);
     return finalArticles;
-
-  } catch (error: unknown) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    console.error(`❌ [${category}] Parse error:`, errMsg);
-    console.error(`❌ [${category}] Content preview (first 300):`, response.content.substring(0, 300));
-    console.error(`❌ [${category}] Content preview (last 200):`, response.content.substring(Math.max(0, response.content.length - 200)));
+  } catch (error) {
+    console.error(`❌ [${category}] Parse error:`, error.message);
+    console.error(`❌ [${category}] Content preview (first 300 chars):`, response.content.substring(0, 300));
+    console.error(
+      `❌ [${category}] Content preview (last 100 chars):`,
+      response.content.substring(Math.max(0, response.content.length - 100)),
+    );
     return [];
   }
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { categories } = await req.json().catch(() => ({}));
-    const currentDate = new Date().toISOString().split('T')[0];
+    const currentDate = new Date().toISOString().split("T")[0];
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     // Query current category distribution to balance content
-    const { data: categoryCounts } = await supabase
-      .from('discovery_stories')
-      .select('category')
-      .eq('is_active', true);
+    const { data: categoryCounts } = await supabase.from("discovery_stories").select("category").eq("is_active", true);
 
     const countByCategory = (categoryCounts || []).reduce((acc: Record<string, number>, row: { category: string }) => {
       acc[row.category] = (acc[row.category] || 0) + 1;
       return acc;
     }, {});
 
-    console.log('📊 Current category distribution:', countByCategory);
+    console.log("📊 Current category distribution:", countByCategory);
 
     // All available categories
     const allCategories = [
-      'current-affairs',
-      'international',
-      'education',
-      'diplomatic',
-      'exams',
-      'jobs',
-      'schemes',
-      'policies'
+      "current-affairs",
+      "international",
+      "education",
+      "diplomatic",
+      "exams",
+      "jobs",
+      "schemes",
+      "policies",
     ];
 
     // Sort categories by count (prioritize underrepresented ones)
@@ -279,20 +309,23 @@ serve(async (req) => {
     } else {
       // Prioritize underrepresented categories: take top 5 lowest + 1-2 from others
       targetCategories = [
-        ...sortedCategories.slice(0, 5),  // 5 most underrepresented
-        ...sortedCategories.slice(5, 7)   // 2 from the rest
+        ...sortedCategories.slice(0, 5), // 5 most underrepresented
+        ...sortedCategories.slice(5, 7), // 2 from the rest
       ];
     }
 
-    console.log(`🎯 Starting balanced scraping for: ${targetCategories.join(', ')}`);
-    console.log('📈 Priority order (least to most represented):', sortedCategories.map(c => `${c}(${countByCategory[c] || 0})`).join(', '));
+    console.log(`🎯 Starting balanced scraping for: ${targetCategories.join(", ")}`);
+    console.log(
+      "📈 Priority order (least to most represented):",
+      sortedCategories.map((c) => `${c}(${countByCategory[c] || 0})`).join(", "),
+    );
 
     const allArticles: Array<{
       url: string;
       headline: string;
       published_date: string;
       source_name: string;
-      category: string
+      category: string;
     }> = [];
 
     // Search each category separately with limits
@@ -323,30 +356,29 @@ serve(async (req) => {
       try {
         console.log(`Processing: [${article.category}] ${article.headline}`);
 
-        const { error: invokeError } = await supabase.functions.invoke('process-story-with-ai', {
+        const { error: invokeError } = await supabase.functions.invoke("process-story-with-ai", {
           body: {
             url: article.url,
             raw_headline: article.headline,
             source_name: article.source_name,
-            category: article.category
-          }
+            category: article.category,
+          },
         });
 
         if (invokeError) {
-          console.error('Process error:', invokeError);
+          console.error("Process error:", invokeError);
           errors.push({ article: article.headline, error: invokeError.message });
         } else {
           processed++;
         }
 
         // Rate limiting
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
+        await new Promise((resolve) => setTimeout(resolve, 2000));
       } catch (error) {
-        console.error('Article processing failed:', error);
+        console.error("Article processing failed:", error);
         errors.push({
           article: article.headline,
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
         skipped++;
       }
@@ -360,26 +392,25 @@ serve(async (req) => {
         skipped,
         errors: errors.length > 0 ? errors : undefined,
         by_category: targetCategories.reduce((acc: Record<string, number>, cat: string) => {
-          acc[cat] = allArticles.filter(a => a.category === cat).length;
+          acc[cat] = allArticles.filter((a) => a.category === cat).length;
           return acc;
-        }, {})
+        }, {}),
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
-
   } catch (error) {
-    console.error('❌ Scrape-by-category error:', error);
+    console.error("❌ Scrape-by-category error:", error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       }),
       {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 });
