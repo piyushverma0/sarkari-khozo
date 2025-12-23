@@ -2,102 +2,122 @@
 // Analyzes understanding, generates probing questions, and decides conversation flow
 // Core of the Socratic teaching system
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
-import { callParallel } from '../_shared/parallel-client.ts'
-import { callAI } from '../_shared/ai-client.ts'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { callParallel } from "../_shared/parallel-client.ts";
+import { callAI } from "../_shared/ai-client.ts";
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 interface GenerateQuestionRequest {
-  session_id: string
-  user_answer: string
-  user_id: string
+  session_id: string;
+  user_answer: string;
+  user_id: string;
 }
 
 interface ConversationTurn {
-  turn_number: number
-  speaker: 'AI' | 'STUDENT'
-  message: string
-  type: string
-  timestamp: string
-  question_type?: string
-  validation_result?: any
+  turn_number: number;
+  speaker: "AI" | "STUDENT";
+  message: string;
+  type: string;
+  timestamp: string;
+  question_type?: string;
+  validation_result?: any;
 }
 
 interface Concept {
-  concept_number: number
-  concept_name: string
-  concept_difficulty: string
-  conversation_turns: ConversationTurn[]
-  is_mastered: boolean
-  understanding_score: number
-  attempts: number
-  misconceptions_identified: string[]
-  time_spent_seconds: number
-  probing_questions_asked: number
-  exam_tag?: string
-  exam_context?: string
+  concept_number: number;
+  concept_name: string;
+  concept_difficulty: string;
+  conversation_turns: ConversationTurn[];
+  is_mastered: boolean;
+  understanding_score: number;
+  attempts: number;
+  misconceptions_identified: string[];
+  time_spent_seconds: number;
+  probing_questions_asked: number;
+  exam_tag?: string;
+  exam_context?: string;
 }
 
 serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const { session_id, user_answer, user_id }: GenerateQuestionRequest = await req.json()
+    const { session_id, user_answer, user_id }: GenerateQuestionRequest = await req.json();
 
     if (!session_id || !user_answer || !user_id) {
-      return new Response(
-        JSON.stringify({ error: 'session_id, user_answer, and user_id are required' }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
+      return new Response(JSON.stringify({ error: "session_id, user_answer, and user_id are required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log('🤔 Generating next Socratic question for session:', session_id)
+    console.log("🤔 Generating next Socratic question for session:", session_id);
 
     // Initialize Supabase client
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Fetch session
     const { data: session, error: fetchError } = await supabase
-      .from('teach_me_sessions')
-      .select('*')
-      .eq('id', session_id)
-      .eq('user_id', user_id)
-      .single()
+      .from("teach_me_sessions")
+      .select("*")
+      .eq("id", session_id)
+      .eq("user_id", user_id)
+      .single();
 
     if (fetchError || !session) {
-      throw new Error('Session not found')
+      throw new Error("Session not found");
     }
 
-    console.log('📚 Session fetched, analyzing student response...')
+    console.log("📚 Session fetched, analyzing student response...");
 
     // Get current concept
-    const concepts = session.concepts || []
-    const currentConceptIndex = session.current_concept_index || 0
-    const currentConcept: Concept = concepts[currentConceptIndex]
+    const concepts = session.concepts || [];
+    const currentConceptIndex = session.current_concept_index || 0;
+    const currentConcept: Concept = concepts[currentConceptIndex];
 
     if (!currentConcept) {
-      throw new Error('Current concept not found')
+      throw new Error("Current concept not found");
     }
 
     // Get current conversation
-    const currentConversation: ConversationTurn[] = session.current_conversation || []
-    const lastAITurn = currentConversation.filter(t => t.speaker === 'AI').pop()
+    const currentConversation: ConversationTurn[] = session.current_conversation || [];
+    const lastAITurn = currentConversation.filter((t) => t.speaker === "AI").pop();
 
-    console.log(`📖 Concept: "${currentConcept.concept_name}" (Turn ${currentConversation.length + 1})`)
+    console.log(`📖 Concept: "${currentConcept.concept_name}" (Turn ${currentConversation.length + 1})`);
+
+    // Calculate max turns for this concept based on difficulty and position
+    const calculateMaxTurns = (concept: Concept): number => {
+      // Foundation concepts (1-2): 3-4 turns max
+      if (concept.concept_number <= 2) return 4;
+
+      // Core concepts (3-4): 4-5 turns
+      if (concept.concept_number <= 4) return 5;
+
+      // Integration/Application (5-6): 5-6 turns
+      if (concept.concept_number <= 6) return 6;
+
+      // Analysis/Synthesis (7-8): 6-7 turns (more complex)
+      if (concept.concept_number <= 8) return 7;
+
+      // Exam Mastery (9): 5 turns (focused)
+      return 5;
+    };
+
+    const maxTurnsForConcept = calculateMaxTurns(currentConcept);
+    const currentTurnCount = Math.floor(currentConversation.length / 2); // Divide by 2 since we have AI+Student pairs
+
+    console.log(`⏱️ Turn ${currentTurnCount}/${maxTurnsForConcept} for concept ${currentConcept.concept_number}`);
 
     // ========================================================================
     // STEP 1: Analyze Student Understanding
@@ -107,12 +127,12 @@ serve(async (req) => {
 
 STUDENT'S ANSWER: "${user_answer}"
 
-QUESTION ASKED: "${lastAITurn?.message || 'Opening question'}"
+QUESTION ASKED: "${lastAITurn?.message || "Opening question"}"
 
 CONCEPT BEING TAUGHT: "${currentConcept.concept_name}"
 
 CONVERSATION HISTORY:
-${currentConversation.map(t => `${t.speaker}: ${t.message}`).join('\n')}
+${currentConversation.map((t) => `${t.speaker}: ${t.message}`).join("\n")}
 
 PREVIOUS ATTEMPTS: ${currentConcept.attempts}
 CURRENT UNDERSTANDING SCORE: ${currentConcept.understanding_score}/100
@@ -128,148 +148,171 @@ Analyze this student response and return ONLY valid JSON:
   "concept_grasped": true/false,
   "key_insight": "What the student understands or misunderstands",
   "recommended_action": "PROBE" | "CHALLENGE" | "SCAFFOLD" | "VALIDATE" | "MOVE_ON"
-}`
+}`;
 
-    console.log('🤖 Analyzing understanding with AI...')
+    console.log("🤖 Analyzing understanding with AI...");
 
-    let analysisResponse: any
+    let analysisResponse: any;
     try {
       analysisResponse = await callParallel({
-        systemPrompt: 'You are an expert educational psychologist. Return ONLY valid JSON.',
+        systemPrompt: "You are an expert educational psychologist. Return ONLY valid JSON.",
         userPrompt: analysisPrompt,
         temperature: 0.3,
         maxTokens: 500,
-        jsonMode: true
-      })
+        jsonMode: true,
+      });
     } catch (error: unknown) {
-      console.log('⚠️ Parallel failed, using fallback:', error instanceof Error ? error.message : 'Unknown error')
+      console.log("⚠️ Parallel failed, using fallback:", error instanceof Error ? error.message : "Unknown error");
       const fallback = await callAI({
-        systemPrompt: 'You are an expert educational psychologist. Return ONLY valid JSON.',
+        systemPrompt: "You are an expert educational psychologist. Return ONLY valid JSON.",
         userPrompt: analysisPrompt,
         temperature: 0.3,
         maxTokens: 500,
-        responseFormat: 'json'
-      })
-      analysisResponse = { content: fallback.content }
+        responseFormat: "json",
+      });
+      analysisResponse = { content: fallback.content };
     }
 
     // Parse analysis with multi-stage parsing to handle various formats
-    let analysis: any
+    let analysis: any;
     try {
-      let cleanContent = analysisResponse.content.trim()
-      console.log('📝 Raw analysis response length:', cleanContent.length)
+      let cleanContent = analysisResponse.content.trim();
+      console.log("📝 Raw analysis response length:", cleanContent.length);
 
       // Step 1: Remove markdown code blocks if present
-      const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/)
+      const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/);
       if (jsonBlockMatch) {
-        cleanContent = jsonBlockMatch[1].trim()
-        console.log('✅ Extracted JSON from ```json code block')
+        cleanContent = jsonBlockMatch[1].trim();
+        console.log("✅ Extracted JSON from ```json code block");
       } else {
         // Try generic code blocks
-        const genericBlockMatch = cleanContent.match(/```\s*([\s\S]*?)\s*```/)
+        const genericBlockMatch = cleanContent.match(/```\s*([\s\S]*?)\s*```/);
         if (genericBlockMatch) {
-          cleanContent = genericBlockMatch[1].trim()
-          console.log('✅ Extracted JSON from generic code block')
+          cleanContent = genericBlockMatch[1].trim();
+          console.log("✅ Extracted JSON from generic code block");
         }
       }
 
       // Step 2: Try to extract JSON object from prose text
-      if (!cleanContent.startsWith('{')) {
-        const jsonObjectMatch = cleanContent.match(/\{[\s\S]*\}/)
+      if (!cleanContent.startsWith("{")) {
+        const jsonObjectMatch = cleanContent.match(/\{[\s\S]*\}/);
         if (jsonObjectMatch) {
-          cleanContent = jsonObjectMatch[0]
-          console.log('✅ Extracted JSON object from prose text')
+          cleanContent = jsonObjectMatch[0];
+          console.log("✅ Extracted JSON object from prose text");
         }
       }
 
       // Step 3: Handle escaped JSON strings (AI sometimes returns \"{...\" instead of {...})
       if (cleanContent.startsWith('"') && cleanContent.endsWith('"')) {
         try {
-          cleanContent = JSON.parse(cleanContent)
-          console.log('✅ Unescaped JSON string wrapper')
+          cleanContent = JSON.parse(cleanContent);
+          console.log("✅ Unescaped JSON string wrapper");
         } catch (e) {
-          console.warn('⚠️ Failed to unescape JSON string, trying as-is')
+          console.warn("⚠️ Failed to unescape JSON string, trying as-is");
         }
       }
 
       // Step 4: Clean up common JSON formatting issues
       cleanContent = cleanContent
-        .replace(/,\s*}/g, '}')  // Remove trailing commas before }
-        .replace(/,\s*]/g, ']')  // Remove trailing commas before ]
-        .trim()
+        .replace(/,\s*}/g, "}") // Remove trailing commas before }
+        .replace(/,\s*]/g, "]") // Remove trailing commas before ]
+        .trim();
 
       // Step 5: Parse the JSON
-      analysis = JSON.parse(cleanContent)
-      console.log('✅ Successfully parsed analysis response')
-
+      analysis = JSON.parse(cleanContent);
+      console.log("✅ Successfully parsed analysis response");
     } catch (parseError: unknown) {
-      console.error('❌ Failed to parse analysis JSON:', parseError instanceof Error ? parseError.message : String(parseError))
-      console.error('❌ Response preview (first 300):', analysisResponse.content.substring(0, 300))
-      console.error('❌ Response preview (last 200):', analysisResponse.content.substring(Math.max(0, analysisResponse.content.length - 200)))
-      
+      console.error(
+        "❌ Failed to parse analysis JSON:",
+        parseError instanceof Error ? parseError.message : String(parseError),
+      );
+      console.error("❌ Response preview (first 300):", analysisResponse.content.substring(0, 300));
+      console.error(
+        "❌ Response preview (last 200):",
+        analysisResponse.content.substring(Math.max(0, analysisResponse.content.length - 200)),
+      );
+
       // Step 6: Fallback to default analysis to prevent crashes
-      console.log('⚠️ Using default analysis fallback')
+      console.log("⚠️ Using default analysis fallback");
       analysis = {
-        understanding_demonstrated: 'partial',
-        reasoning_quality: 'moderate',
+        understanding_demonstrated: "partial",
+        reasoning_quality: "moderate",
         misconceptions_detected: [],
         needs_probing: true,
         needs_scaffolding: false,
         concept_grasped: false,
-        key_insight: 'Unable to parse AI response - defaulting to probing',
-        recommended_action: 'PROBE'
-      }
+        key_insight: "Unable to parse AI response - defaulting to probing",
+        recommended_action: "PROBE",
+      };
     }
 
-    console.log(`📊 Analysis: ${analysis.understanding_demonstrated} understanding, ${analysis.reasoning_quality} reasoning`)
-    console.log(`💡 Key insight: ${analysis.key_insight}`)
-    console.log(`🎯 Recommended action: ${analysis.recommended_action}`)
+    console.log(
+      `📊 Analysis: ${analysis.understanding_demonstrated} understanding, ${analysis.reasoning_quality} reasoning`,
+    );
+    console.log(`💡 Key insight: ${analysis.key_insight}`);
+    console.log(`🎯 Recommended action: ${analysis.recommended_action}`);
 
     // ========================================================================
     // STEP 2: Decide Next Action
     // ========================================================================
 
-    let nextAction = analysis.recommended_action
-    let nextQuestion = ''
-    let nextQuestionType: string = ''
-    let turnType = ''
-    let conceptMastered = false
-    let moveToNextConcept = false
+    let nextAction = analysis.recommended_action;
+    let nextQuestion = "";
+    let nextQuestionType: string = "";
+    let turnType = "";
+    let conceptMastered = false;
+    let moveToNextConcept = false;
 
     // Update understanding score
     const understandingMap: Record<string, number> = {
-      'none': -10,
-      'partial': 5,
-      'good': 15,
-      'excellent': 25
-    }
-    const understandingScoreDelta = understandingMap[analysis.understanding_demonstrated as string] || 0
+      none: -10,
+      partial: 5,
+      good: 15,
+      excellent: 25,
+    };
+    const understandingScoreDelta = understandingMap[analysis.understanding_demonstrated as string] || 0;
 
-    const newUnderstandingScore = Math.max(0, Math.min(100,
-      currentConcept.understanding_score + understandingScoreDelta
-    ))
+    const newUnderstandingScore = Math.max(
+      0,
+      Math.min(100, currentConcept.understanding_score + understandingScoreDelta),
+    );
+
+    // Difficulty-based mastery threshold (easier concepts need lower threshold)
+    const masteryThreshold =
+      currentConcept.concept_difficulty === "easy" ? 70 : currentConcept.concept_difficulty === "medium" ? 75 : 80;
+
+    console.log(`📊 Mastery threshold for ${currentConcept.concept_difficulty} concept: ${masteryThreshold}%`);
 
     // Check if concept is mastered
-    if (analysis.concept_grasped && newUnderstandingScore >= 80) {
-      conceptMastered = true
-      moveToNextConcept = currentConceptIndex < session.total_concepts - 1
-      nextAction = 'MOVE_ON'
+    if (analysis.concept_grasped && newUnderstandingScore >= masteryThreshold) {
+      conceptMastered = true;
+      moveToNextConcept = currentConceptIndex < session.total_concepts - 1;
+      nextAction = "MOVE_ON";
+    }
+
+    // Check if we've exceeded max turns for this concept (with acceptable score)
+    if (currentTurnCount >= maxTurnsForConcept && newUnderstandingScore >= 60) {
+      console.log(
+        `⏰ Max turns (${maxTurnsForConcept}) reached with acceptable score (${newUnderstandingScore}%), moving on`,
+      );
+      conceptMastered = newUnderstandingScore >= masteryThreshold;
+      moveToNextConcept = currentConceptIndex < session.total_concepts - 1;
+      nextAction = "MOVE_ON";
     }
 
     // ========================================================================
     // STEP 3: Generate Next Question Based on Action
     // ========================================================================
 
-    if (nextAction === 'MOVE_ON' && conceptMastered) {
+    if (nextAction === "MOVE_ON" && conceptMastered) {
       // Congratulate and prepare for next concept
-      nextQuestion = `Excellent! You've truly grasped ${currentConcept.concept_name}. `
+      nextQuestion = `Excellent! You've truly grasped ${currentConcept.concept_name}. `;
       nextQuestion += moveToNextConcept
         ? `Let's move on to our next concept.`
-        : `You've completed all concepts! Let me prepare your summary.`
-      turnType = 'VALIDATION'
-      nextQuestionType = ''
-
-    } else if (nextAction === 'SCAFFOLD' || analysis.needs_scaffolding) {
+        : `You've completed all concepts! Let me prepare your summary.`;
+      turnType = "VALIDATION";
+      nextQuestionType = "";
+    } else if (nextAction === "SCAFFOLD" || analysis.needs_scaffolding) {
       // Provide scaffolding for struggling students
       const scaffoldPrompt = `Generate a SCAFFOLDING question for a struggling student.
 
@@ -283,22 +326,21 @@ Create a simpler, guiding question that:
 - Uses analogy or real-world examples
 - Builds confidence
 
-Return ONLY the question text, no JSON, no explanation.`
+Return ONLY the question text, no JSON, no explanation.`;
 
       const scaffoldResponse = await callAI({
-        systemPrompt: 'You are a patient Socratic teacher. Generate ONE scaffolding question.',
+        systemPrompt: "You are a patient Socratic teacher. Generate ONE scaffolding question.",
         userPrompt: scaffoldPrompt,
         temperature: 0.7,
-        maxTokens: 200
-      })
+        maxTokens: 200,
+      });
 
-      nextQuestion = scaffoldResponse.content.trim().replace(/^"|"$/g, '')
-      turnType = 'SCAFFOLDING'
-      nextQuestionType = 'SIMPLIFYING'
-
-    } else if (nextAction === 'CHALLENGE' || analysis.misconceptions_detected.length > 0) {
+      nextQuestion = scaffoldResponse.content.trim().replace(/^"|"$/g, "");
+      turnType = "SCAFFOLDING";
+      nextQuestionType = "SIMPLIFYING";
+    } else if (nextAction === "CHALLENGE" || analysis.misconceptions_detected.length > 0) {
       // Challenge misconception
-      const misconception = analysis.misconceptions_detected[0] || analysis.key_insight
+      const misconception = analysis.misconceptions_detected[0] || analysis.key_insight;
 
       const challengePrompt = `Generate a CHALLENGING question to address this misconception.
 
@@ -312,22 +354,40 @@ Create a thought-provoking question that:
 - Uses Socratic method (e.g., "What if...", "Can you think of...")
 - Doesn't directly state the error
 
-Return ONLY the question text, no JSON, no explanation.`
+Return ONLY the question text, no JSON, no explanation.`;
 
       const challengeResponse = await callAI({
-        systemPrompt: 'You are a Socratic teacher. Generate ONE challenging question.',
+        systemPrompt: "You are a Socratic teacher. Generate ONE challenging question.",
         userPrompt: challengePrompt,
         temperature: 0.7,
-        maxTokens: 200
-      })
+        maxTokens: 200,
+      });
 
-      nextQuestion = challengeResponse.content.trim().replace(/^"|"$/g, '')
-      turnType = 'CHALLENGE'
-      nextQuestionType = 'WHAT_IF'
+      nextQuestion = challengeResponse.content.trim().replace(/^"|"$/g, "");
+      turnType = "CHALLENGE";
+      nextQuestionType = "WHAT_IF";
+    } else if (nextAction === "PROBE" || analysis.needs_probing) {
+      // Check if we've asked too many probing questions already
+      const maxProbingQuestions =
+        currentConcept.concept_difficulty === "easy" ? 2 : currentConcept.concept_difficulty === "medium" ? 3 : 4;
 
-    } else if (nextAction === 'PROBE' || analysis.needs_probing) {
-      // Probe for deeper understanding
-      const probePrompt = `Generate a PROBING question to deepen understanding.
+      if (currentConcept.probing_questions_asked >= maxProbingQuestions) {
+        console.log(
+          `⚠️ Max probing questions (${maxProbingQuestions}) reached for ${currentConcept.concept_difficulty} concept, switching to validation`,
+        );
+        nextAction = "VALIDATE";
+        nextQuestion = `Good progress! You've shown ${analysis.understanding_demonstrated} understanding. Let's move forward.`;
+        turnType = "VALIDATION";
+        nextQuestionType = null;
+
+        // Mark as mastered if score is decent
+        if (newUnderstandingScore >= masteryThreshold - 10) {
+          conceptMastered = true;
+          moveToNextConcept = currentConceptIndex < session.total_concepts - 1;
+        }
+      } else {
+        // Probe for deeper understanding
+        const probePrompt = `Generate a PROBING question to deepen understanding.
 
 CONCEPT: "${currentConcept.concept_name}"
 STUDENT'S CURRENT UNDERSTANDING: "${analysis.key_insight}"
@@ -336,43 +396,43 @@ STUDENT'S ANSWER: "${user_answer}"
 Create a probing question that:
 - Asks "Why?" or "How?" to reveal reasoning
 - Encourages explanation of their thinking
-- Connects to exam relevance: ${currentConcept.exam_context || 'competitive exams'}
 - Deepens conceptual understanding
+- Keeps the question concise and focused
 
-Return ONLY the question text, no JSON, no explanation.`
+Return ONLY the question text, no JSON, no explanation, no exam references.`;
 
-      const probeResponse = await callAI({
-        systemPrompt: 'You are a Socratic teacher. Generate ONE probing question.',
-        userPrompt: probePrompt,
-        temperature: 0.7,
-        maxTokens: 200
-      })
+        const probeResponse = await callAI({
+          systemPrompt: "You are a Socratic teacher. Generate ONE probing question.",
+          userPrompt: probePrompt,
+          temperature: 0.7,
+          maxTokens: 200,
+        });
 
-      nextQuestion = probeResponse.content.trim().replace(/^"|"$/g, '')
-      turnType = 'PROBING_QUESTION'
-      nextQuestionType = analysis.understanding_demonstrated === 'partial' ? 'WHY' : 'HOW'
-
+        nextQuestion = probeResponse.content.trim().replace(/^"|"$/g, "");
+        turnType = "PROBING_QUESTION";
+        nextQuestionType = analysis.understanding_demonstrated === "partial" ? "WHY" : "HOW";
+      }
     } else {
       // Default: Validate and ask follow-up
-      nextQuestion = `Good! Can you explain your reasoning behind that answer?`
-      turnType = 'PROBING_QUESTION'
-      nextQuestionType = 'EXPLAIN'
+      nextQuestion = `Good! Can you explain your reasoning behind that answer?`;
+      turnType = "PROBING_QUESTION";
+      nextQuestionType = "EXPLAIN";
     }
 
-    console.log(`🎭 Next action: ${nextAction}, Turn type: ${turnType}`)
+    console.log(`🎭 Next action: ${nextAction}, Turn type: ${turnType}`);
 
     // ========================================================================
     // STEP 4: Update Session with Conversation Turns
     // ========================================================================
 
-    const nextTurnNumber = currentConversation.length + 1
+    const nextTurnNumber = currentConversation.length + 1;
 
     // Add student's turn
     const studentTurn: ConversationTurn = {
       turn_number: nextTurnNumber,
-      speaker: 'STUDENT',
+      speaker: "STUDENT",
       message: user_answer,
-      type: 'ANSWER',
+      type: "ANSWER",
       timestamp: new Date().toISOString(),
       validation_result: {
         understanding_demonstrated: analysis.understanding_demonstrated,
@@ -380,21 +440,21 @@ Return ONLY the question text, no JSON, no explanation.`
         misconceptions_detected: analysis.misconceptions_detected,
         needs_probing: analysis.needs_probing,
         needs_scaffolding: analysis.needs_scaffolding,
-        concept_grasped: analysis.concept_grasped
-      }
-    }
+        concept_grasped: analysis.concept_grasped,
+      },
+    };
 
     // Add AI's turn
     const aiTurn: ConversationTurn = {
       turn_number: nextTurnNumber + 1,
-      speaker: 'AI',
+      speaker: "AI",
       message: nextQuestion,
       type: turnType,
       timestamp: new Date().toISOString(),
-      question_type: nextQuestionType
-    }
+      question_type: nextQuestionType,
+    };
 
-    const updatedConversation = [...currentConversation, studentTurn, aiTurn]
+    const updatedConversation = [...currentConversation, studentTurn, aiTurn];
 
     // Update concept
     const updatedConcept: Concept = {
@@ -403,40 +463,38 @@ Return ONLY the question text, no JSON, no explanation.`
       is_mastered: conceptMastered,
       understanding_score: newUnderstandingScore,
       attempts: currentConcept.attempts + 1,
-      misconceptions_identified: [
-        ...currentConcept.misconceptions_identified,
-        ...analysis.misconceptions_detected
-      ],
-      probing_questions_asked: turnType.includes('PROB') || turnType.includes('CHALLENGE')
-        ? currentConcept.probing_questions_asked + 1
-        : currentConcept.probing_questions_asked
-    }
+      misconceptions_identified: [...currentConcept.misconceptions_identified, ...analysis.misconceptions_detected],
+      probing_questions_asked:
+        turnType.includes("PROB") || turnType.includes("CHALLENGE")
+          ? currentConcept.probing_questions_asked + 1
+          : currentConcept.probing_questions_asked,
+    };
 
     // Update concepts array
     const updatedConcepts = concepts.map((c: Concept, idx: number) =>
-      idx === currentConceptIndex ? updatedConcept : c
-    )
+      idx === currentConceptIndex ? updatedConcept : c,
+    );
 
     // Prepare database update
     const updatePayload: any = {
       current_conversation: updatedConversation,
       concepts: updatedConcepts,
       total_conversation_turns: session.total_conversation_turns + 2,
-      updated_at: new Date().toISOString()
-    }
+      updated_at: new Date().toISOString(),
+    };
 
     // If concept mastered, move to next
     if (moveToNextConcept) {
-      updatePayload.current_concept_index = currentConceptIndex + 1
-      updatePayload.concepts_mastered = session.concepts_mastered + 1
-      updatePayload.current_conversation = [] // Reset for new concept
-      console.log(`✅ Concept mastered! Moving to concept ${currentConceptIndex + 2}`)
+      updatePayload.current_concept_index = currentConceptIndex + 1;
+      updatePayload.concepts_mastered = session.concepts_mastered + 1;
+      updatePayload.current_conversation = []; // Reset for new concept
+      console.log(`✅ Concept mastered! Moving to concept ${currentConceptIndex + 2}`);
     } else if (conceptMastered && !moveToNextConcept) {
       // All concepts completed
-      updatePayload.is_completed = true
-      updatePayload.completed_at = new Date().toISOString()
-      updatePayload.concepts_mastered = session.concepts_mastered + 1
-      console.log(`🎉 All concepts mastered! Session complete.`)
+      updatePayload.is_completed = true;
+      updatePayload.completed_at = new Date().toISOString();
+      updatePayload.concepts_mastered = session.concepts_mastered + 1;
+      console.log(`🎉 All concepts mastered! Session complete.`);
     }
 
     // Update misconceptions list
@@ -445,24 +503,24 @@ Return ONLY the question text, no JSON, no explanation.`
         concept: currentConcept.concept_name,
         misconception: m,
         identified_at: new Date().toISOString(),
-        resolved: false
-      }))
-      updatePayload.misconceptions = [...(session.misconceptions || []), ...newMisconceptions]
+        resolved: false,
+      }));
+      updatePayload.misconceptions = [...(session.misconceptions || []), ...newMisconceptions];
     }
 
     // Update session in database
     const { error: updateError } = await supabase
-      .from('teach_me_sessions')
+      .from("teach_me_sessions")
       .update(updatePayload)
-      .eq('id', session_id)
-      .eq('user_id', user_id)
+      .eq("id", session_id)
+      .eq("user_id", user_id);
 
     if (updateError) {
-      console.error('Failed to update session:', updateError)
-      throw updateError
+      console.error("Failed to update session:", updateError);
+      throw updateError;
     }
 
-    console.log(`💾 Session updated successfully`)
+    console.log(`💾 Session updated successfully`);
 
     // ========================================================================
     // STEP 5: Return Response
@@ -478,38 +536,34 @@ Return ONLY the question text, no JSON, no explanation.`
           level: analysis.understanding_demonstrated,
           reasoning: analysis.reasoning_quality,
           score: newUnderstandingScore,
-          misconceptions: analysis.misconceptions_detected
+          misconceptions: analysis.misconceptions_detected,
         },
         concept_status: {
           is_mastered: conceptMastered,
           move_to_next: moveToNextConcept,
           current_concept: currentConcept.concept_name,
           attempts: updatedConcept.attempts,
-          understanding_score: newUnderstandingScore
+          understanding_score: newUnderstandingScore,
         },
         session_status: {
           current_concept_index: moveToNextConcept ? currentConceptIndex + 1 : currentConceptIndex,
           total_concepts: session.total_concepts,
           concepts_mastered: moveToNextConcept ? session.concepts_mastered + 1 : session.concepts_mastered,
           is_completed: updatePayload.is_completed || false,
-          total_turns: session.total_conversation_turns + 2
-        }
+          total_turns: session.total_conversation_turns + 2,
+        },
       }),
       {
         status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
-
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (error: unknown) {
-    console.error('❌ Error in generate-next-socratic-question:', error)
+    console.error("❌ Error in generate-next-socratic-question:", error);
 
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
-})
+});
