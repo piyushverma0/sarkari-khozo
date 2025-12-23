@@ -252,7 +252,7 @@ CRITICAL: Properly escape all double quotes within string values using \\". Sing
     console.log(`✅ [${category}] Found ${finalArticles.length} valid articles`);
     return finalArticles;
   } catch (error) {
-    console.error(`❌ [${category}] Parse error:`, error.message);
+    console.error(`❌ [${category}] Parse error:`, error instanceof Error ? error.message : String(error));
     console.error(`❌ [${category}] Content preview (first 300 chars):`, response.content.substring(0, 300));
     console.error(
       `❌ [${category}] Content preview (last 100 chars):`,
