@@ -274,3 +274,6 @@ verify_jwt = false
 
 [functions.generate-exam-outline]
 verify_jwt = true
+
+[functions.generate-exam-paper]
+verify_jwt = true
