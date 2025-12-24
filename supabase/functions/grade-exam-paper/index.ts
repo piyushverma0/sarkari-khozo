@@ -367,7 +367,7 @@ Be fair and constructive. Award partial marks for partially correct answers.`;
       systemPrompt,
       userPrompt,
       temperature: 0.3,
-      maxTokens: 500,
+      maxTokens: 5000,
       responseFormat: "json",
     });
     aiResponse = {
