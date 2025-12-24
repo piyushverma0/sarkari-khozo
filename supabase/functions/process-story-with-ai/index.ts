@@ -1,108 +1,108 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callParallel, logParallelUsage } from "../_shared/parallel-client.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 // Government domain mapping for official URLs
 const GOVERNMENT_DOMAINS: Record<string, string> = {
-  "SSC": "https://ssc.nic.in",
-  "UPSC": "https://upsc.gov.in",
-  "RRB": "https://www.rrbcdg.gov.in",
-  "IBPS": "https://www.ibps.in",
-  "SBI": "https://sbi.co.in/careers",
-  "RAILWAY": "https://www.rrbcdg.gov.in",
-  "NEET": "https://neet.nta.nic.in",
-  "JEE": "https://jeemain.nta.nic.in",
-  "NTA": "https://nta.ac.in",
-  "CBSE": "https://cbse.gov.in",
-  "UGC": "https://ugc.ac.in",
-  "AICTE": "https://www.aicte-india.org",
-  "RBI": "https://rbi.org.in/careers",
-  "EPFO": "https://www.epfindia.gov.in",
+  SSC: "https://ssc.nic.in",
+  UPSC: "https://upsc.gov.in",
+  RRB: "https://www.rrbcdg.gov.in",
+  IBPS: "https://www.ibps.in",
+  SBI: "https://sbi.co.in/careers",
+  RAILWAY: "https://www.rrbcdg.gov.in",
+  NEET: "https://neet.nta.nic.in",
+  JEE: "https://jeemain.nta.nic.in",
+  NTA: "https://nta.ac.in",
+  CBSE: "https://cbse.gov.in",
+  UGC: "https://ugc.ac.in",
+  AICTE: "https://www.aicte-india.org",
+  RBI: "https://rbi.org.in/careers",
+  EPFO: "https://www.epfindia.gov.in",
   "INDIAN ARMY": "https://joinindianarmy.nic.in",
-  "ARMY": "https://joinindianarmy.nic.in",
+  ARMY: "https://joinindianarmy.nic.in",
   "INDIAN NAVY": "https://joinindiannavy.gov.in",
-  "NAVY": "https://joinindiannavy.gov.in",
+  NAVY: "https://joinindiannavy.gov.in",
   "INDIAN AIR FORCE": "https://careerindianairforce.cdac.in",
   "AIR FORCE": "https://careerindianairforce.cdac.in",
-  "IAF": "https://careerindianairforce.cdac.in",
-  "DRDO": "https://www.drdo.gov.in",
-  "ISRO": "https://www.isro.gov.in",
+  IAF: "https://careerindianairforce.cdac.in",
+  DRDO: "https://www.drdo.gov.in",
+  ISRO: "https://www.isro.gov.in",
   "PM KISAN": "https://pmkisan.gov.in",
-  "PMKISAN": "https://pmkisan.gov.in",
+  PMKISAN: "https://pmkisan.gov.in",
   "AYUSHMAN BHARAT": "https://pmjay.gov.in",
-  "PMJAY": "https://pmjay.gov.in",
-  "PMAY": "https://pmaymis.gov.in",
-  "AADHAAR": "https://uidai.gov.in",
-  "UIDAI": "https://uidai.gov.in",
-  "DIGILOCKER": "https://digilocker.gov.in",
+  PMJAY: "https://pmjay.gov.in",
+  PMAY: "https://pmaymis.gov.in",
+  AADHAAR: "https://uidai.gov.in",
+  UIDAI: "https://uidai.gov.in",
+  DIGILOCKER: "https://digilocker.gov.in",
   "E-SHRAM": "https://eshram.gov.in",
-  "ESHRAM": "https://eshram.gov.in",
+  ESHRAM: "https://eshram.gov.in",
   "SKILL INDIA": "https://skillindia.gov.in",
-  "MSDE": "https://www.msde.gov.in",
-  "CTET": "https://ctet.nic.in",
-  "TET": "https://ctet.nic.in",
-  "CUET": "https://cuet.samarth.ac.in",
-  "GATE": "https://gate.iitd.ac.in",
-  "NET": "https://ugcnet.nta.ac.in",
+  MSDE: "https://www.msde.gov.in",
+  CTET: "https://ctet.nic.in",
+  TET: "https://ctet.nic.in",
+  CUET: "https://cuet.samarth.ac.in",
+  GATE: "https://gate.iitd.ac.in",
+  NET: "https://ugcnet.nta.ac.in",
   "UGC NET": "https://ugcnet.nta.ac.in",
-  "CSIR": "https://csirnet.nta.nic.in",
-  "CAT": "https://iimcat.ac.in",
-  "CLAT": "https://consortiumofnlus.ac.in",
-  "AIIMS": "https://www.aiims.edu",
-  "JIPMER": "https://jipmer.edu.in",
-  "ESIC": "https://www.esic.nic.in",
-  "FCI": "https://fci.gov.in",
-  "LIC": "https://licindia.in/careers",
-  "ONGC": "https://www.ongcindia.com",
-  "NTPC": "https://www.ntpc.co.in",
-  "BHEL": "https://www.bhel.com",
-  "SAIL": "https://sail.co.in",
-  "GAIL": "https://gailonline.com",
-  "IOC": "https://iocl.com",
-  "IOCL": "https://iocl.com",
-  "BPCL": "https://www.bharatpetroleum.in",
-  "HPCL": "https://hindustanpetroleum.com",
+  CSIR: "https://csirnet.nta.nic.in",
+  CAT: "https://iimcat.ac.in",
+  CLAT: "https://consortiumofnlus.ac.in",
+  AIIMS: "https://www.aiims.edu",
+  JIPMER: "https://jipmer.edu.in",
+  ESIC: "https://www.esic.nic.in",
+  FCI: "https://fci.gov.in",
+  LIC: "https://licindia.in/careers",
+  ONGC: "https://www.ongcindia.com",
+  NTPC: "https://www.ntpc.co.in",
+  BHEL: "https://www.bhel.com",
+  SAIL: "https://sail.co.in",
+  GAIL: "https://gailonline.com",
+  IOC: "https://iocl.com",
+  IOCL: "https://iocl.com",
+  BPCL: "https://www.bharatpetroleum.in",
+  HPCL: "https://hindustanpetroleum.com",
   "COAL INDIA": "https://www.coalindia.in",
-  "CIL": "https://www.coalindia.in",
-  "BSNL": "https://www.bsnl.co.in",
-  "MTNL": "https://mtnl.in",
-  "HAL": "https://hal-india.co.in",
-  "BEL": "https://www.bel-india.in",
-  "DMRC": "https://www.delhimetrorail.com",
-  "METRO": "https://www.delhimetrorail.com",
-  "CRPF": "https://crpf.gov.in",
-  "BSF": "https://bsf.gov.in",
-  "CISF": "https://cisf.gov.in",
-  "ITBP": "https://www.itbpolice.nic.in",
-  "SSB": "https://ssb.nic.in",
-  "NDA": "https://www.nda.nic.in",
-  "CDS": "https://upsc.gov.in",
-  "IAS": "https://upsc.gov.in",
-  "IPS": "https://upsc.gov.in",
-  "IFS": "https://upsc.gov.in",
-  "PSC": "https://upsc.gov.in",
-  "UPPSC": "https://uppsc.up.nic.in",
-  "BPSC": "https://www.bpsc.bih.nic.in",
-  "MPSC": "https://www.mpsc.gov.in",
-  "RPSC": "https://rpsc.rajasthan.gov.in",
-  "WBPSC": "https://www.pscwbonline.gov.in",
-  "KPSC": "https://kpsc.kar.nic.in",
-  "TNPSC": "https://www.tnpsc.gov.in",
-  "APPSC": "https://psc.ap.gov.in",
-  "TSPSC": "https://www.tspsc.gov.in",
-  "GPSC": "https://gpsc.gujarat.gov.in",
-  "HPSC": "https://hpsc.gov.in",
-  "UKPSC": "https://ukpsc.gov.in",
-  "JPSC": "https://www.jpsc.gov.in",
-  "CGPSC": "https://psc.cg.gov.in",
-  "OPSC": "https://www.opsc.gov.in",
-  "PPSC": "https://ppsc.gov.in",
-  "MPPSC": "https://www.mppsc.nic.in",
+  CIL: "https://www.coalindia.in",
+  BSNL: "https://www.bsnl.co.in",
+  MTNL: "https://mtnl.in",
+  HAL: "https://hal-india.co.in",
+  BEL: "https://www.bel-india.in",
+  DMRC: "https://www.delhimetrorail.com",
+  METRO: "https://www.delhimetrorail.com",
+  CRPF: "https://crpf.gov.in",
+  BSF: "https://bsf.gov.in",
+  CISF: "https://cisf.gov.in",
+  ITBP: "https://www.itbpolice.nic.in",
+  SSB: "https://ssb.nic.in",
+  NDA: "https://www.nda.nic.in",
+  CDS: "https://upsc.gov.in",
+  IAS: "https://upsc.gov.in",
+  IPS: "https://upsc.gov.in",
+  IFS: "https://upsc.gov.in",
+  PSC: "https://upsc.gov.in",
+  UPPSC: "https://uppsc.up.nic.in",
+  BPSC: "https://www.bpsc.bih.nic.in",
+  MPSC: "https://www.mpsc.gov.in",
+  RPSC: "https://rpsc.rajasthan.gov.in",
+  WBPSC: "https://www.pscwbonline.gov.in",
+  KPSC: "https://kpsc.kar.nic.in",
+  TNPSC: "https://www.tnpsc.gov.in",
+  APPSC: "https://psc.ap.gov.in",
+  TSPSC: "https://www.tspsc.gov.in",
+  GPSC: "https://gpsc.gujarat.gov.in",
+  HPSC: "https://hpsc.gov.in",
+  UKPSC: "https://ukpsc.gov.in",
+  JPSC: "https://www.jpsc.gov.in",
+  CGPSC: "https://psc.cg.gov.in",
+  OPSC: "https://www.opsc.gov.in",
+  PPSC: "https://ppsc.gov.in",
+  MPPSC: "https://www.mppsc.nic.in",
   "KPSC KERALA": "https://keralapsc.gov.in",
 };
 
@@ -111,14 +111,14 @@ function inferGovernmentUrl(
   category: string,
   subcategory: string | null,
   headline: string,
-  tags: string[]
+  tags: string[],
 ): string | null {
   // Only for government-related categories
-  if (!['jobs', 'exams', 'schemes', 'policies'].includes(category)) {
+  if (!["jobs", "exams", "schemes", "policies"].includes(category)) {
     return null;
   }
 
-  const searchText = `${headline} ${subcategory || ''} ${tags.join(' ')}`.toUpperCase();
+  const searchText = `${headline} ${subcategory || ""} ${tags.join(" ")}`.toUpperCase();
 
   // Check for known organization mentions
   for (const [org, url] of Object.entries(GOVERNMENT_DOMAINS)) {
@@ -131,37 +131,34 @@ function inferGovernmentUrl(
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { url, raw_headline, source_name, category } = await req.json();
 
-    console.log('Processing story:', { url, raw_headline, source_name });
+    console.log("Processing story:", { url, raw_headline, source_name });
 
     // Initialize Supabase client
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     // Check if story already exists
     const { data: existingStory } = await supabase
-      .from('discovery_stories')
-      .select('id')
-      .eq('source_url', url)
+      .from("discovery_stories")
+      .select("id")
+      .eq("source_url", url)
       .maybeSingle();
 
     if (existingStory) {
-      console.log('Story already exists, skipping:', url);
+      console.log("Story already exists, skipping:", url);
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'Story already exists',
-          story_id: existingStory.id
+          message: "Story already exists",
+          story_id: existingStory.id,
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -185,9 +182,9 @@ Focus on:
 - IMPORTANT: For jobs/exams/schemes/policies, extract the official government source URL (.gov.in, .nic.in, .ac.in domains)`;
 
     const userPrompt = `Article URL: ${url}
-${raw_headline ? `Headline: ${raw_headline}` : ''}
-${source_name ? `Source: ${source_name}` : ''}
-${category ? `Expected Category: ${category}` : ''}
+${raw_headline ? `Headline: ${raw_headline}` : ""}
+${source_name ? `Source: ${source_name}` : ""}
+${category ? `Expected Category: ${category}` : ""}
 
 Please analyze this article and provide a JSON response with the following fields:
 
@@ -295,26 +292,37 @@ Do not include markdown code blocks, do not include any text before or after the
           enableWebSearch: true,
           maxTokens: 2500,
           temperature: 0.3,
-          jsonMode: true
+          jsonMode: true,
         });
 
-        console.log('Parallel AI response received, tokens used:', response.tokensUsed.total);
+        console.log("Parallel AI response received, tokens used:", response.tokensUsed.total);
 
         // Log Parallel usage
-        await logParallelUsage('process-story-with-ai', response.tokensUsed, response.webSearchUsed);
+        await logParallelUsage("process-story-with-ai", response.tokensUsed, response.webSearchUsed);
 
         // Parse JSON response with multiple extraction strategies
         let cleanContent = response.content.trim();
+
+        // Step 1: Handle escaped JSON strings (AI sometimes returns quoted JSON)
+        if (cleanContent.startsWith('"') && cleanContent.endsWith('"')) {
+          try {
+            // First unescape the string by parsing it
+            cleanContent = JSON.parse(cleanContent);
+            console.log("Successfully unescaped JSON string wrapper");
+          } catch (e) {
+            console.log("Failed to unescape JSON string, trying extraction strategies...");
+          }
+        }
 
         // Strategy 1: Find JSON between ```json and ```
         const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/);
         if (jsonBlockMatch) {
           try {
             storyData = JSON.parse(jsonBlockMatch[1]);
-            console.log('Successfully parsed JSON (Strategy 1: markdown block)');
+            console.log("Successfully parsed JSON (Strategy 1: markdown block)");
             break;
           } catch (e) {
-            console.log('Strategy 1 failed, trying next...');
+            console.log("Strategy 1 failed, trying next...");
           }
         }
 
@@ -324,59 +332,58 @@ Do not include markdown code blocks, do not include any text before or after the
           if (jsonMatch) {
             try {
               storyData = JSON.parse(jsonMatch[0]);
-              console.log('Successfully parsed JSON (Strategy 2: object pattern)');
+              console.log("Successfully parsed JSON (Strategy 2: object pattern)");
               break;
             } catch (e) {
-              console.log('Strategy 2 failed, trying next...');
+              console.log("Strategy 2 failed, trying next...");
             }
           }
         }
 
         // Strategy 3: Remove everything before first { and after last }
         if (!storyData) {
-          const firstBrace = cleanContent.indexOf('{');
-          const lastBrace = cleanContent.lastIndexOf('}');
+          const firstBrace = cleanContent.indexOf("{");
+          const lastBrace = cleanContent.lastIndexOf("}");
           if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
             try {
               storyData = JSON.parse(cleanContent.substring(firstBrace, lastBrace + 1));
-              console.log('Successfully parsed JSON (Strategy 3: brace extraction)');
+              console.log("Successfully parsed JSON (Strategy 3: brace extraction)");
               break;
             } catch (e) {
-              console.log('Strategy 3 failed');
+              console.log("Strategy 3 failed");
             }
           }
         }
 
         if (!storyData) {
-          throw new Error('All JSON extraction strategies failed');
+          throw new Error("All JSON extraction strategies failed");
         }
 
         break; // Success, exit retry loop
-
       } catch (error) {
         console.error(`Attempt ${attempt} failed:`, error);
 
         if (attempt < MAX_RETRIES) {
           const delayMs = 1000 * attempt;
           console.log(`Retry attempt ${attempt}/${MAX_RETRIES} after ${delayMs}ms`);
-          await new Promise(resolve => setTimeout(resolve, delayMs));
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
         } else {
-          console.error('All retry attempts failed');
-          console.error('Raw content:', response?.content);
-          throw new Error('Invalid JSON response from AI after all retries');
+          console.error("All retry attempts failed");
+          console.error("Raw content:", response?.content);
+          throw new Error("Invalid JSON response from AI after all retries");
         }
       }
     }
 
     // Strip cite tags from all text fields (Parallel AI may include citations)
     const stripCiteTags = (obj: any): any => {
-      if (typeof obj === 'string') {
-        return obj.replace(/<cite[^>]*>/g, '').replace(/<\/cite>/g, '');
+      if (typeof obj === "string") {
+        return obj.replace(/<cite[^>]*>/g, "").replace(/<\/cite>/g, "");
       }
       if (Array.isArray(obj)) {
-        return obj.map(item => stripCiteTags(item));
+        return obj.map((item) => stripCiteTags(item));
       }
-      if (obj && typeof obj === 'object') {
+      if (obj && typeof obj === "object") {
         const cleaned: any = {};
         for (const key in obj) {
           cleaned[key] = stripCiteTags(obj[key]);
@@ -390,18 +397,27 @@ Do not include markdown code blocks, do not include any text before or after the
 
     // Validate required fields
     if (!cleanedData.headline || !cleanedData.summary || !cleanedData.category) {
-      throw new Error('Missing required fields in AI response');
+      throw new Error("Missing required fields in AI response");
     }
 
     // Validate category
-    const validCategories = ['exams', 'jobs', 'schemes', 'policies', 'current-affairs', 'international', 'education', 'diplomatic'];
+    const validCategories = [
+      "exams",
+      "jobs",
+      "schemes",
+      "policies",
+      "current-affairs",
+      "international",
+      "education",
+      "diplomatic",
+    ];
     if (!validCategories.includes(cleanedData.category)) {
       console.warn('Invalid category, defaulting to "policies":', cleanedData.category);
-      cleanedData.category = 'policies';
+      cleanedData.category = "policies";
     }
 
     // Check relevance score - Lower threshold for current-affairs, international, diplomatic, education
-    const diverseCategories = ['current-affairs', 'international', 'diplomatic', 'education'];
+    const diverseCategories = ["current-affairs", "international", "diplomatic", "education"];
     const relevanceThreshold = diverseCategories.includes(cleanedData.category) ? 2 : 3;
 
     if (cleanedData.relevance_score < relevanceThreshold) {
@@ -409,11 +425,11 @@ Do not include markdown code blocks, do not include any text before or after the
       return new Response(
         JSON.stringify({
           success: false,
-          message: 'Story relevance too low',
+          message: "Story relevance too low",
           relevance_score: cleanedData.relevance_score,
-          threshold: relevanceThreshold
+          threshold: relevanceThreshold,
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
       );
     }
 
@@ -422,13 +438,14 @@ Do not include markdown code blocks, do not include any text before or after the
 
     // Validate it's actually a government domain
     if (officialGovUrl) {
-      const isValidGovDomain = /\.(gov\.in|nic\.in|ac\.in|org\.in)/.test(officialGovUrl) ||
-        officialGovUrl.includes('ibps.in') ||
-        officialGovUrl.includes('iimcat.ac.in') ||
-        officialGovUrl.includes('consortiumofnlus.ac.in');
+      const isValidGovDomain =
+        /\.(gov\.in|nic\.in|ac\.in|org\.in)/.test(officialGovUrl) ||
+        officialGovUrl.includes("ibps.in") ||
+        officialGovUrl.includes("iimcat.ac.in") ||
+        officialGovUrl.includes("consortiumofnlus.ac.in");
 
       if (!isValidGovDomain) {
-        console.log('AI returned non-government URL, discarding:', officialGovUrl);
+        console.log("AI returned non-government URL, discarding:", officialGovUrl);
         officialGovUrl = null;
       }
     }
@@ -439,10 +456,10 @@ Do not include markdown code blocks, do not include any text before or after the
         cleanedData.category,
         cleanedData.subcategory,
         cleanedData.headline,
-        cleanedData.tags || []
+        cleanedData.tags || [],
       );
       if (officialGovUrl) {
-        console.log('Inferred government URL from content:', officialGovUrl);
+        console.log("Inferred government URL from content:", officialGovUrl);
       }
     }
 
@@ -452,12 +469,12 @@ Do not include markdown code blocks, do not include any text before or after the
       summary: cleanedData.summary,
       excerpt: cleanedData.excerpt || cleanedData.summary.substring(0, 200),
       source_url: url,
-      source_name: source_name || cleanedData.source_name || 'Unknown',
+      source_name: source_name || cleanedData.source_name || "Unknown",
       published_date: cleanedData.published_date || new Date().toISOString(),
       category: cleanedData.category,
       subcategory: cleanedData.subcategory || null,
       tags: cleanedData.tags || [],
-      region: cleanedData.region || 'National',
+      region: cleanedData.region || "National",
       states: cleanedData.states || [],
       image_url: cleanedData.image_url || null,
       image_alt: cleanedData.headline,
@@ -466,45 +483,44 @@ Do not include markdown code blocks, do not include any text before or after the
       key_takeaways: cleanedData.key_takeaways || [],
       official_government_url: officialGovUrl,
       is_active: true,
-      scraped_at: new Date().toISOString()
+      scraped_at: new Date().toISOString(),
     };
 
     // Insert into database
     const { data: savedStory, error: saveError } = await supabase
-      .from('discovery_stories')
+      .from("discovery_stories")
       .insert(storyRecord)
       .select()
       .single();
 
     if (saveError) {
-      console.error('Failed to save story:', saveError);
+      console.error("Failed to save story:", saveError);
       throw saveError;
     }
 
-    console.log('Story saved successfully:', savedStory.id, 'official_gov_url:', officialGovUrl);
+    console.log("Story saved successfully:", savedStory.id, "official_gov_url:", officialGovUrl);
 
     return new Response(
       JSON.stringify({
         success: true,
         story_id: savedStory.id,
         relevance_score: cleanedData.relevance_score,
-        official_government_url: officialGovUrl
+        official_government_url: officialGovUrl,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-
   } catch (error) {
-    console.error('Error processing story:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error("Error processing story:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({
         success: false,
-        error: errorMessage
+        error: errorMessage,
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500
-      }
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      },
     );
   }
 });
