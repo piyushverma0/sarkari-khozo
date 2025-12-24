@@ -219,13 +219,13 @@ Content: ${note.raw_content?.substring(0, 3000) || JSON.stringify(note.structure
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("❌ Phase 2 Error:", error);
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
+        error: error.message,
         phase: 2,
       }),
       {
@@ -279,7 +279,7 @@ REQUIREMENTS:
 4. Questions should be clear, unambiguous, and exam-authentic
 5. ${getQuestionTypeSpecificRequirements(questionType)}
 
-${getQuestionFormat(questionType, marksPerQuestion, wordLimit ?? null)}
+${getQuestionFormat(questionType, marksPerQuestion, wordLimit)}
 
 Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
 
@@ -298,8 +298,8 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
       jsonMode: true,
     });
     console.log("✅ Parallel AI succeeded");
-  } catch (parallelError: unknown) {
-    console.log("⚠️ Parallel AI failed, using fallback:", parallelError instanceof Error ? parallelError.message : "Unknown error");
+  } catch (parallelError) {
+    console.log("⚠️ Parallel AI failed, using fallback:", parallelError.message);
 
     const fallbackResponse = await callAI({
       systemPrompt,
@@ -371,55 +371,101 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
       const firstBracket = cleanContent.indexOf("[");
 
       if (firstBracket === -1) {
-        throw new Error("No JSON array found in response");
-      }
+        // Step 3.5: Fallback - check if this is a plain text numbered list
+        console.log("⚠️ No JSON array found, checking for plain text numbered list format...");
 
-      // Find the matching closing bracket by counting brackets
-      let bracketCount = 0;
-      let inString = false;
-      let escapeNext = false;
-      let lastBracket = -1;
+        // Pattern: "1. Question text (difficulty)" or "1. Question text"
+        const numberedListPattern = /^\d+\.\s+(.+?)(?:\s*\((\w+)\))?(?:\n|$)/gm;
+        const matches = Array.from(cleanContent.matchAll(numberedListPattern));
 
-      for (let i = firstBracket; i < cleanContent.length; i++) {
-        const char = cleanContent[i];
+        if (matches.length > 0) {
+          console.log(`✅ Found ${matches.length} numbered list items, converting to JSON...`);
 
-        if (escapeNext) {
-          escapeNext = false;
-          continue;
+          questions = matches.map((match, idx) => {
+            const questionText = match[1].trim();
+            const difficulty = match[2]?.toLowerCase() || "medium";
+
+            // For MCQ questions, try to extract options
+            let options = null;
+            if (questionType === "MCQ" || questionType === "MULTI_SELECT") {
+              // Look for options in the lines following this question
+              const questionStart = match.index!;
+              const nextQuestionMatch = matches[idx + 1];
+              const questionEnd = nextQuestionMatch ? nextQuestionMatch.index! : cleanContent.length;
+              const questionBlock = cleanContent.substring(questionStart, questionEnd);
+
+              // Try to find options (A), (B), (C), (D) or A. B. C. D.
+              const optionPattern = /[A-D][\)\.]\s*(.+?)(?=\n[A-D][\)\.]|\n\d+\.|\n\n|$)/gs;
+              const optionMatches = Array.from(questionBlock.matchAll(optionPattern));
+
+              if (optionMatches.length >= 2) {
+                options = optionMatches.map((opt) => opt[1].trim());
+                console.log(`  ✅ Extracted ${options.length} options for question ${idx + 1}`);
+              }
+            }
+
+            return {
+              question_text: questionText,
+              options: options,
+              difficulty: difficulty,
+              topic: topics[idx % topics.length] || "General",
+            };
+          });
+
+          console.log(`✅ Successfully converted ${questions.length} plain text items to JSON`);
+        } else {
+          console.error("❌ No JSON array or numbered list found in response");
+          throw new Error("No JSON array found in response");
         }
+      } else {
+        // Found JSON array bracket, extract it
+        // Find the matching closing bracket by counting brackets
+        let bracketCount = 0;
+        let inString = false;
+        let escapeNext = false;
+        let lastBracket = -1;
 
-        if (char === "\\") {
-          escapeNext = true;
-          continue;
-        }
+        for (let i = firstBracket; i < cleanContent.length; i++) {
+          const char = cleanContent[i];
 
-        if (char === '"' && !escapeNext) {
-          inString = !inString;
-          continue;
-        }
+          if (escapeNext) {
+            escapeNext = false;
+            continue;
+          }
 
-        if (!inString) {
-          if (char === "[") {
-            bracketCount++;
-          } else if (char === "]") {
-            bracketCount--;
-            if (bracketCount === 0) {
-              lastBracket = i;
-              break;
+          if (char === "\\") {
+            escapeNext = true;
+            continue;
+          }
+
+          if (char === '"' && !escapeNext) {
+            inString = !inString;
+            continue;
+          }
+
+          if (!inString) {
+            if (char === "[") {
+              bracketCount++;
+            } else if (char === "]") {
+              bracketCount--;
+              if (bracketCount === 0) {
+                lastBracket = i;
+                break;
+              }
             }
           }
         }
-      }
 
-      if (lastBracket === -1) {
-        console.error("❌ Could not find matching closing bracket");
-        console.error("❌ Content preview:", cleanContent.substring(0, 500));
-        throw new Error("Incomplete JSON array in response");
-      }
+        if (lastBracket === -1) {
+          console.error("❌ Could not find matching closing bracket");
+          console.error("❌ Content preview:", cleanContent.substring(0, 500));
+          throw new Error("Incomplete JSON array in response");
+        }
 
-      const jsonStr = cleanContent.substring(firstBracket, lastBracket + 1);
-      console.log(`✅ Extracted JSON array (${jsonStr.length} chars)`);
-      questions = JSON.parse(jsonStr);
+        const jsonStr = cleanContent.substring(firstBracket, lastBracket + 1);
+        console.log(`✅ Extracted JSON array (${jsonStr.length} chars)`);
+        questions = JSON.parse(jsonStr);
+      }
     }
 
     if (!Array.isArray(questions)) {
@@ -436,14 +482,14 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
         questions = questions.slice(0, questionCount);
       }
     }
-  } catch (parseError: unknown) {
+  } catch (parseError) {
     console.error("❌ Failed to parse questions:", parseError);
     console.error("Response preview:", aiResponse.content.substring(0, 500));
-    throw new Error(`Failed to parse section questions: ${parseError instanceof Error ? parseError.message : "Unknown error"}`);
+    throw new Error(`Failed to parse section questions: ${parseError.message}`);
   }
 
   // Validate and enrich questions
-  questions = questions.map((q: any, idx) => ({
+  questions = questions.map((q, idx) => ({
     question_number: startingQuestionNumber + idx,
     question_text: q.question_text || q.question || "",
     options: q.options || null,
