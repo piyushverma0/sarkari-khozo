@@ -2,159 +2,150 @@
 // Generates actual questions section by section based on outline from Phase 1
 // Uses past year patterns and maintains exam authenticity
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
-import { callParallel } from '../_shared/parallel-client.ts'
-import { callAI } from '../_shared/ai-client.ts'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { callParallel } from "../_shared/parallel-client.ts";
+import { callAI } from "../_shared/ai-client.ts";
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 interface GenerateQuestionsRequest {
-  exam_paper_id: string
+  exam_paper_id: string;
 }
 
 interface Section {
-  section_id: string
-  section_name: string
-  question_type: string
-  total_questions: number
-  marks_per_question: number
-  total_marks: number
-  has_choices?: boolean
-  word_limit?: number | null
-  topics: string[]
+  section_id: string;
+  section_name: string;
+  question_type: string;
+  total_questions: number;
+  marks_per_question: number;
+  total_marks: number;
+  has_choices?: boolean;
+  word_limit?: number | null;
+  topics: string[];
 }
 
 interface Question {
-  question_number: number
-  question_text: string
-  question?: string
-  options?: string[] | null
-  marks: number
-  word_limit?: number | null
-  topic: string
-  difficulty: string
-  past_year_reference?: string | null
-  sub_questions?: Array<{ question: string; marks: number }> | null
-}
-
-interface SectionWithQuestions {
-  section_id: string
-  section_name: string
-  section_instructions: string
-  questions: Question[]
+  question_number: number;
+  question_text: string;
+  options?: string[] | null;
+  marks: number;
+  word_limit?: number | null;
+  topic: string;
+  difficulty: string;
+  past_year_reference?: string | null;
+  sub_questions?: any[] | null; // For multi-part questions
 }
 
 serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const { exam_paper_id }: GenerateQuestionsRequest = await req.json()
+    const { exam_paper_id }: GenerateQuestionsRequest = await req.json();
 
     if (!exam_paper_id) {
-      return new Response(
-        JSON.stringify({ error: 'exam_paper_id is required' }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
+      return new Response(JSON.stringify({ error: "exam_paper_id is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log('📝 Phase 2: Generating Exam Questions')
-    console.log('Exam Paper ID:', exam_paper_id)
+    console.log("📝 Phase 2: Generating Exam Questions");
+    console.log("Exam Paper ID:", exam_paper_id);
 
-    // Get authorization header
-    const authHeader = req.headers.get('Authorization')
+    // Get authorization header and extract JWT token
+    const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      throw new Error('Authorization header required')
+      throw new Error("Authorization header required");
     }
 
-    // Initialize Supabase client
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      global: {
-        headers: { Authorization: authHeader }
-      }
-    })
+    const token = authHeader.replace("Bearer ", "");
 
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Initialize Supabase client with service role key
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Get authenticated user by passing token to getUser()
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
     if (authError || !user) {
-      throw new Error('Authentication failed')
+      console.error("Auth error:", authError);
+      throw new Error("Authentication failed");
     }
 
-    console.log('✅ User authenticated:', user.id)
+    console.log("✅ User authenticated:", user.id);
 
     // Fetch exam paper with outline
     const { data: examPaper, error: fetchError } = await supabase
-      .from('exam_papers')
-      .select('*')
-      .eq('id', exam_paper_id)
-      .eq('user_id', user.id)
-      .single()
+      .from("exam_papers")
+      .select("*")
+      .eq("id", exam_paper_id)
+      .eq("user_id", user.id)
+      .single();
 
     if (fetchError) {
-      console.error('Failed to fetch exam paper:', fetchError)
-      throw new Error(`Failed to fetch exam paper: ${fetchError.message}`)
+      console.error("Failed to fetch exam paper:", fetchError);
+      throw new Error(`Failed to fetch exam paper: ${fetchError.message}`);
     }
 
     if (!examPaper) {
-      throw new Error('Exam paper not found')
+      throw new Error("Exam paper not found");
     }
 
     // Check if Phase 1 is complete
     if (!examPaper.exam_outline || examPaper.current_phase < 1) {
-      throw new Error('Phase 1 (outline) must be completed first')
+      throw new Error("Phase 1 (outline) must be completed first");
     }
 
-    const outline = examPaper.exam_outline
-    const sections: Section[] = outline.sections || []
+    const outline = examPaper.exam_outline;
+    const sections: Section[] = outline.sections || [];
 
     if (sections.length === 0) {
-      throw new Error('No sections found in exam outline')
+      throw new Error("No sections found in exam outline");
     }
 
-    console.log(`📚 Generating questions for ${sections.length} sections`)
+    console.log(`📚 Generating questions for ${sections.length} sections`);
 
     // Fetch note content if available for personalization
-    let noteContent = ''
+    let noteContent = "";
     if (examPaper.note_id) {
       const { data: note } = await supabase
-        .from('study_notes')
-        .select('title, summary, key_points, raw_content, structured_content')
-        .eq('id', examPaper.note_id)
-        .eq('user_id', user.id)
-        .single()
+        .from("study_notes")
+        .select("title, summary, key_points, raw_content, structured_content")
+        .eq("id", examPaper.note_id)
+        .eq("user_id", user.id)
+        .single();
 
       if (note) {
         noteContent = `
 Context from study notes:
 Title: ${note.title}
-Summary: ${note.summary || 'N/A'}
-Key Points: ${Array.isArray(note.key_points) ? note.key_points.join('\n') : 'N/A'}
-Content: ${note.raw_content?.substring(0, 3000) || JSON.stringify(note.structured_content)?.substring(0, 3000) || 'N/A'}
-`.trim()
-        console.log('📚 Using personalized content from note:', note.title)
+Summary: ${note.summary || "N/A"}
+Key Points: ${Array.isArray(note.key_points) ? note.key_points.join("\n") : "N/A"}
+Content: ${note.raw_content?.substring(0, 3000) || JSON.stringify(note.structured_content)?.substring(0, 3000) || "N/A"}
+`.trim();
+        console.log("📚 Using personalized content from note:", note.title);
       }
     }
 
     // Generate questions for all sections sequentially
-    const allSectionsWithQuestions: SectionWithQuestions[] = []
-    let currentQuestionNumber = 1
+    const allSectionsWithQuestions: any[] = [];
+    let currentQuestionNumber = 1;
 
     for (let i = 0; i < sections.length; i++) {
-      const section = sections[i]
-      console.log(`\n🔄 Generating Section ${section.section_id}: ${section.section_name}`)
-      console.log(`   Type: ${section.question_type}, Questions: ${section.total_questions}`)
+      const section = sections[i];
+      console.log(`\n🔄 Generating Section ${section.section_id}: ${section.section_name}`);
+      console.log(`   Type: ${section.question_type}, Questions: ${section.total_questions}`);
 
       const sectionQuestions = await generateSectionQuestions(
         section,
@@ -162,53 +153,53 @@ Content: ${note.raw_content?.substring(0, 3000) || JSON.stringify(note.structure
         examPaper.exam_type,
         examPaper.subject,
         examPaper.class_level,
-        noteContent
-      )
+        noteContent,
+      );
 
       // Update question numbers
       const numberedQuestions = sectionQuestions.map((q, idx) => ({
         ...q,
-        question_number: currentQuestionNumber + idx
-      }))
+        question_number: currentQuestionNumber + idx,
+      }));
 
       allSectionsWithQuestions.push({
         section_id: section.section_id,
         section_name: section.section_name,
         section_instructions: getSectionInstructions(section),
-        questions: numberedQuestions
-      })
+        questions: numberedQuestions,
+      });
 
-      currentQuestionNumber += numberedQuestions.length
-      console.log(`✅ Section ${section.section_id} complete: ${numberedQuestions.length} questions generated`)
+      currentQuestionNumber += numberedQuestions.length;
+      console.log(`✅ Section ${section.section_id} complete: ${numberedQuestions.length} questions generated`);
     }
 
-    const totalQuestions = currentQuestionNumber - 1
-    console.log(`\n🎉 All questions generated: ${totalQuestions} total questions`)
+    const totalQuestions = currentQuestionNumber - 1;
+    console.log(`\n🎉 All questions generated: ${totalQuestions} total questions`);
 
     // Update exam paper with questions
     const formattedPaper = {
       exam_id: exam_paper_id,
       sections: allSectionsWithQuestions,
       total_questions: totalQuestions,
-      generated_at: new Date().toISOString()
-    }
+      generated_at: new Date().toISOString(),
+    };
 
     const { error: updateError } = await supabase
-      .from('exam_papers')
+      .from("exam_papers")
       .update({
         formatted_paper: formattedPaper,
         current_phase: 2,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
-      .eq('id', exam_paper_id)
-      .eq('user_id', user.id)
+      .eq("id", exam_paper_id)
+      .eq("user_id", user.id);
 
     if (updateError) {
-      console.error('Failed to update exam paper:', updateError)
-      throw updateError
+      console.error("Failed to update exam paper:", updateError);
+      throw updateError;
     }
 
-    console.log('✅ Phase 2 Complete: Questions Saved to Database')
+    console.log("✅ Phase 2 Complete: Questions Saved to Database");
 
     return new Response(
       JSON.stringify({
@@ -217,34 +208,33 @@ Content: ${note.raw_content?.substring(0, 3000) || JSON.stringify(note.structure
         phase: 2,
         total_questions: totalQuestions,
         sections_count: allSectionsWithQuestions.length,
-        sections: allSectionsWithQuestions.map(s => ({
+        sections: allSectionsWithQuestions.map((s) => ({
           section_id: s.section_id,
           section_name: s.section_name,
-          question_count: s.questions.length
-        }))
+          question_count: s.questions.length,
+        })),
       }),
       {
         status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
-
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (error) {
-    console.error('❌ Phase 2 Error:', error)
+    console.error("❌ Phase 2 Error:", error);
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : String(error),
-        phase: 2
+        error: error.message,
+        phase: 2,
       }),
       {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
-})
+});
 
 /**
  * Generate questions for a specific section
@@ -255,19 +245,18 @@ async function generateSectionQuestions(
   examType: string,
   subject: string,
   classLevel: string | null,
-  noteContent: string
+  noteContent: string,
 ): Promise<Question[]> {
+  const questionType = section.question_type;
+  const questionCount = section.total_questions;
+  const marksPerQuestion = section.marks_per_question;
+  const topics = section.topics || [];
+  const wordLimit = section.word_limit;
 
-  const questionType = section.question_type
-  const questionCount = section.total_questions
-  const marksPerQuestion = section.marks_per_question
-  const topics = section.topics || []
-  const wordLimit = section.word_limit
-
-  console.log('🤖 Calling AI for section question generation...')
+  console.log("🤖 Calling AI for section question generation...");
 
   // Build system prompt based on question type
-  const systemPrompt = getSystemPromptForQuestionType(questionType, examType)
+  const systemPrompt = getSystemPromptForQuestionType(questionType, examType);
 
   // Build user prompt
   const userPrompt = `Generate ${questionCount} ${questionType} questions for ${examType} ${subject} exam.
@@ -277,40 +266,40 @@ SECTION DETAILS:
 - Question Type: ${questionType}
 - Total Questions: ${questionCount}
 - Marks per Question: ${marksPerQuestion}
-${wordLimit ? `- Word Limit: ${wordLimit} words` : ''}
-- Topics: ${topics.join(', ')}
-${classLevel ? `- Class/Level: ${classLevel}` : ''}
+${wordLimit ? `- Word Limit: ${wordLimit} words` : ""}
+- Topics: ${topics.join(", ")}
+${classLevel ? `- Class/Level: ${classLevel}` : ""}
 
-${noteContent ? `\nPERSONALIZED CONTENT:\n${noteContent}\n` : ''}
+${noteContent ? `\nPERSONALIZED CONTENT:\n${noteContent}\n` : ""}
 
 REQUIREMENTS:
 1. Questions must match ${examType} past year paper patterns
-2. Cover all topics: ${topics.join(', ')}
+2. Cover all topics: ${topics.join(", ")}
 3. Difficulty distribution: 30% easy, 50% medium, 20% hard
 4. Questions should be clear, unambiguous, and exam-authentic
 5. ${getQuestionTypeSpecificRequirements(questionType)}
 
 ${getQuestionFormat(questionType, marksPerQuestion, wordLimit)}
 
-Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`
+Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
 
-  let aiResponse: { content: string; tokensUsed?: { input?: number; output?: number; prompt?: number; completion?: number; total?: number } }
-  let modelUsed = 'parallel-lite'
+  let aiResponse: any;
+  let modelUsed = "parallel-lite";
 
   // Try Parallel AI first
   try {
-    console.log('🔵 Trying Parallel AI for section questions...')
+    console.log("🔵 Trying Parallel AI for section questions...");
     aiResponse = await callParallel({
       systemPrompt,
       userPrompt,
       enableWebSearch: true, // Search for past papers
       temperature: 0.5,
       maxTokens: 4000,
-      jsonMode: true
-    })
-    console.log('✅ Parallel AI succeeded')
+      jsonMode: true,
+    });
+    console.log("✅ Parallel AI succeeded");
   } catch (parallelError) {
-    console.log('⚠️ Parallel AI failed, using fallback:', parallelError instanceof Error ? parallelError.message : String(parallelError))
+    console.log("⚠️ Parallel AI failed, using fallback:", parallelError.message);
 
     const fallbackResponse = await callAI({
       systemPrompt,
@@ -318,114 +307,116 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`
       enableWebSearch: true,
       temperature: 0.5,
       maxTokens: 4000,
-      responseFormat: 'json'
-    })
+      responseFormat: "json",
+    });
 
     aiResponse = {
       content: fallbackResponse.content,
-      tokensUsed: fallbackResponse.tokensUsed
-    }
-    modelUsed = fallbackResponse.modelUsed || 'fallback-ai'
-    console.log(`✅ Fallback AI succeeded: ${modelUsed}`)
+      tokensUsed: fallbackResponse.tokensUsed,
+    };
+    modelUsed = fallbackResponse.modelUsed || "fallback-ai";
+    console.log(`✅ Fallback AI succeeded: ${modelUsed}`);
   }
 
   // Parse questions with multi-stage parsing
-  let questions: Question[]
+  let questions: Question[];
   try {
-    let cleanContent = aiResponse.content.trim()
+    let cleanContent = aiResponse.content.trim();
 
     // Remove markdown code blocks
-    const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/)
+    const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/);
     if (jsonBlockMatch) {
-      cleanContent = jsonBlockMatch[1].trim()
+      cleanContent = jsonBlockMatch[1].trim();
     } else {
-      cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '').trim()
+      cleanContent = cleanContent
+        .replace(/^```\s*/, "")
+        .replace(/\s*```$/, "")
+        .trim();
     }
 
     // Handle escaped JSON strings
     if (cleanContent.startsWith('"') && cleanContent.endsWith('"')) {
       try {
-        cleanContent = JSON.parse(cleanContent)
-      } catch (_e) {
-        console.warn('⚠️ Failed to unescape, continuing...')
+        cleanContent = JSON.parse(cleanContent);
+      } catch (e) {
+        console.warn("⚠️ Failed to unescape, continuing...");
       }
     }
 
     // Extract array
-    const arrayMatch = cleanContent.match(/\[[\s\S]*\]/)
+    const arrayMatch = cleanContent.match(/\[[\s\S]*\]/);
     if (arrayMatch) {
-      questions = JSON.parse(arrayMatch[0])
+      questions = JSON.parse(arrayMatch[0]);
     } else {
-      questions = JSON.parse(cleanContent)
+      questions = JSON.parse(cleanContent);
     }
 
     if (!Array.isArray(questions)) {
-      throw new Error('Response is not an array')
+      throw new Error("Response is not an array");
     }
 
-    console.log(`✅ Parsed ${questions.length} questions (expected ${questionCount})`)
+    console.log(`✅ Parsed ${questions.length} questions (expected ${questionCount})`);
 
     // Validate count
     if (questions.length !== questionCount) {
-      console.warn(`⚠️ Question count mismatch: got ${questions.length}, expected ${questionCount}`)
+      console.warn(`⚠️ Question count mismatch: got ${questions.length}, expected ${questionCount}`);
       // Trim or pad as needed
       if (questions.length > questionCount) {
-        questions = questions.slice(0, questionCount)
+        questions = questions.slice(0, questionCount);
       }
     }
-
   } catch (parseError) {
-    console.error('❌ Failed to parse questions:', parseError)
-    console.error('Response preview:', aiResponse.content.substring(0, 500))
-    throw new Error(`Failed to parse section questions: ${parseError instanceof Error ? parseError.message : String(parseError)}`)
+    console.error("❌ Failed to parse questions:", parseError);
+    console.error("Response preview:", aiResponse.content.substring(0, 500));
+    throw new Error(`Failed to parse section questions: ${parseError.message}`);
   }
 
   // Validate and enrich questions
   questions = questions.map((q, idx) => ({
     question_number: startingQuestionNumber + idx,
-    question_text: q.question_text || q.question || '',
+    question_text: q.question_text || q.question || "",
     options: q.options || null,
     marks: marksPerQuestion,
     word_limit: wordLimit || null,
-    topic: q.topic || topics[idx % topics.length] || 'General',
-    difficulty: q.difficulty || 'medium',
+    topic: q.topic || topics[idx % topics.length] || "General",
+    difficulty: q.difficulty || "medium",
     past_year_reference: q.past_year_reference || null,
-    sub_questions: q.sub_questions || null
-  }))
+    sub_questions: q.sub_questions || null,
+  }));
 
-  return questions
+  return questions;
 }
 
 /**
  * Get system prompt based on question type
  */
 function getSystemPromptForQuestionType(questionType: string, examType: string): string {
-  const basePrompt = `You are an expert ${examType} exam question creator. Generate questions that match real past year papers exactly.`
+  const basePrompt = `You are an expert ${examType} exam question creator. Generate questions that match real past year papers exactly.`;
 
   switch (questionType) {
-    case 'MCQ':
-      return `${basePrompt} Create multiple choice questions with 4 options (A, B, C, D). Make distractors plausible but clearly wrong. Always return valid JSON.`
+    case "MCQ":
+      return `${basePrompt} Create multiple choice questions with 4 options (A, B, C, D). Make distractors plausible but clearly wrong. Always return valid JSON.`;
 
-    case 'TRUE_FALSE':
-      return `${basePrompt} Create true/false questions testing important concepts. Avoid trick questions. Always return valid JSON.`
+    case "TRUE_FALSE":
+      return `${basePrompt} Create true/false questions testing important concepts. Avoid trick questions. Always return valid JSON.`;
 
-    case 'SHORT_ANSWER':
-      return `${basePrompt} Create short answer questions requiring 2-3 sentence responses. Focus on conceptual understanding. Always return valid JSON.`
+    case "SHORT_ANSWER":
+      return `${basePrompt} Create short answer questions requiring 2-3 sentence responses. Focus on conceptual understanding. Always return valid JSON.`;
 
-    case 'LONG_ANSWER':
-      return `${basePrompt} Create long answer questions requiring detailed explanations. Test deep understanding. Always return valid JSON.`
+    case "LONG_ANSWER":
+      return `${basePrompt} Create long answer questions requiring detailed explanations. Test deep understanding. Always return valid JSON.`;
 
-    case 'CASE_STUDY':
-      return `${basePrompt} Create case study based questions with context and multiple sub-questions. Always return valid JSON.`
+    case "CASE_STUDY":
+      return `${basePrompt} Create case study based questions with context and multiple sub-questions. Always return valid JSON.`;
 
-    case 'FILL_BLANK':
-      return `${basePrompt} Create fill in the blank questions with specific, unambiguous answers. Always return valid JSON.`
+    case "FILL_BLANK":
+      return `${basePrompt} Create fill in the blank questions with specific, unambiguous answers. Always return valid JSON.`;
 
-    case 'MATCH_FOLLOWING':
-      return `${basePrompt} Create match the following questions with two columns. Always return valid JSON.`
+    case "MATCH_FOLLOWING":
+      return `${basePrompt} Create match the following questions with two columns. Always return valid JSON.`;
 
     default:
-      return `${basePrompt} Create high-quality exam questions. Always return valid JSON.`
+      return `${basePrompt} Create high-quality exam questions. Always return valid JSON.`;
   }
 }
 
@@ -434,83 +425,85 @@ function getSystemPromptForQuestionType(questionType: string, examType: string):
  */
 function getQuestionTypeSpecificRequirements(questionType: string): string {
   switch (questionType) {
-    case 'MCQ':
-      return 'For MCQ: Create 4 plausible options, avoid "all of the above" unless necessary, make options similar in length'
+    case "MCQ":
+      return 'For MCQ: Create 4 plausible options, avoid "all of the above" unless necessary, make options similar in length';
 
-    case 'SHORT_ANSWER':
-      return 'For Short Answer: Questions should require concise 2-3 sentence responses testing key concepts'
+    case "SHORT_ANSWER":
+      return "For Short Answer: Questions should require concise 2-3 sentence responses testing key concepts";
 
-    case 'LONG_ANSWER':
-      return 'For Long Answer: Questions should require detailed explanations, diagrams, examples'
+    case "LONG_ANSWER":
+      return "For Long Answer: Questions should require detailed explanations, diagrams, examples";
 
-    case 'CASE_STUDY':
-      return 'For Case Study: Provide context paragraph followed by 3-5 sub-questions'
+    case "CASE_STUDY":
+      return "For Case Study: Provide context paragraph followed by 3-5 sub-questions";
 
     default:
-      return 'Follow standard exam question format'
+      return "Follow standard exam question format";
   }
 }
 
 /**
  * Get JSON output format for question type
  */
-function getQuestionFormat(questionType: string, _marks: number, _wordLimit: number | null | undefined): string {
+function getQuestionFormat(questionType: string, marks: number, wordLimit: number | null): string {
   const baseFormat = `
 OUTPUT FORMAT (return ONLY this JSON array):
 [
   {
     "question_text": "Question here",
-    ${questionType === 'MCQ' ? '"options": ["A. First option", "B. Second option", "C. Third option", "D. Fourth option"],' : ''}
-    ${questionType === 'TRUE_FALSE' ? '"options": ["True", "False"],' : ''}
+    ${questionType === "MCQ" ? '"options": ["A. First option", "B. Second option", "C. Third option", "D. Fourth option"],' : ""}
+    ${questionType === "TRUE_FALSE" ? '"options": ["True", "False"],' : ""}
     "topic": "Topic name from list",
     "difficulty": "easy" | "medium" | "hard",
     "past_year_reference": "${questionType} format seen in 2023 paper" (optional)
-    ${questionType === 'CASE_STUDY' ? ',\n    "sub_questions": [{"question": "...", "marks": 2}, ...]' : ''}
+    ${questionType === "CASE_STUDY" ? ',\n    "sub_questions": [{"question": "...", "marks": 2}, ...]' : ""}
   }
-]`
+]`;
 
-  return baseFormat
+  return baseFormat;
 }
 
 /**
  * Get section-specific instructions
  */
 function getSectionInstructions(section: Section): string {
-  const instructions: string[] = []
+  const instructions: string[] = [];
 
   // Question count and marks
-  instructions.push(`This section contains ${section.total_questions} questions of ${section.marks_per_question} mark(s) each.`)
+  instructions.push(
+    `This section contains ${section.total_questions} questions of ${section.marks_per_question} mark(s) each.`,
+  );
 
   // Total marks
-  instructions.push(`Total marks for this section: ${section.total_marks}`)
+  instructions.push(`Total marks for this section: ${section.total_marks}`);
 
   // Choices
   if (section.has_choices) {
-    instructions.push('Answer any questions as per choice given.')
+    instructions.push("Answer any questions as per choice given.");
   } else {
-    instructions.push('All questions are compulsory.')
+    instructions.push("All questions are compulsory.");
   }
 
   // Word limit
   if (section.word_limit) {
-    instructions.push(`Word limit: ${section.word_limit} words`)
+    instructions.push(`Word limit: ${section.word_limit} words`);
   }
 
   // Question type specific
   switch (section.question_type) {
-    case 'MCQ':
-      instructions.push('Choose the correct option for each question.')
-      break
-    case 'SHORT_ANSWER':
-      instructions.push('Write short answers in 2-3 sentences.')
-      break
-    case 'LONG_ANSWER':
-      instructions.push('Write detailed answers with diagrams wherever necessary.')
-      break
-    case 'CASE_STUDY':
-      instructions.push('Read the case study carefully and answer all sub-questions.')
-      break
+    case "MCQ":
+      instructions.push("Choose the correct option for each question.");
+      break;
+    case "SHORT_ANSWER":
+      instructions.push("Write short answers in 2-3 sentences.");
+      break;
+    case "LONG_ANSWER":
+      instructions.push("Write detailed answers with diagrams wherever necessary.");
+      break;
+    case "CASE_STUDY":
+      instructions.push("Read the case study carefully and answer all sub-questions.");
+      break;
   }
 
-  return instructions.join(' ')
+  return instructions.join(" ");
 }
