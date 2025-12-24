@@ -295,20 +295,18 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
       userPrompt,
       enableWebSearch: true, // Search for past papers
       temperature: 0.5,
-      maxTokens: 4000,
+      maxTokens: 15000,
       jsonMode: true,
     });
     console.log("✅ Parallel AI succeeded");
-  } catch (parallelError: unknown) {
-    const parallelErrorMsg = parallelError instanceof Error ? parallelError.message : "Unknown error";
-    console.log("⚠️ Parallel AI failed, using fallback:", parallelErrorMsg);
-
+  } catch (parallelError) {
+    console.log("⚠️ Parallel AI failed, using fallback:", parallelError.message);
     const fallbackResponse = await callAI({
       systemPrompt,
       userPrompt,
       enableWebSearch: true,
       temperature: 0.5,
-      maxTokens: 4000,
+      maxTokens: 15000,
       responseFormat: "json",
     });
 
