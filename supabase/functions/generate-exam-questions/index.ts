@@ -219,13 +219,14 @@ Content: ${note.raw_content?.substring(0, 3000) || JSON.stringify(note.structure
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("❌ Phase 2 Error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: errorMessage,
         phase: 2,
       }),
       {
@@ -279,7 +280,7 @@ REQUIREMENTS:
 4. Questions should be clear, unambiguous, and exam-authentic
 5. ${getQuestionTypeSpecificRequirements(questionType)}
 
-${getQuestionFormat(questionType, marksPerQuestion, wordLimit)}
+${getQuestionFormat(questionType, marksPerQuestion, wordLimit ?? null)}
 
 Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
 
@@ -298,8 +299,9 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
       jsonMode: true,
     });
     console.log("✅ Parallel AI succeeded");
-  } catch (parallelError) {
-    console.log("⚠️ Parallel AI failed, using fallback:", parallelError.message);
+  } catch (parallelError: unknown) {
+    const parallelErrorMessage = parallelError instanceof Error ? parallelError.message : "Unknown error";
+    console.log("⚠️ Parallel AI failed, using fallback:", parallelErrorMessage);
 
     const fallbackResponse = await callAI({
       systemPrompt,
@@ -365,14 +367,15 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
         questions = questions.slice(0, questionCount);
       }
     }
-  } catch (parseError) {
+  } catch (parseError: unknown) {
     console.error("❌ Failed to parse questions:", parseError);
     console.error("Response preview:", aiResponse.content.substring(0, 500));
-    throw new Error(`Failed to parse section questions: ${parseError.message}`);
+    const parseErrorMessage = parseError instanceof Error ? parseError.message : "Unknown error";
+    throw new Error(`Failed to parse section questions: ${parseErrorMessage}`);
   }
 
   // Validate and enrich questions
-  questions = questions.map((q, idx) => ({
+  questions = questions.map((q: any, idx: number) => ({
     question_number: startingQuestionNumber + idx,
     question_text: q.question_text || q.question || "",
     options: q.options || null,
