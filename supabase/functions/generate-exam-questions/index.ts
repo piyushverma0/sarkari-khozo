@@ -300,7 +300,7 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
     });
     console.log("✅ Parallel AI succeeded");
   } catch (parallelError) {
-    console.log("⚠️ Parallel AI failed, using fallback:", parallelError.message);
+    console.log("⚠️ Parallel AI failed, using fallback:", parallelError instanceof Error ? parallelError.message : String(parallelError));
     const fallbackResponse = await callAI({
       systemPrompt,
       userPrompt,
