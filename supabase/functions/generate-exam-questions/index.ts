@@ -219,14 +219,13 @@ Content: ${note.raw_content?.substring(0, 3000) || JSON.stringify(note.structure
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("❌ Phase 2 Error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: errorMessage,
+        error: error.message,
         phase: 2,
       }),
       {
@@ -280,7 +279,7 @@ REQUIREMENTS:
 4. Questions should be clear, unambiguous, and exam-authentic
 5. ${getQuestionTypeSpecificRequirements(questionType)}
 
-${getQuestionFormat(questionType, marksPerQuestion, wordLimit ?? null)}
+${getQuestionFormat(questionType, marksPerQuestion, wordLimit)}
 
 Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
 
@@ -300,7 +299,8 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
     });
     console.log("✅ Parallel AI succeeded");
   } catch (parallelError) {
-    console.log("⚠️ Parallel AI failed, using fallback:", parallelError instanceof Error ? parallelError.message : String(parallelError));
+    console.log("⚠️ Parallel AI failed, using fallback:", parallelError.message);
+
     const fallbackResponse = await callAI({
       systemPrompt,
       userPrompt,
@@ -362,6 +362,20 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
       }
     }
 
+    // Step 2.5: Repair common JSON malformations
+    if (typeof cleanContent === "string") {
+      // Remove stray quote marks that appear alone on lines (common AI error)
+      cleanContent = cleanContent.replace(/"\s*\n\s*"/g, '"');
+      // Remove quote marks that appear alone between JSON elements
+      cleanContent = cleanContent.replace(/"\s*"\s*,/g, '",');
+      cleanContent = cleanContent.replace(/"\s*"\s*}/g, '"}');
+      cleanContent = cleanContent.replace(/"\s*"\s*]/g, '"]');
+      // Fix double quotes at end of strings
+      cleanContent = cleanContent.replace(/""\s*,/g, '",');
+      cleanContent = cleanContent.replace(/""\s*}/g, '"}');
+      console.log("✅ Applied JSON malformation repairs");
+    }
+
     // Step 3: If we have an array already, use it. Otherwise extract and parse
     if (Array.isArray(cleanContent)) {
       questions = cleanContent;
@@ -376,40 +390,37 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
 
         // Pattern: "1. Question text (difficulty)" or "1. Question text"
         const numberedListPattern = /^\d+\.\s+(.+?)(?:\s*\((\w+)\))?(?:\n|$)/gm;
-        const matches = Array.from(cleanContent.matchAll(numberedListPattern)) as RegExpMatchArray[];
+        const matches = Array.from(cleanContent.matchAll(numberedListPattern));
 
         if (matches.length > 0) {
           console.log(`✅ Found ${matches.length} numbered list items, converting to JSON...`);
 
-          questions = matches.map((match: RegExpMatchArray, idx: number): Question => {
+          questions = matches.map((match, idx) => {
             const questionText = match[1].trim();
             const difficulty = match[2]?.toLowerCase() || "medium";
 
             // For MCQ questions, try to extract options
-            let options: string[] | null = null;
+            let options = null;
             if (questionType === "MCQ" || questionType === "MULTI_SELECT") {
               // Look for options in the lines following this question
-              const questionStart = match.index ?? 0;
-              const nextQuestionMatch = matches[idx + 1] as RegExpMatchArray | undefined;
-              const questionEnd = nextQuestionMatch?.index ?? cleanContent.length;
+              const questionStart = match.index!;
+              const nextQuestionMatch = matches[idx + 1];
+              const questionEnd = nextQuestionMatch ? nextQuestionMatch.index! : cleanContent.length;
               const questionBlock = cleanContent.substring(questionStart, questionEnd);
 
               // Try to find options (A), (B), (C), (D) or A. B. C. D.
               const optionPattern = /[A-D][\)\.]\s*(.+?)(?=\n[A-D][\)\.]|\n\d+\.|\n\n|$)/gs;
-              const optionMatches = Array.from(questionBlock.matchAll(optionPattern)) as RegExpMatchArray[];
+              const optionMatches = Array.from(questionBlock.matchAll(optionPattern));
 
               if (optionMatches.length >= 2) {
-                options = optionMatches.map((opt: RegExpMatchArray) => opt[1].trim());
+                options = optionMatches.map((opt) => opt[1].trim());
                 console.log(`  ✅ Extracted ${options.length} options for question ${idx + 1}`);
               }
             }
 
             return {
-              question_number: startingQuestionNumber + idx,
               question_text: questionText,
               options: options,
-              marks: marksPerQuestion,
-              word_limit: wordLimit ?? null,
               difficulty: difficulty,
               topic: topics[idx % topics.length] || "General",
             };
@@ -485,15 +496,61 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
         questions = questions.slice(0, questionCount);
       }
     }
-  } catch (parseError: unknown) {
-    console.error("❌ Failed to parse questions:", parseError);
+  } catch (parseError) {
+    console.error("❌ Failed to parse questions from Parallel AI:", parseError);
     console.error("Response preview:", aiResponse.content.substring(0, 500));
-    const parseErrorMsg = parseError instanceof Error ? parseError.message : "Unknown parse error";
-    throw new Error(`Failed to parse section questions: ${parseErrorMsg}`);
+    console.log("🔄 Retrying with ai-client.ts fallback...");
+
+    // Fallback to ai-client.ts
+    try {
+      const fallbackResponse = await callAI({
+        systemPrompt,
+        userPrompt,
+        enableWebSearch: true,
+        temperature: 0.5,
+        maxTokens: 15000,
+        responseFormat: "json",
+      });
+
+      console.log(`✅ ai-client.ts fallback succeeded (model: ${fallbackResponse.modelUsed})`);
+
+      // Parse the fallback response
+      let fallbackContent = fallbackResponse.content.trim();
+
+      // Apply same parsing logic
+      const jsonBlockMatch = fallbackContent.match(/```json\s*([\s\S]*?)\s*```/);
+      if (jsonBlockMatch) {
+        fallbackContent = jsonBlockMatch[1].trim();
+      }
+
+      // Try to parse as JSON
+      try {
+        questions = JSON.parse(fallbackContent);
+      } catch {
+        // Try to extract JSON array
+        const bracketStart = fallbackContent.indexOf("[");
+        const bracketEnd = fallbackContent.lastIndexOf("]");
+        if (bracketStart !== -1 && bracketEnd !== -1) {
+          const jsonStr = fallbackContent.substring(bracketStart, bracketEnd + 1);
+          questions = JSON.parse(jsonStr);
+        } else {
+          throw new Error("Could not extract valid JSON from fallback response");
+        }
+      }
+
+      if (!Array.isArray(questions)) {
+        throw new Error("Fallback response is not an array");
+      }
+
+      console.log(`✅ Parsed ${questions.length} questions from fallback (expected ${questionCount})`);
+    } catch (fallbackError) {
+      console.error("❌ ai-client.ts fallback also failed:", fallbackError);
+      throw new Error(`All AI providers failed to generate questions: ${fallbackError.message}`);
+    }
   }
 
   // Validate and enrich questions
-  questions = questions.map((q: any, idx: number) => ({
+  questions = questions.map((q, idx) => ({
     question_number: startingQuestionNumber + idx,
     question_text: q.question_text || q.question || "",
     options: q.options || null,
