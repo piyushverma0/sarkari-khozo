@@ -219,13 +219,13 @@ Content: ${note.raw_content?.substring(0, 3000) || JSON.stringify(note.structure
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("❌ Phase 2 Error:", error);
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : "Unknown error occurred",
         phase: 2,
       }),
       {
@@ -279,7 +279,7 @@ REQUIREMENTS:
 4. Questions should be clear, unambiguous, and exam-authentic
 5. ${getQuestionTypeSpecificRequirements(questionType)}
 
-${getQuestionFormat(questionType, marksPerQuestion, wordLimit)}
+${getQuestionFormat(questionType, marksPerQuestion, wordLimit ?? null)}
 
 Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
 
@@ -298,8 +298,8 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
       jsonMode: true,
     });
     console.log("✅ Parallel AI succeeded");
-  } catch (parallelError) {
-    console.log("⚠️ Parallel AI failed, using fallback:", parallelError.message);
+  } catch (parallelError: unknown) {
+    console.log("⚠️ Parallel AI failed, using fallback:", parallelError instanceof Error ? parallelError.message : "Unknown error");
 
     const fallbackResponse = await callAI({
       systemPrompt,
@@ -436,14 +436,14 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
         questions = questions.slice(0, questionCount);
       }
     }
-  } catch (parseError) {
+  } catch (parseError: unknown) {
     console.error("❌ Failed to parse questions:", parseError);
     console.error("Response preview:", aiResponse.content.substring(0, 500));
-    throw new Error(`Failed to parse section questions: ${parseError.message}`);
+    throw new Error(`Failed to parse section questions: ${parseError instanceof Error ? parseError.message : "Unknown error"}`);
   }
 
   // Validate and enrich questions
-  questions = questions.map((q, idx) => ({
+  questions = questions.map((q: any, idx) => ({
     question_number: startingQuestionNumber + idx,
     question_text: q.question_text || q.question || "",
     options: q.options || null,
