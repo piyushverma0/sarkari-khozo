@@ -232,7 +232,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : "Unknown error occurred",
       }),
       {
         status: 500,
@@ -260,7 +260,7 @@ async function gradeQuestion(
       marks_awarded: 0,
       max_marks: question.marks,
       feedback: "No answer provided.",
-      correct_answer_reference: null,
+      correct_answer_reference: undefined,
     };
   }
 
@@ -302,7 +302,7 @@ function gradeMCQ(question: Question, userAnswer: UserAnswer): QuestionFeedback 
       marks_awarded: question.marks,
       max_marks: question.marks,
       feedback: "Correct answer! Well done.",
-      correct_answer_reference: null,
+      correct_answer_reference: undefined,
     };
   } else {
     return {
