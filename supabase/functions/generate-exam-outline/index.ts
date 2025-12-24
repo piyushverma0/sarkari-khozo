@@ -272,19 +272,22 @@ Generate the complete exam outline now.`;
         userPrompt,
         enableWebSearch: true, // Search for past papers
         temperature: 0.3,
-        maxTokens: 3000,
+        maxTokens: 8000,
         jsonMode: true,
       });
       console.log("✅ Parallel AI succeeded");
     } catch (parallelError) {
-      console.log("⚠️ Parallel AI failed, falling back to ai-client:", parallelError instanceof Error ? parallelError.message : "Unknown error");
+      console.log(
+        "⚠️ Parallel AI failed, falling back to ai-client:",
+        parallelError instanceof Error ? parallelError.message : "Unknown error",
+      );
 
       const fallbackResponse = await callAI({
         systemPrompt,
         userPrompt,
         enableWebSearch: true,
         temperature: 0.3,
-        maxTokens: 3000,
+        maxTokens: 8000,
         responseFormat: "json",
       });
 
@@ -413,7 +416,9 @@ Generate the complete exam outline now.`;
     } catch (parseError) {
       console.error("❌ Failed to parse JSON:", parseError);
       console.error("❌ Response preview:", aiResponse.content.substring(0, 500));
-      throw new Error(`Failed to parse AI response: ${parseError instanceof Error ? parseError.message : "Unknown parse error"}`);
+      throw new Error(
+        `Failed to parse AI response: ${parseError instanceof Error ? parseError.message : "Unknown parse error"}`,
+      );
     }
 
     // Validate sections
