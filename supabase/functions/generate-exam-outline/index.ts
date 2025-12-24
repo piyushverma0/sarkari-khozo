@@ -276,8 +276,8 @@ Generate the complete exam outline now.`;
         jsonMode: true,
       });
       console.log("✅ Parallel AI succeeded");
-    } catch (parallelError) {
-      console.log("⚠️ Parallel AI failed, falling back to ai-client:", parallelError.message);
+    } catch (parallelError: unknown) {
+      console.log("⚠️ Parallel AI failed, falling back to ai-client:", parallelError instanceof Error ? parallelError.message : "Unknown error");
 
       const fallbackResponse = await callAI({
         systemPrompt,
@@ -363,10 +363,10 @@ Generate the complete exam outline now.`;
       }
 
       console.log(`✅ Successfully parsed outline with ${outline.sections.length} sections`);
-    } catch (parseError) {
+    } catch (parseError: unknown) {
       console.error("❌ Failed to parse JSON:", parseError);
       console.error("❌ Response preview:", aiResponse.content.substring(0, 500));
-      throw new Error(`Failed to parse AI response: ${parseError.message}`);
+      throw new Error(`Failed to parse AI response: ${parseError instanceof Error ? parseError.message : "Unknown parse error"}`);
     }
 
     // Validate sections
@@ -427,13 +427,13 @@ Generate the complete exam outline now.`;
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("❌ Phase 1 Error:", error);
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : "Unknown error occurred",
         phase: 1,
       }),
       {
