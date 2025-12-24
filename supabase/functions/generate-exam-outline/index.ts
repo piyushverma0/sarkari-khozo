@@ -276,8 +276,8 @@ Generate the complete exam outline now.`;
         jsonMode: true,
       });
       console.log("✅ Parallel AI succeeded");
-    } catch (parallelError: unknown) {
-      console.log("⚠️ Parallel AI failed, falling back to ai-client:", parallelError instanceof Error ? parallelError.message : String(parallelError));
+    } catch (parallelError) {
+      console.log("⚠️ Parallel AI failed, falling back to ai-client:", parallelError.message);
 
       const fallbackResponse = await callAI({
         systemPrompt,
@@ -315,22 +315,46 @@ Generate the complete exam outline now.`;
           .trim();
       }
 
-      // Step 2: Handle escaped JSON strings
-      if (cleanContent.startsWith('"') && cleanContent.endsWith('"')) {
+      // Step 2: Handle multiple levels of escaped JSON strings
+      // AI sometimes returns JSON wrapped in quotes multiple times
+      let unescapeAttempts = 0;
+      const MAX_UNESCAPE_ATTEMPTS = 5;
+
+      while (
+        unescapeAttempts < MAX_UNESCAPE_ATTEMPTS &&
+        typeof cleanContent === "string" &&
+        cleanContent.startsWith('"') &&
+        cleanContent.endsWith('"')
+      ) {
         try {
-          cleanContent = JSON.parse(cleanContent);
-          console.log("✅ Unescaped JSON string wrapper");
+          const unescaped = JSON.parse(cleanContent);
+          if (typeof unescaped === "string") {
+            cleanContent = unescaped;
+            unescapeAttempts++;
+            console.log(`✅ Unescaped JSON string wrapper (attempt ${unescapeAttempts})`);
+          } else {
+            // Successfully got an object
+            cleanContent = unescaped;
+            console.log(`✅ Parsed JSON object after ${unescapeAttempts + 1} unescape attempts`);
+            break;
+          }
         } catch (e) {
-          console.warn("⚠️ Failed to unescape JSON string, trying as-is");
+          console.warn(`⚠️ Failed to unescape at attempt ${unescapeAttempts + 1}, trying extraction`);
+          break;
         }
       }
 
-      // Step 3: Extract JSON object using regex as fallback
-      const objectMatch = cleanContent.match(/\{[\s\S]*\}/);
-      if (objectMatch) {
-        outline = JSON.parse(objectMatch[0]);
+      // Step 3: If we have an object already, use it. Otherwise extract and parse
+      if (typeof cleanContent === "object" && cleanContent !== null) {
+        outline = cleanContent;
       } else {
-        outline = JSON.parse(cleanContent);
+        // Extract JSON object using regex as fallback
+        const objectMatch = cleanContent.match(/\{[\s\S]*\}/);
+        if (objectMatch) {
+          outline = JSON.parse(objectMatch[0]);
+        } else {
+          outline = JSON.parse(cleanContent);
+        }
       }
 
       // Step 4: Validate structure
@@ -339,10 +363,10 @@ Generate the complete exam outline now.`;
       }
 
       console.log(`✅ Successfully parsed outline with ${outline.sections.length} sections`);
-    } catch (parseError: unknown) {
+    } catch (parseError) {
       console.error("❌ Failed to parse JSON:", parseError);
       console.error("❌ Response preview:", aiResponse.content.substring(0, 500));
-      throw new Error(`Failed to parse AI response: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+      throw new Error(`Failed to parse AI response: ${parseError.message}`);
     }
 
     // Validate sections
@@ -403,13 +427,13 @@ Generate the complete exam outline now.`;
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("❌ Phase 1 Error:", error);
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: error.message,
         phase: 1,
       }),
       {
