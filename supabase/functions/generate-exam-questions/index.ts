@@ -219,14 +219,13 @@ Content: ${note.raw_content?.substring(0, 3000) || JSON.stringify(note.structure
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("❌ Phase 2 Error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: errorMessage,
+        error: error.message,
         phase: 2,
       }),
       {
@@ -280,7 +279,7 @@ REQUIREMENTS:
 4. Questions should be clear, unambiguous, and exam-authentic
 5. ${getQuestionTypeSpecificRequirements(questionType)}
 
-${getQuestionFormat(questionType, marksPerQuestion, wordLimit ?? null)}
+${getQuestionFormat(questionType, marksPerQuestion, wordLimit)}
 
 Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
 
@@ -299,9 +298,8 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
       jsonMode: true,
     });
     console.log("✅ Parallel AI succeeded");
-  } catch (parallelError: unknown) {
-    const parallelErrorMessage = parallelError instanceof Error ? parallelError.message : "Unknown error";
-    console.log("⚠️ Parallel AI failed, using fallback:", parallelErrorMessage);
+  } catch (parallelError) {
+    console.log("⚠️ Parallel AI failed, using fallback:", parallelError.message);
 
     const fallbackResponse = await callAI({
       systemPrompt,
@@ -325,10 +323,11 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
   try {
     let cleanContent = aiResponse.content.trim();
 
-    // Remove markdown code blocks
+    // Step 1: Remove markdown code blocks
     const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/);
     if (jsonBlockMatch) {
       cleanContent = jsonBlockMatch[1].trim();
+      console.log("✅ Removed markdown code block");
     } else {
       cleanContent = cleanContent
         .replace(/^```\s*/, "")
@@ -336,21 +335,91 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
         .trim();
     }
 
-    // Handle escaped JSON strings
-    if (cleanContent.startsWith('"') && cleanContent.endsWith('"')) {
+    // Step 2: Handle multiple levels of escaped JSON strings
+    let unescapeAttempts = 0;
+    const MAX_UNESCAPE_ATTEMPTS = 5;
+
+    while (
+      unescapeAttempts < MAX_UNESCAPE_ATTEMPTS &&
+      typeof cleanContent === "string" &&
+      cleanContent.startsWith('"') &&
+      cleanContent.endsWith('"')
+    ) {
       try {
-        cleanContent = JSON.parse(cleanContent);
+        const unescaped = JSON.parse(cleanContent);
+        if (typeof unescaped === "string") {
+          cleanContent = unescaped;
+          unescapeAttempts++;
+          console.log(`✅ Unescaped JSON string wrapper (attempt ${unescapeAttempts})`);
+        } else {
+          cleanContent = unescaped;
+          console.log(`✅ Parsed JSON after ${unescapeAttempts + 1} unescape attempts`);
+          break;
+        }
       } catch (e) {
-        console.warn("⚠️ Failed to unescape, continuing...");
+        console.warn(`⚠️ Failed to unescape at attempt ${unescapeAttempts + 1}`);
+        break;
       }
     }
 
-    // Extract array
-    const arrayMatch = cleanContent.match(/\[[\s\S]*\]/);
-    if (arrayMatch) {
-      questions = JSON.parse(arrayMatch[0]);
+    // Step 3: If we have an array already, use it. Otherwise extract and parse
+    if (Array.isArray(cleanContent)) {
+      questions = cleanContent;
     } else {
-      questions = JSON.parse(cleanContent);
+      // Extract JSON array using smart bracket counting
+      // Find the first [ and the matching closing ]
+      const firstBracket = cleanContent.indexOf("[");
+
+      if (firstBracket === -1) {
+        throw new Error("No JSON array found in response");
+      }
+
+      // Find the matching closing bracket by counting brackets
+      let bracketCount = 0;
+      let inString = false;
+      let escapeNext = false;
+      let lastBracket = -1;
+
+      for (let i = firstBracket; i < cleanContent.length; i++) {
+        const char = cleanContent[i];
+
+        if (escapeNext) {
+          escapeNext = false;
+          continue;
+        }
+
+        if (char === "\\") {
+          escapeNext = true;
+          continue;
+        }
+
+        if (char === '"' && !escapeNext) {
+          inString = !inString;
+          continue;
+        }
+
+        if (!inString) {
+          if (char === "[") {
+            bracketCount++;
+          } else if (char === "]") {
+            bracketCount--;
+            if (bracketCount === 0) {
+              lastBracket = i;
+              break;
+            }
+          }
+        }
+      }
+
+      if (lastBracket === -1) {
+        console.error("❌ Could not find matching closing bracket");
+        console.error("❌ Content preview:", cleanContent.substring(0, 500));
+        throw new Error("Incomplete JSON array in response");
+      }
+
+      const jsonStr = cleanContent.substring(firstBracket, lastBracket + 1);
+      console.log(`✅ Extracted JSON array (${jsonStr.length} chars)`);
+      questions = JSON.parse(jsonStr);
     }
 
     if (!Array.isArray(questions)) {
@@ -367,15 +436,14 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
         questions = questions.slice(0, questionCount);
       }
     }
-  } catch (parseError: unknown) {
+  } catch (parseError) {
     console.error("❌ Failed to parse questions:", parseError);
     console.error("Response preview:", aiResponse.content.substring(0, 500));
-    const parseErrorMessage = parseError instanceof Error ? parseError.message : "Unknown error";
-    throw new Error(`Failed to parse section questions: ${parseErrorMessage}`);
+    throw new Error(`Failed to parse section questions: ${parseError.message}`);
   }
 
   // Validate and enrich questions
-  questions = questions.map((q: any, idx: number) => ({
+  questions = questions.map((q, idx) => ({
     question_number: startingQuestionNumber + idx,
     question_text: q.question_text || q.question || "",
     options: q.options || null,
