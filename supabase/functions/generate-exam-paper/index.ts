@@ -233,7 +233,7 @@ serve(async (req) => {
           total_questions: completePaper.total_questions,
           total_marks: examPaper.total_marks,
           duration: formattedHeader.duration,
-          sections: completePaper.sections.map((s) => ({
+          sections: completePaper.sections.map((s: any) => ({
             section_id: s.section_id,
             section_name: s.section_name,
             question_count: s.questions.length,
@@ -246,8 +246,9 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("❌ Phase 3 Error:", error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 
     // Update exam paper status to failed
     try {
@@ -263,7 +264,7 @@ serve(async (req) => {
             .from("exam_papers")
             .update({
               generation_status: "failed",
-              error_message: error.message,
+              error_message: errorMessage,
             })
             .eq("id", body.exam_paper_id);
         }
@@ -275,7 +276,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: errorMessage,
         phase: 3,
       }),
       {
