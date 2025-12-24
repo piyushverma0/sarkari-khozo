@@ -220,12 +220,13 @@ Content: ${note.raw_content?.substring(0, 3000) || JSON.stringify(note.structure
       },
     );
   } catch (error) {
-    console.error("❌ Phase 2 Error:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("❌ Phase 2 Error:", errorMessage);
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: errorMessage,
         phase: 2,
       }),
       {
@@ -279,7 +280,7 @@ REQUIREMENTS:
 4. Questions should be clear, unambiguous, and exam-authentic
 5. ${getQuestionTypeSpecificRequirements(questionType)}
 
-${getQuestionFormat(questionType, marksPerQuestion, wordLimit)}
+${getQuestionFormat(questionType, marksPerQuestion ?? null, wordLimit ?? null)}
 
 Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
 
@@ -299,7 +300,10 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
     });
     console.log("✅ Parallel AI succeeded");
   } catch (parallelError) {
-    console.log("⚠️ Parallel AI failed, using fallback:", parallelError.message);
+    const parallelErrorMessage = parallelError instanceof Error
+      ? parallelError.message
+      : String(parallelError);
+    console.log("⚠️ Parallel AI failed, using fallback:", parallelErrorMessage);
 
     const fallbackResponse = await callAI({
       systemPrompt,
@@ -319,7 +323,7 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
   }
 
   // Parse questions with multi-stage parsing
-  let questions: Question[];
+  let questions: any[];
   try {
     let cleanContent = aiResponse.content.trim();
 
@@ -390,39 +394,45 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
 
         // Pattern: "1. Question text (difficulty)" or "1. Question text"
         const numberedListPattern = /^\d+\.\s+(.+?)(?:\s*\((\w+)\))?(?:\n|$)/gm;
-        const matches = Array.from(cleanContent.matchAll(numberedListPattern));
+        const matches = Array.from(cleanContent.matchAll(numberedListPattern)) as RegExpMatchArray[];
 
         if (matches.length > 0) {
           console.log(`✅ Found ${matches.length} numbered list items, converting to JSON...`);
 
           questions = matches.map((match, idx) => {
-            const questionText = match[1].trim();
-            const difficulty = match[2]?.toLowerCase() || "medium";
+            const questionText = (match[1] ?? "").trim();
+            const difficultyRaw = match[2];
+            const difficulty = typeof difficultyRaw === "string" ? difficultyRaw.toLowerCase() : "medium";
 
             // For MCQ questions, try to extract options
-            let options = null;
+            let options: string[] | null = null;
             if (questionType === "MCQ" || questionType === "MULTI_SELECT") {
               // Look for options in the lines following this question
-              const questionStart = match.index!;
+              const questionStart = match.index ?? 0;
               const nextQuestionMatch = matches[idx + 1];
-              const questionEnd = nextQuestionMatch ? nextQuestionMatch.index! : cleanContent.length;
+              const questionEnd = nextQuestionMatch?.index ?? cleanContent.length;
               const questionBlock = cleanContent.substring(questionStart, questionEnd);
 
               // Try to find options (A), (B), (C), (D) or A. B. C. D.
               const optionPattern = /[A-D][\)\.]\s*(.+?)(?=\n[A-D][\)\.]|\n\d+\.|\n\n|$)/gs;
-              const optionMatches = Array.from(questionBlock.matchAll(optionPattern));
+              const optionMatches = Array.from(questionBlock.matchAll(optionPattern)) as RegExpMatchArray[];
 
               if (optionMatches.length >= 2) {
-                options = optionMatches.map((opt) => opt[1].trim());
+                options = optionMatches.map((opt) => (opt[1] ?? "").trim());
                 console.log(`  ✅ Extracted ${options.length} options for question ${idx + 1}`);
               }
             }
 
             return {
+              question_number: startingQuestionNumber + idx,
               question_text: questionText,
-              options: options,
-              difficulty: difficulty,
+              options,
+              marks: marksPerQuestion ?? null,
+              word_limit: wordLimit ?? null,
+              difficulty,
               topic: topics[idx % topics.length] || "General",
+              past_year_reference: null,
+              sub_questions: null,
             };
           });
 
@@ -544,22 +554,30 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
 
       console.log(`✅ Parsed ${questions.length} questions from fallback (expected ${questionCount})`);
     } catch (fallbackError) {
-      console.error("❌ ai-client.ts fallback also failed:", fallbackError);
-      throw new Error(`All AI providers failed to generate questions: ${fallbackError.message}`);
+      const fallbackErrorMessage = fallbackError instanceof Error
+        ? fallbackError.message
+        : String(fallbackError);
+      console.error("❌ ai-client.ts fallback also failed:", fallbackErrorMessage);
+      throw new Error(`All AI providers failed to generate questions: ${fallbackErrorMessage}`);
     }
   }
 
   // Validate and enrich questions
-  questions = questions.map((q, idx) => ({
+  questions = questions.map((q: any, idx: number): Question => ({
     question_number: startingQuestionNumber + idx,
-    question_text: q.question_text || q.question || "",
-    options: q.options || null,
-    marks: marksPerQuestion,
-    word_limit: wordLimit || null,
-    topic: q.topic || topics[idx % topics.length] || "General",
-    difficulty: q.difficulty || "medium",
-    past_year_reference: q.past_year_reference || null,
-    sub_questions: q.sub_questions || null,
+    question_text:
+      typeof q?.question_text === "string"
+        ? q.question_text
+        : typeof q?.question === "string"
+          ? q.question
+          : "",
+    options: Array.isArray(q?.options) ? q.options : null,
+    marks: marksPerQuestion ?? null,
+    word_limit: wordLimit ?? null,
+    topic: typeof q?.topic === "string" ? q.topic : topics[idx % topics.length] || "General",
+    difficulty: typeof q?.difficulty === "string" ? q.difficulty : "medium",
+    past_year_reference: typeof q?.past_year_reference === "string" ? q.past_year_reference : null,
+    sub_questions: Array.isArray(q?.sub_questions) ? q.sub_questions : null,
   }));
 
   return questions;
