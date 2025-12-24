@@ -276,8 +276,8 @@ Generate the complete exam outline now.`;
         jsonMode: true,
       });
       console.log("✅ Parallel AI succeeded");
-    } catch (parallelError: unknown) {
-      console.log("⚠️ Parallel AI failed, falling back to ai-client:", parallelError instanceof Error ? parallelError.message : "Unknown error");
+    } catch (parallelError) {
+      console.log("⚠️ Parallel AI failed, falling back to ai-client:", parallelError.message);
 
       const fallbackResponse = await callAI({
         systemPrompt,
@@ -348,13 +348,60 @@ Generate the complete exam outline now.`;
       if (typeof cleanContent === "object" && cleanContent !== null) {
         outline = cleanContent;
       } else {
-        // Extract JSON object using regex as fallback
-        const objectMatch = cleanContent.match(/\{[\s\S]*\}/);
-        if (objectMatch) {
-          outline = JSON.parse(objectMatch[0]);
-        } else {
-          outline = JSON.parse(cleanContent);
+        // Extract JSON object using improved regex
+        // Find the first { and the matching closing }
+        const firstBrace = cleanContent.indexOf("{");
+
+        if (firstBrace === -1) {
+          throw new Error("No JSON object found in response");
         }
+
+        // Find the matching closing brace by counting braces
+        let braceCount = 0;
+        let inString = false;
+        let escapeNext = false;
+        let lastBrace = -1;
+
+        for (let i = firstBrace; i < cleanContent.length; i++) {
+          const char = cleanContent[i];
+
+          if (escapeNext) {
+            escapeNext = false;
+            continue;
+          }
+
+          if (char === "\\") {
+            escapeNext = true;
+            continue;
+          }
+
+          if (char === '"' && !escapeNext) {
+            inString = !inString;
+            continue;
+          }
+
+          if (!inString) {
+            if (char === "{") {
+              braceCount++;
+            } else if (char === "}") {
+              braceCount--;
+              if (braceCount === 0) {
+                lastBrace = i;
+                break;
+              }
+            }
+          }
+        }
+
+        if (lastBrace === -1) {
+          console.error("❌ Could not find matching closing brace");
+          console.error("❌ Content preview:", cleanContent.substring(0, 500));
+          throw new Error("Incomplete JSON object in response");
+        }
+
+        const jsonStr = cleanContent.substring(firstBrace, lastBrace + 1);
+        console.log(`✅ Extracted JSON object (${jsonStr.length} chars)`);
+        outline = JSON.parse(jsonStr);
       }
 
       // Step 4: Validate structure
@@ -363,10 +410,10 @@ Generate the complete exam outline now.`;
       }
 
       console.log(`✅ Successfully parsed outline with ${outline.sections.length} sections`);
-    } catch (parseError: unknown) {
+    } catch (parseError) {
       console.error("❌ Failed to parse JSON:", parseError);
       console.error("❌ Response preview:", aiResponse.content.substring(0, 500));
-      throw new Error(`Failed to parse AI response: ${parseError instanceof Error ? parseError.message : "Unknown parse error"}`);
+      throw new Error(`Failed to parse AI response: ${parseError.message}`);
     }
 
     // Validate sections
@@ -427,13 +474,13 @@ Generate the complete exam outline now.`;
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("❌ Phase 1 Error:", error);
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
+        error: error.message,
         phase: 1,
       }),
       {
