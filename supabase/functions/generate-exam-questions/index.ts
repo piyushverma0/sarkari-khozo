@@ -219,13 +219,14 @@ Content: ${note.raw_content?.substring(0, 3000) || JSON.stringify(note.structure
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("❌ Phase 2 Error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: errorMessage,
         phase: 2,
       }),
       {
@@ -279,7 +280,7 @@ REQUIREMENTS:
 4. Questions should be clear, unambiguous, and exam-authentic
 5. ${getQuestionTypeSpecificRequirements(questionType)}
 
-${getQuestionFormat(questionType, marksPerQuestion, wordLimit)}
+${getQuestionFormat(questionType, marksPerQuestion, wordLimit ?? null)}
 
 Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
 
@@ -298,8 +299,9 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
       jsonMode: true,
     });
     console.log("✅ Parallel AI succeeded");
-  } catch (parallelError) {
-    console.log("⚠️ Parallel AI failed, using fallback:", parallelError.message);
+  } catch (parallelError: unknown) {
+    const parallelErrorMsg = parallelError instanceof Error ? parallelError.message : "Unknown error";
+    console.log("⚠️ Parallel AI failed, using fallback:", parallelErrorMsg);
 
     const fallbackResponse = await callAI({
       systemPrompt,
@@ -376,37 +378,40 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
 
         // Pattern: "1. Question text (difficulty)" or "1. Question text"
         const numberedListPattern = /^\d+\.\s+(.+?)(?:\s*\((\w+)\))?(?:\n|$)/gm;
-        const matches = Array.from(cleanContent.matchAll(numberedListPattern));
+        const matches = Array.from(cleanContent.matchAll(numberedListPattern)) as RegExpMatchArray[];
 
         if (matches.length > 0) {
           console.log(`✅ Found ${matches.length} numbered list items, converting to JSON...`);
 
-          questions = matches.map((match, idx) => {
+          questions = matches.map((match: RegExpMatchArray, idx: number): Question => {
             const questionText = match[1].trim();
             const difficulty = match[2]?.toLowerCase() || "medium";
 
             // For MCQ questions, try to extract options
-            let options = null;
+            let options: string[] | null = null;
             if (questionType === "MCQ" || questionType === "MULTI_SELECT") {
               // Look for options in the lines following this question
-              const questionStart = match.index!;
-              const nextQuestionMatch = matches[idx + 1];
-              const questionEnd = nextQuestionMatch ? nextQuestionMatch.index! : cleanContent.length;
+              const questionStart = match.index ?? 0;
+              const nextQuestionMatch = matches[idx + 1] as RegExpMatchArray | undefined;
+              const questionEnd = nextQuestionMatch?.index ?? cleanContent.length;
               const questionBlock = cleanContent.substring(questionStart, questionEnd);
 
               // Try to find options (A), (B), (C), (D) or A. B. C. D.
               const optionPattern = /[A-D][\)\.]\s*(.+?)(?=\n[A-D][\)\.]|\n\d+\.|\n\n|$)/gs;
-              const optionMatches = Array.from(questionBlock.matchAll(optionPattern));
+              const optionMatches = Array.from(questionBlock.matchAll(optionPattern)) as RegExpMatchArray[];
 
               if (optionMatches.length >= 2) {
-                options = optionMatches.map((opt) => opt[1].trim());
+                options = optionMatches.map((opt: RegExpMatchArray) => opt[1].trim());
                 console.log(`  ✅ Extracted ${options.length} options for question ${idx + 1}`);
               }
             }
 
             return {
+              question_number: startingQuestionNumber + idx,
               question_text: questionText,
               options: options,
+              marks: marksPerQuestion,
+              word_limit: wordLimit ?? null,
               difficulty: difficulty,
               topic: topics[idx % topics.length] || "General",
             };
@@ -482,14 +487,15 @@ Generate EXACTLY ${questionCount} questions. Return ONLY valid JSON array.`;
         questions = questions.slice(0, questionCount);
       }
     }
-  } catch (parseError) {
+  } catch (parseError: unknown) {
     console.error("❌ Failed to parse questions:", parseError);
     console.error("Response preview:", aiResponse.content.substring(0, 500));
-    throw new Error(`Failed to parse section questions: ${parseError.message}`);
+    const parseErrorMsg = parseError instanceof Error ? parseError.message : "Unknown parse error";
+    throw new Error(`Failed to parse section questions: ${parseErrorMsg}`);
   }
 
   // Validate and enrich questions
-  questions = questions.map((q, idx) => ({
+  questions = questions.map((q: any, idx: number) => ({
     question_number: startingQuestionNumber + idx,
     question_text: q.question_text || q.question || "",
     options: q.options || null,
