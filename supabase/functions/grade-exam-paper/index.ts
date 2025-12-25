@@ -232,7 +232,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : "Unknown grading error",
+        error: error.message,
       }),
       {
         status: 500,
@@ -260,7 +260,7 @@ async function gradeQuestion(
       marks_awarded: 0,
       max_marks: question.marks,
       feedback: "No answer provided.",
-      correct_answer_reference: undefined,
+      correct_answer_reference: null,
     };
   }
 
@@ -304,21 +304,23 @@ ${userAnswer.answer}
 Topic: ${question.topic}
 Difficulty: ${question.difficulty}
 
-GRADING INSTRUCTIONS:
+CRITICAL GRADING RULES FOR MCQ:
 1. Determine which option is the CORRECT answer based on your expertise in ${subject}
 2. Check if the student selected the correct option
-3. Award full marks (${question.marks}) ONLY if the answer is correct
-4. Award 0 marks if incorrect or if wrong option selected
-5. Provide brief feedback explaining why the answer is right or wrong
+3. Award EXACTLY ${question.marks} marks if the answer is correct
+4. Award EXACTLY 0 marks if the answer is wrong
+5. NO PARTIAL MARKS - MCQs are either fully correct or fully wrong
+6. Even if reasoning is good but option is wrong, award 0 marks
+7. Provide clear feedback explaining which option is correct and why
 
 Return ONLY valid JSON:
 {
-  "marks_awarded": <${question.marks} if correct, 0 if incorrect>,
-  "feedback": "Brief explanation (1-2 sentences)",
-  "correct_answer_reference": "The correct option and brief explanation"
+  "marks_awarded": <MUST be either ${question.marks} or 0, NO decimals like 0.5>,
+  "feedback": "Explain which option is correct and why. If wrong, explain the mistake clearly.",
+  "correct_answer_reference": "State the correct option (e.g., 'Option B') and provide a brief explanation of why it's correct."
 }
 
-Be strict and accurate. Only award marks for the factually correct answer.`;
+IMPORTANT: For MCQ questions, marks_awarded MUST be either ${question.marks} (correct) or 0 (wrong). NO other values allowed.`;
   } else {
     // Subjective question grading prompt with detailed analysis
     userPrompt = `Grade this answer for a ${question.marks}-mark subjective question:
@@ -340,26 +342,30 @@ GRADING CRITERIA:
 4. Keyword usage (10%)
 
 IMPORTANT INSTRUCTIONS FOR DETAILED FEEDBACK:
-- In the "feedback" field, provide comprehensive analysis including:
-  * What the student did correctly (if anything)
-  * Specific concepts/facts that are wrong or missing
-  * Key terminology that was missed or misused
-  * Suggestions for improvement
-- In the "correct_answer_reference" field, provide:
-  * The ideal answer structure with key points
-  * Important keywords/phrases that should be included
-  * Avoid penalizing synonyms (e.g., "big" vs "large", "happy" vs "joyful")
-- Be specific about WHERE and WHY marks were deducted
-- For partially correct answers, explain what earned partial credit
+
+For the "feedback" field, provide a clear, structured response:
+✓ Start with what the student got RIGHT (be specific)
+✗ Then explain what's WRONG or MISSING (be precise)
+📉 Explain exactly WHY marks were deducted (quantify if possible)
+💡 End with actionable tips for improvement
+
+For the "correct_answer_reference" field:
+📝 Provide the IDEAL answer with proper structure
+🔑 List ALL key points that should be covered (numbered)
+📌 Specify MUST-HAVE keywords/terminology
+✏️ Note: Don't penalize synonyms (e.g., "big"="large", "happy"="joyful")
+
+Example good feedback:
+"✓ You correctly identified photosynthesis as the process. ✗ However, you missed: (1) the role of chlorophyll, (2) glucose production, (3) oxygen release. 📉 Lost 2 marks for missing key components, 1 mark for incomplete explanation. 💡 Focus on the complete equation: CO2 + H2O + sunlight → glucose + O2."
 
 Return ONLY valid JSON:
 {
   "marks_awarded": <number between 0 and ${question.marks}>,
-  "feedback": "Detailed analysis: [What's correct] + [What's wrong/missing] + [Why marks deducted] + [Improvement tips]",
-  "correct_answer_reference": "Expected answer with key points: [Point 1] [Point 2] [Point 3]... Must include keywords: [keyword1, keyword2...]"
+  "feedback": "Clear, structured feedback using the format above",
+  "correct_answer_reference": "IDEAL ANSWER: [Complete answer]. KEY POINTS: (1) Point 1, (2) Point 2, (3) Point 3. KEYWORDS: keyword1, keyword2, keyword3"
 }
 
-Be fair and constructive. Award partial marks for partially correct answers. Avoid penalizing for synonym usage.`;
+Be fair, specific, and educational. Award partial marks proportionally. Focus on teaching, not just grading.`;
   }
 
   let aiResponse: any;
@@ -418,7 +424,14 @@ Be fair and constructive. Award partial marks for partially correct answers. Avo
   }
 
   // Ensure marks don't exceed maximum
-  const marksAwarded = Math.min(Math.max(0, gradingData.marks_awarded || 0), question.marks);
+  let marksAwarded = Math.min(Math.max(0, gradingData.marks_awarded || 0), question.marks);
+
+  // CRITICAL: For MCQ questions, enforce binary grading (0 or full marks only)
+  if (isMCQ) {
+    // Round to nearest valid value: if > 50% of max, give full marks, else 0
+    marksAwarded = marksAwarded >= question.marks * 0.5 ? question.marks : 0;
+    console.log(`MCQ Q${question.question_number}: Enforced binary grading - ${marksAwarded}/${question.marks}`);
+  }
 
   return {
     question_number: question.question_number,
