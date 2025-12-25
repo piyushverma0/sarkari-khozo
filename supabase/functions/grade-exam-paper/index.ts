@@ -232,7 +232,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
+        error: error.message,
       }),
       {
         status: 500,
@@ -260,69 +260,68 @@ async function gradeQuestion(
       marks_awarded: 0,
       max_marks: question.marks,
       feedback: "No answer provided.",
-      correct_answer_reference: undefined,
+      correct_answer_reference: null,
     };
   }
 
-  // MCQ or True/False - Direct comparison
-  if (question.options && question.options.length > 0) {
-    return gradeMCQ(question, userAnswer);
-  }
-
-  // Subjective questions - AI grading
-  return await gradeSubjective(question, userAnswer, subject);
+  // All questions use AI grading for accurate evaluation
+  // This includes MCQs, True/False, and Subjective questions
+  return await gradeQuestion_AI(question, userAnswer, subject);
 }
 
 /**
- * Grade MCQ/True-False question
+ * Grade any question using AI (MCQ, True/False, or Subjective)
+ * Uses AI to evaluate both objective and subjective questions for accuracy
  */
-function gradeMCQ(question: Question, userAnswer: UserAnswer): QuestionFeedback {
-  // Normalize answers for comparison
-  const normalizeAnswer = (answer: string) => {
-    return answer
-      .trim()
-      .toLowerCase()
-      .replace(/^[a-d]\.\s*/i, "") // Remove "A. ", "B. " prefix
-      .replace(/^[a-d]\)\s*/i, "") // Remove "A) ", "B) " prefix
-      .replace(/^[a-d]\s+/i, ""); // Remove "A " prefix
-  };
+async function gradeQuestion_AI(
+  question: Question,
+  userAnswer: UserAnswer,
+  subject: string,
+): Promise<QuestionFeedback> {
+  const isMCQ = question.options && question.options.length > 0;
 
-  const userAnswerNormalized = normalizeAnswer(userAnswer.answer);
+  const systemPrompt = `You are an expert ${subject} examiner. Grade the student's answer accurately and fairly.
+${isMCQ ? "For MCQ questions, determine which option is correct based on the question and mark accordingly." : "Provide constructive feedback."}
+You must evaluate if the answer is factually correct.`;
 
-  // Check if answer matches any option
-  const isCorrect = question.options!.some((option) => {
-    const optionNormalized = normalizeAnswer(option);
-    return optionNormalized === userAnswerNormalized;
-  });
+  let userPrompt: string;
 
-  if (isCorrect) {
-    return {
-      question_number: question.question_number,
-      user_answer: userAnswer.answer,
-      marks_awarded: question.marks,
-      max_marks: question.marks,
-      feedback: "Correct answer! Well done.",
-      correct_answer_reference: undefined,
-    };
+  if (isMCQ) {
+    // MCQ grading prompt with options
+    const optionsList = question.options!.map((opt, idx) => `${String.fromCharCode(65 + idx)}) ${opt}`).join("\n");
+
+    userPrompt = `Grade this ${question.marks}-mark MCQ question:
+
+QUESTION:
+${question.question_text}
+
+OPTIONS:
+${optionsList}
+
+STUDENT'S ANSWER:
+${userAnswer.answer}
+
+Topic: ${question.topic}
+Difficulty: ${question.difficulty}
+
+GRADING INSTRUCTIONS:
+1. Determine which option is the CORRECT answer based on your expertise in ${subject}
+2. Check if the student selected the correct option
+3. Award full marks (${question.marks}) ONLY if the answer is correct
+4. Award 0 marks if incorrect or if wrong option selected
+5. Provide brief feedback explaining why the answer is right or wrong
+
+Return ONLY valid JSON:
+{
+  "marks_awarded": <${question.marks} if correct, 0 if incorrect>,
+  "feedback": "Brief explanation (1-2 sentences)",
+  "correct_answer_reference": "The correct option and brief explanation"
+}
+
+Be strict and accurate. Only award marks for the factually correct answer.`;
   } else {
-    return {
-      question_number: question.question_number,
-      user_answer: userAnswer.answer,
-      marks_awarded: 0,
-      max_marks: question.marks,
-      feedback: "Incorrect answer. Please review this topic.",
-      correct_answer_reference: "Check your notes for the correct concept.",
-    };
-  }
-}
-
-/**
- * Grade subjective question using AI
- */
-async function gradeSubjective(question: Question, userAnswer: UserAnswer, subject: string): Promise<QuestionFeedback> {
-  const systemPrompt = `You are an expert ${subject} examiner. Grade the student's answer accurately and fairly. Provide constructive feedback.`;
-
-  const userPrompt = `Grade this answer for a ${question.marks}-mark question:
+    // Subjective question grading prompt with detailed analysis
+    userPrompt = `Grade this answer for a ${question.marks}-mark subjective question:
 
 QUESTION:
 ${question.question_text}
@@ -340,14 +339,28 @@ GRADING CRITERIA:
 3. Clarity and organization (20%)
 4. Keyword usage (10%)
 
+IMPORTANT INSTRUCTIONS FOR DETAILED FEEDBACK:
+- In the "feedback" field, provide comprehensive analysis including:
+  * What the student did correctly (if anything)
+  * Specific concepts/facts that are wrong or missing
+  * Key terminology that was missed or misused
+  * Suggestions for improvement
+- In the "correct_answer_reference" field, provide:
+  * The ideal answer structure with key points
+  * Important keywords/phrases that should be included
+  * Avoid penalizing synonyms (e.g., "big" vs "large", "happy" vs "joyful")
+- Be specific about WHERE and WHY marks were deducted
+- For partially correct answers, explain what earned partial credit
+
 Return ONLY valid JSON:
 {
   "marks_awarded": <number between 0 and ${question.marks}>,
-  "feedback": "Brief feedback (1-2 sentences)",
-  "correct_answer_reference": "Key points student should have mentioned (optional)"
+  "feedback": "Detailed analysis: [What's correct] + [What's wrong/missing] + [Why marks deducted] + [Improvement tips]",
+  "correct_answer_reference": "Expected answer with key points: [Point 1] [Point 2] [Point 3]... Must include keywords: [keyword1, keyword2...]"
 }
 
-Be fair and constructive. Award partial marks for partially correct answers.`;
+Be fair and constructive. Award partial marks for partially correct answers. Avoid penalizing for synonym usage.`;
+  }
 
   let aiResponse: any;
   let modelUsed = "parallel-lite";
@@ -358,7 +371,7 @@ Be fair and constructive. Award partial marks for partially correct answers.`;
       systemPrompt,
       userPrompt,
       temperature: 0.3,
-      maxTokens: 5000,
+      maxTokens: 8000, // Increased for detailed feedback
       jsonMode: true,
     });
   } catch (parallelError) {
@@ -367,7 +380,7 @@ Be fair and constructive. Award partial marks for partially correct answers.`;
       systemPrompt,
       userPrompt,
       temperature: 0.3,
-      maxTokens: 5000,
+      maxTokens: 8000, // Increased for detailed feedback
       responseFormat: "json",
     });
     aiResponse = {
