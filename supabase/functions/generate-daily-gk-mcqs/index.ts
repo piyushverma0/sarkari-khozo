@@ -6,38 +6,39 @@
 // Used for home screen "General Knowledge" section
 // ============================================================
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
-import { callParallel, logParallelUsage } from '../_shared/parallel-client.ts'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { callParallel, logParallelUsage } from "../_shared/parallel-client.ts";
+import { callAI } from "../_shared/ai-client.ts";
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 // ============================================================
 // Types
 // ============================================================
 interface MCQOption {
-  A: string
-  B: string
-  C: string
-  D: string
+  A: string;
+  B: string;
+  C: string;
+  D: string;
 }
 
 interface GKQuestion {
-  id: string
-  question: string
-  options: MCQOption
-  correct_answer: 'A' | 'B' | 'C' | 'D'
-  explanation: string
+  id: string;
+  question: string;
+  options: MCQOption;
+  correct_answer: "A" | "B" | "C" | "D";
+  explanation: string;
 }
 
 interface MCQResponse {
-  questions: GKQuestion[]
+  questions: GKQuestion[];
 }
 
 // ============================================================
@@ -45,48 +46,48 @@ interface MCQResponse {
 // ============================================================
 serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    console.log('🎯 Generate Daily GK MCQs - Starting...')
+    console.log("🎯 Generate Daily GK MCQs - Starting...");
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
 
-    console.log(`📅 Checking for MCQs on: ${today}`)
+    console.log(`📅 Checking for MCQs on: ${today}`);
 
     // ========================================================
     // Check if MCQs already exist for today (caching)
     // ========================================================
     const { data: existing, error: fetchError } = await supabase
-      .from('daily_gk_mcqs')
-      .select('*')
-      .eq('date', today)
-      .maybeSingle()
+      .from("daily_gk_mcqs")
+      .select("*")
+      .eq("date", today)
+      .maybeSingle();
 
     if (existing && !fetchError) {
-      console.log('✅ Using cached MCQs for today:', today)
+      console.log("✅ Using cached MCQs for today:", today);
       return new Response(
         JSON.stringify({
           success: true,
           cached: true,
           date: today,
           mcqs: existing,
-          questions: existing.questions
+          questions: existing.questions,
         }),
         {
           status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     // ========================================================
     // Generate new MCQs using Parallel AI
     // ========================================================
-    console.log('🤖 Generating new MCQs using Parallel AI...')
+    console.log("🤖 Generating new MCQs using Parallel AI...");
 
     const systemPrompt = `You are an expert at creating engaging general knowledge MCQs for Indian government exam aspirants.
 
@@ -97,7 +98,7 @@ EXPERTISE:
 - Always return valid JSON without markdown formatting
 
 RESPONSE FORMAT:
-Always return ONLY valid JSON (no markdown, no code blocks, no backticks)`
+Always return ONLY valid JSON (no markdown, no code blocks, no backticks)`;
 
     const userPrompt = `Generate 5 general knowledge multiple choice questions for today (${today}).
 
@@ -145,83 +146,142 @@ OUTPUT FORMAT (return ONLY this JSON structure, no markdown):
   ]
 }
 
-Generate exactly 5 diverse, high-quality questions. Return ONLY the JSON.`
+Generate exactly 5 diverse, high-quality questions. Return ONLY the JSON.`;
 
-    const aiResponse = await callParallel({
-      systemPrompt,
-      userPrompt,
-      maxTokens: 3000,
-      temperature: 0.7,
-      jsonMode: true
-    })
+    // Try Parallel AI first, fallback to Perplexity if it fails
+    let aiResponse: any;
+    let usedParallel = false;
 
-    logParallelUsage('generate-daily-gk-mcqs', aiResponse.tokensUsed, aiResponse.webSearchUsed)
+    try {
+      console.log("🔵 Trying Parallel AI without JSON mode...");
 
-    console.log('📦 Received AI response, parsing JSON...')
+      // First attempt: Try without jsonMode (Parallel AI might not support response_format)
+      try {
+        aiResponse = await callParallel({
+          systemPrompt,
+          userPrompt,
+          maxTokens: 3000,
+          temperature: 0.7,
+          jsonMode: false, // Don't use jsonMode, rely on prompt instructions
+        });
+
+        if (!aiResponse.content || aiResponse.content.trim().length === 0) {
+          throw new Error("Parallel AI returned empty response without JSON mode");
+        }
+
+        usedParallel = true;
+        logParallelUsage("generate-daily-gk-mcqs", aiResponse.tokensUsed, aiResponse.webSearchUsed);
+        console.log("✅ Using Parallel AI response (without JSON mode)");
+      } catch (parallelError1) {
+        console.warn("⚠️ Parallel AI without JSON mode failed:", parallelError1.message);
+        console.log("🔵 Retrying Parallel AI with JSON mode...");
+
+        // Second attempt: Try with jsonMode
+        aiResponse = await callParallel({
+          systemPrompt,
+          userPrompt,
+          maxTokens: 3000,
+          temperature: 0.7,
+          jsonMode: true,
+        });
+
+        if (!aiResponse.content || aiResponse.content.trim().length === 0) {
+          throw new Error("Parallel AI returned empty response with JSON mode");
+        }
+
+        usedParallel = true;
+        logParallelUsage("generate-daily-gk-mcqs", aiResponse.tokensUsed, aiResponse.webSearchUsed);
+        console.log("✅ Using Parallel AI response (with JSON mode)");
+      }
+    } catch (parallelError) {
+      console.warn("⚠️ Parallel AI completely failed:", parallelError.message);
+      console.log("🟣 Falling back to Perplexity AI...");
+
+      aiResponse = await callAI({
+        systemPrompt,
+        userPrompt,
+        maxTokens: 3000,
+        temperature: 0.7,
+        jsonMode: true,
+      });
+
+      usedParallel = false;
+      console.log("✅ Using Perplexity AI response");
+    }
+
+    console.log("📦 Received AI response, parsing JSON...");
+    console.log("📏 Response length:", aiResponse.content.length, "characters");
+    console.log("🔍 Response preview:", aiResponse.content.substring(0, 200));
 
     // ========================================================
     // Parse and validate JSON response
     // ========================================================
-    let cleanedJson = aiResponse.content.trim()
+    let cleanedJson = aiResponse.content.trim();
 
     // Remove markdown code blocks if present
-    if (cleanedJson.startsWith('```json')) {
-      cleanedJson = cleanedJson.replace(/^```json\s*/, '').replace(/\s*```$/, '')
-    } else if (cleanedJson.startsWith('```')) {
-      cleanedJson = cleanedJson.replace(/^```\s*/, '').replace(/\s*```$/, '')
+    if (cleanedJson.startsWith("```json")) {
+      cleanedJson = cleanedJson.replace(/^```json\s*/, "").replace(/\s*```$/, "");
+      console.log("🧹 Removed ```json markdown blocks");
+    } else if (cleanedJson.startsWith("```")) {
+      cleanedJson = cleanedJson.replace(/^```\s*/, "").replace(/\s*```$/, "");
+      console.log("🧹 Removed ``` markdown blocks");
     }
 
-    let mcqData: MCQResponse
+    let mcqData: MCQResponse;
     try {
-      mcqData = JSON.parse(cleanedJson)
-    } catch (parseError: unknown) {
-      console.error('❌ Failed to parse JSON:', parseError)
-      console.error('📄 Raw response:', aiResponse.content.substring(0, 500))
-      const errMsg = parseError instanceof Error ? parseError.message : 'Unknown parse error'
-      throw new Error(`Failed to parse MCQs: ${errMsg}`)
+      mcqData = JSON.parse(cleanedJson);
+      console.log("✅ JSON parsed successfully");
+    } catch (parseError) {
+      console.error("❌ Failed to parse JSON:", parseError);
+      console.error("📄 Raw response (first 500 chars):", aiResponse.content.substring(0, 500));
+      console.error("🧹 Cleaned JSON (first 500 chars):", cleanedJson.substring(0, 500));
+      throw new Error(`Failed to parse MCQs: ${parseError.message}`);
     }
 
     // Validate structure
     if (!mcqData.questions || !Array.isArray(mcqData.questions)) {
-      throw new Error('Invalid MCQ format: questions array missing')
+      throw new Error("Invalid MCQ format: questions array missing");
     }
 
     if (mcqData.questions.length !== 5) {
-      throw new Error(`Invalid MCQ count: expected 5, got ${mcqData.questions.length}`)
+      throw new Error(`Invalid MCQ count: expected 5, got ${mcqData.questions.length}`);
     }
 
     // Validate each question
     for (let i = 0; i < mcqData.questions.length; i++) {
-      const q = mcqData.questions[i]
+      const q = mcqData.questions[i];
       if (!q.id || !q.question || !q.options || !q.correct_answer || !q.explanation) {
-        throw new Error(`Question ${i + 1} is missing required fields`)
+        throw new Error(`Question ${i + 1} is missing required fields`);
       }
-      if (!['A', 'B', 'C', 'D'].includes(q.correct_answer)) {
-        throw new Error(`Question ${i + 1} has invalid correct_answer: ${q.correct_answer}`)
+      if (!["A", "B", "C", "D"].includes(q.correct_answer)) {
+        throw new Error(`Question ${i + 1} has invalid correct_answer: ${q.correct_answer}`);
       }
     }
 
-    console.log(`✅ Validated ${mcqData.questions.length} questions`)
+    console.log(`✅ Validated ${mcqData.questions.length} questions`);
 
     // ========================================================
     // Store in database
     // ========================================================
     const { data: savedMCQs, error: saveError } = await supabase
-      .from('daily_gk_mcqs')
+      .from("daily_gk_mcqs")
       .insert({
         date: today,
-        questions: mcqData.questions
+        questions: mcqData.questions,
       })
       .select()
-      .single()
+      .single();
 
     if (saveError) {
-      console.error('❌ Failed to save MCQs:', saveError)
-      throw new Error(`Database error: ${saveError.message}`)
+      console.error("❌ Failed to save MCQs:", saveError);
+      throw new Error(`Database error: ${saveError.message}`);
     }
 
-    console.log('✅ Successfully generated and saved MCQs for:', today)
-    console.log('📊 Questions:', mcqData.questions.map((q, i) => `${i + 1}. ${q.question.substring(0, 50)}...`))
+    console.log("✅ Successfully generated and saved MCQs for:", today);
+    console.log(
+      "📊 Questions:",
+      mcqData.questions.map((q, i) => `${i + 1}. ${q.question.substring(0, 50)}...`),
+    );
 
     // ========================================================
     // Return success response
@@ -236,32 +296,48 @@ Generate exactly 5 diverse, high-quality questions. Return ONLY the JSON.`
         stats: {
           questions_count: mcqData.questions.length,
           tokens_used: aiResponse.tokensUsed.total,
-          web_search_used: aiResponse.webSearchUsed
-        }
+          web_search_used: aiResponse.webSearchUsed,
+        },
       }),
       {
         status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
-
-  } catch (error: unknown) {
-    console.error('❌ Error in generate-daily-gk-mcqs:', error)
-
-    const errMsg = error instanceof Error ? error.message : 'Unknown error'
-    const errDetails = error instanceof Error ? error.toString() : String(error)
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
+  } catch (error) {
+    console.error("❌ Error in generate-daily-gk-mcqs:", error);
 
     // Return error response
     return new Response(
       JSON.stringify({
         success: false,
-        error: errMsg,
-        details: errDetails
+        error: error.message,
+        details: error.toString(),
       }),
       {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
-})
+});
+
+// ============================================================
+// Usage Example:
+// ============================================================
+// Call this function from your Android app:
+//
+// POST https://your-project.supabase.co/functions/v1/generate-daily-gk-mcqs
+// Headers:
+//   - Authorization: Bearer YOUR_ANON_KEY
+//   - Content-Type: application/json
+// Body: {}
+//
+// Response:
+// {
+//   "success": true,
+//   "cached": false,
+//   "date": "2024-12-28",
+//   "questions": [ ... array of 5 questions ... ]
+// }
+// ============================================================
