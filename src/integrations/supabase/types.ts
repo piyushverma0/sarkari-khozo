@@ -519,6 +519,30 @@ export type Database = {
           },
         ]
       }
+      daily_gk_mcqs: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          questions: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          questions: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          questions?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       discovery_stories: {
         Row: {
           category: string
@@ -2394,6 +2418,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_gk_responses: {
+        Row: {
+          answered_at: string
+          id: string
+          is_correct: boolean
+          mcq_date: string
+          question_index: number
+          selected_answer: string
+          user_id: string
+        }
+        Insert: {
+          answered_at?: string
+          id?: string
+          is_correct: boolean
+          mcq_date: string
+          question_index: number
+          selected_answer: string
+          user_id: string
+        }
+        Update: {
+          answered_at?: string
+          id?: string
+          is_correct?: boolean
+          mcq_date?: string
+          question_index?: number
+          selected_answer?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_notification_preferences: {
         Row: {
           categories: Json | null
@@ -2713,6 +2767,10 @@ export type Database = {
       }
       get_notification_stats: { Args: { p_user_id: string }; Returns: Json }
       get_user_daily_count: { Args: { p_user_id: string }; Returns: number }
+      get_user_daily_gk_score: {
+        Args: { p_date: string; p_user_id: string }
+        Returns: Json
+      }
       has_note_access: {
         Args: { p_note_id: string; p_user_id: string }
         Returns: boolean
