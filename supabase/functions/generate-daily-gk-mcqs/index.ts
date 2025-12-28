@@ -149,55 +149,13 @@ OUTPUT FORMAT (return ONLY this JSON structure, no markdown):
 Generate exactly 5 diverse, high-quality questions. Return ONLY the JSON.`;
 
     // Try Parallel AI first, fallback to Perplexity if it fails
-    let aiResponse: any;
+    let aiResponse: { content: string; tokensUsed: { total: number }; webSearchUsed: boolean };
     let usedParallel = false;
 
     try {
-      console.log("🔵 Trying Parallel AI without JSON mode...");
+      console.log("🔵 Trying Parallel AI...");
 
-      // First attempt: Try without jsonMode (Parallel AI might not support response_format)
-      try {
-        aiResponse = await callParallel({
-          systemPrompt,
-          userPrompt,
-          maxTokens: 3000,
-          temperature: 0.7,
-          jsonMode: false, // Don't use jsonMode, rely on prompt instructions
-        });
-
-        if (!aiResponse.content || aiResponse.content.trim().length === 0) {
-          throw new Error("Parallel AI returned empty response without JSON mode");
-        }
-
-        usedParallel = true;
-        logParallelUsage("generate-daily-gk-mcqs", aiResponse.tokensUsed, aiResponse.webSearchUsed);
-        console.log("✅ Using Parallel AI response (without JSON mode)");
-      } catch (parallelError1) {
-        console.warn("⚠️ Parallel AI without JSON mode failed:", parallelError1.message);
-        console.log("🔵 Retrying Parallel AI with JSON mode...");
-
-        // Second attempt: Try with jsonMode
-        aiResponse = await callParallel({
-          systemPrompt,
-          userPrompt,
-          maxTokens: 3000,
-          temperature: 0.7,
-          jsonMode: true,
-        });
-
-        if (!aiResponse.content || aiResponse.content.trim().length === 0) {
-          throw new Error("Parallel AI returned empty response with JSON mode");
-        }
-
-        usedParallel = true;
-        logParallelUsage("generate-daily-gk-mcqs", aiResponse.tokensUsed, aiResponse.webSearchUsed);
-        console.log("✅ Using Parallel AI response (with JSON mode)");
-      }
-    } catch (parallelError) {
-      console.warn("⚠️ Parallel AI completely failed:", parallelError.message);
-      console.log("🟣 Falling back to Perplexity AI...");
-
-      aiResponse = await callAI({
+      const parallelResponse = await callParallel({
         systemPrompt,
         userPrompt,
         maxTokens: 3000,
@@ -205,6 +163,36 @@ Generate exactly 5 diverse, high-quality questions. Return ONLY the JSON.`;
         jsonMode: true,
       });
 
+      if (!parallelResponse.content || parallelResponse.content.trim().length === 0) {
+        throw new Error("Parallel AI returned empty response");
+      }
+
+      aiResponse = {
+        content: parallelResponse.content,
+        tokensUsed: { total: parallelResponse.tokensUsed.total },
+        webSearchUsed: parallelResponse.webSearchUsed,
+      };
+      usedParallel = true;
+      logParallelUsage("generate-daily-gk-mcqs", parallelResponse.tokensUsed, parallelResponse.webSearchUsed);
+      console.log("✅ Using Parallel AI response");
+    } catch (parallelError: unknown) {
+      const errorMessage = parallelError instanceof Error ? parallelError.message : String(parallelError);
+      console.warn("⚠️ Parallel AI failed:", errorMessage);
+      console.log("🟣 Falling back to Perplexity AI...");
+
+      const perplexityResponse = await callAI({
+        systemPrompt,
+        userPrompt,
+        maxTokens: 3000,
+        temperature: 0.7,
+        responseFormat: "json",
+      });
+
+      aiResponse = {
+        content: perplexityResponse.content,
+        tokensUsed: { total: perplexityResponse.tokensUsed.input + perplexityResponse.tokensUsed.output },
+        webSearchUsed: perplexityResponse.webSearchUsed,
+      };
       usedParallel = false;
       console.log("✅ Using Perplexity AI response");
     }
@@ -231,11 +219,12 @@ Generate exactly 5 diverse, high-quality questions. Return ONLY the JSON.`;
     try {
       mcqData = JSON.parse(cleanedJson);
       console.log("✅ JSON parsed successfully");
-    } catch (parseError) {
+    } catch (parseError: unknown) {
+      const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
       console.error("❌ Failed to parse JSON:", parseError);
       console.error("📄 Raw response (first 500 chars):", aiResponse.content.substring(0, 500));
       console.error("🧹 Cleaned JSON (first 500 chars):", cleanedJson.substring(0, 500));
-      throw new Error(`Failed to parse MCQs: ${parseError.message}`);
+      throw new Error(`Failed to parse MCQs: ${errorMessage}`);
     }
 
     // Validate structure
@@ -296,7 +285,7 @@ Generate exactly 5 diverse, high-quality questions. Return ONLY the JSON.`;
         stats: {
           questions_count: mcqData.questions.length,
           tokens_used: aiResponse.tokensUsed.total,
-          web_search_used: aiResponse.webSearchUsed,
+          used_parallel: usedParallel,
         },
       }),
       {
@@ -304,15 +293,17 @@ Generate exactly 5 diverse, high-quality questions. Return ONLY the JSON.`;
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorDetails = error instanceof Error ? error.toString() : String(error);
     console.error("❌ Error in generate-daily-gk-mcqs:", error);
 
     // Return error response
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
-        details: error.toString(),
+        error: errorMessage,
+        details: errorDetails,
       }),
       {
         status: 500,
@@ -321,23 +312,3 @@ Generate exactly 5 diverse, high-quality questions. Return ONLY the JSON.`;
     );
   }
 });
-
-// ============================================================
-// Usage Example:
-// ============================================================
-// Call this function from your Android app:
-//
-// POST https://your-project.supabase.co/functions/v1/generate-daily-gk-mcqs
-// Headers:
-//   - Authorization: Bearer YOUR_ANON_KEY
-//   - Content-Type: application/json
-// Body: {}
-//
-// Response:
-// {
-//   "success": true,
-//   "cached": false,
-//   "date": "2024-12-28",
-//   "questions": [ ... array of 5 questions ... ]
-// }
-// ============================================================
