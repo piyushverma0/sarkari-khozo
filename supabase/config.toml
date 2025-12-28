@@ -283,3 +283,6 @@ verify_jwt = true
 
 [functions.grade-exam-paper]
 verify_jwt = true
+
+[functions.generate-daily-gk-mcqs]
+verify_jwt = false
