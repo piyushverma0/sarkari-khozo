@@ -217,8 +217,23 @@ Generate exactly 5 diverse, high-quality questions. Return ONLY the JSON.`;
 
     let mcqData: MCQResponse;
     try {
-      mcqData = JSON.parse(cleanedJson);
-      console.log("✅ JSON parsed successfully");
+      let parsed = JSON.parse(cleanedJson);
+      
+      // Handle double-stringified JSON (AI sometimes returns JSON wrapped in a string)
+      if (typeof parsed === "string") {
+        console.log("🔄 Detected double-stringified JSON, parsing again...");
+        parsed = JSON.parse(parsed);
+      }
+      
+      // Handle case where AI returns array directly instead of { questions: [...] }
+      if (Array.isArray(parsed)) {
+        console.log("🔄 Detected array response, wrapping in questions object...");
+        mcqData = { questions: parsed };
+      } else {
+        mcqData = parsed;
+      }
+      
+      console.log("✅ JSON parsed successfully, type:", typeof mcqData, "has questions:", !!mcqData.questions);
     } catch (parseError: unknown) {
       const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
       console.error("❌ Failed to parse JSON:", parseError);
@@ -229,6 +244,8 @@ Generate exactly 5 diverse, high-quality questions. Return ONLY the JSON.`;
 
     // Validate structure
     if (!mcqData.questions || !Array.isArray(mcqData.questions)) {
+      console.error("❌ Invalid structure. mcqData keys:", Object.keys(mcqData || {}));
+      console.error("📄 mcqData preview:", JSON.stringify(mcqData).substring(0, 300));
       throw new Error("Invalid MCQ format: questions array missing");
     }
 
