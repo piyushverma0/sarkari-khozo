@@ -219,7 +219,7 @@ IMPORTANT: Start your response with { and end with }`;
           userPrompt,
           maxTokens: 2000,
           temperature: 0.7,
-          jsonMode: true,
+          responseFormat: "json",
         });
 
         usedParallel = false;
@@ -271,7 +271,7 @@ IMPORTANT: Start your response with { and end with }`;
 
           if (pairs.length === 0) {
             // Try alternative format: each line is "term - definition"
-            const lines = content.split("\n").filter((line) => line.trim());
+            const lines = content.split("\n").filter((line: string) => line.trim());
             for (const line of lines) {
               const separatorMatch = line.match(/^(?:\d+\.\s*)?(.+?)\s*[–—:-]\s*(.+)$/);
               if (separatorMatch) {
@@ -368,15 +368,18 @@ IMPORTANT: Start your response with { and end with }`;
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("❌ Error in generate-daily-match-sets:", error);
+
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorDetails = error instanceof Error ? error.toString() : String(error);
 
     // Return error response
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
-        details: error.toString(),
+        error: errorMessage,
+        details: errorDetails,
       }),
       {
         status: 500,
