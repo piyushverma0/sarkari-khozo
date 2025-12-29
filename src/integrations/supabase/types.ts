@@ -543,6 +543,30 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_match_sets: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          pairs: Json
+          topic: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          pairs: Json
+          topic: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          pairs?: Json
+          topic?: string
+        }
+        Relationships: []
+      }
       discovery_stories: {
         Row: {
           category: string
@@ -2448,6 +2472,44 @@ export type Database = {
         }
         Relationships: []
       }
+      user_match_results: {
+        Row: {
+          attempts: number
+          completion_time_seconds: number
+          created_at: string
+          id: string
+          match_set_id: string | null
+          topic: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          completion_time_seconds: number
+          created_at?: string
+          id?: string
+          match_set_id?: string | null
+          topic: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          completion_time_seconds?: number
+          created_at?: string
+          id?: string
+          match_set_id?: string | null
+          topic?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_match_results_match_set_id_fkey"
+            columns: ["match_set_id"]
+            isOneToOne: false
+            referencedRelation: "daily_match_sets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_notification_preferences: {
         Row: {
           categories: Json | null
@@ -2766,6 +2828,19 @@ export type Database = {
         }[]
       }
       get_notification_stats: { Args: { p_user_id: string }; Returns: Json }
+      get_topic_leaderboard: {
+        Args: { p_limit?: number; p_topic: string }
+        Returns: {
+          best_time: number
+          rank: number
+          total_games: number
+          user_id: string
+        }[]
+      }
+      get_user_best_time_for_topic: {
+        Args: { p_topic: string; p_user_id: string }
+        Returns: number
+      }
       get_user_daily_count: { Args: { p_user_id: string }; Returns: number }
       get_user_daily_gk_score: {
         Args: { p_date: string; p_user_id: string }
