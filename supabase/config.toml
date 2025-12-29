@@ -286,3 +286,6 @@ verify_jwt = true
 
 [functions.generate-daily-gk-mcqs]
 verify_jwt = false
+
+[functions.generate-daily-match-sets]
+verify_jwt = false
