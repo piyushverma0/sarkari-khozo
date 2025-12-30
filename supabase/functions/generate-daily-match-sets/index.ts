@@ -179,7 +179,7 @@ IMPORTANT: Start your response with { and end with }`;
           aiResponse = await callParallel({
             systemPrompt,
             userPrompt,
-            maxTokens: 2000,
+            maxTokens: 15000,
             temperature: 0.7,
             jsonMode: false,
           });
