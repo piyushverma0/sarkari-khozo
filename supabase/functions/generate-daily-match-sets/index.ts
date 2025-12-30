@@ -1,11 +1,13 @@
 // ============================================================
-// Generate Daily Match Sets - FIXED VERSION
+// Generate Daily Match Sets - COMPLETE FIXED VERSION
 // ============================================================
-// FIXES:
-// 1. Increased maxTokens from 2000 to 10000 to prevent truncation
-// 2. Added truncation detection and recovery
-// 3. Better error messages with actual content preview
-// 4. Retry logic with increased tokens if truncation detected
+// FIXES APPLIED:
+// 1. Increased maxTokens: 2000 → 15000
+// 2. Enhanced system prompt with strict 6-12 word limit
+// 3. Added validation for definition length and completeness
+// 4. Added retry logic with truncation detection
+// 5. Added salvage logic for incomplete JSON
+// 6. Better error messages and logging
 // ============================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -32,10 +34,6 @@ interface MatchPair {
 interface MatchSet {
   topic: string;
   pairs: MatchPair[];
-}
-
-interface MatchSetsResponse {
-  match_sets: MatchSet[];
 }
 
 // Topics configuration
@@ -71,9 +69,7 @@ serve(async (req) => {
 
     console.log(`📅 Checking for Match sets on: ${today}`);
 
-    // ========================================================
     // Check if all 3 topic sets already exist for today
-    // ========================================================
     const { data: existingSets, error: fetchError } = await supabase
       .from("daily_match_sets")
       .select("*")
@@ -95,9 +91,7 @@ serve(async (req) => {
       );
     }
 
-    // ========================================================
     // Generate new Match sets for each topic
-    // ========================================================
     console.log("🤖 Generating new Match sets for 3 topics...");
 
     const generatedSets: MatchSet[] = [];
@@ -105,10 +99,10 @@ serve(async (req) => {
     for (const topic of TOPICS) {
       console.log(`🔵 Generating match set for: ${topic.name}`);
 
-      // ✅ FIX: Generate with retry logic and truncation detection
+      // Generate with retry logic and validation
       const pairsData = await generateMatchPairsWithRetry(topic);
 
-      console.log(`✅ Validated ${pairsData.pairs.length} pairs for ${topic.name}`);
+      console.log(`✅ Generated and validated ${pairsData.pairs.length} pairs for ${topic.name}`);
 
       generatedSets.push({
         topic: topic.name,
@@ -116,9 +110,7 @@ serve(async (req) => {
       });
     }
 
-    // ========================================================
     // Store all sets in database
-    // ========================================================
     console.log("💾 Storing all 3 match sets in database...");
 
     const savedSets = [];
@@ -145,9 +137,6 @@ serve(async (req) => {
 
     console.log("✅ Successfully generated and saved all Match sets for:", today);
 
-    // ========================================================
-    // Return success response
-    // ========================================================
     return new Response(
       JSON.stringify({
         success: true,
@@ -166,7 +155,6 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorDetails = error instanceof Error ? error.toString() : String(error);
 
-    // Return error response
     return new Response(
       JSON.stringify({
         success: false,
@@ -182,83 +170,83 @@ serve(async (req) => {
 });
 
 // ============================================================
-// ✅ NEW: Generate match pairs with retry and truncation handling
+// Generate match pairs with retry logic
 // ============================================================
 async function generateMatchPairsWithRetry(
   topic: { name: string; description: string },
   maxRetries: number = 2,
 ): Promise<{ pairs: MatchPair[] }> {
   let lastError: Error | null = null;
-  let baseMaxTokens = 10000; // ✅ Increased from 2000
+  let baseMaxTokens = 15000; // ✅ Increased from 2000
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      // Increase tokens on retry
       const maxTokens = baseMaxTokens + (attempt - 1) * 500;
       console.log(`🔄 Attempt ${attempt}/${maxRetries} for ${topic.name} (maxTokens: ${maxTokens})`);
 
-      const systemPrompt = `You are an expert at creating engaging educational match games for Indian government exam aspirants.
+      // ✅ ENHANCED SYSTEM PROMPT
+      const systemPrompt = `You are an expert at creating match card games for Indian government exam students.
 
-EXPERTISE:
-- Create concise terms and clear definitions
-- Focus on important facts relevant for competitive exams
-- Terms should be 1-4 words (short and memorable)
-- Definitions should be 5-15 words (brief but informative)
-- Ensure terms and definitions are not too obvious (moderate difficulty)
+CRITICAL REQUIREMENTS:
+1. Terms: 1-3 words maximum (one concept, name, or phrase)
+2. Definitions: EXACTLY 6-12 words (complete sentences only)
+3. Every definition must stand alone and be immediately understandable
+4. NO incomplete sentences, NO trailing phrases
+5. NO phrases ending with: "of the", "about the", "under a", "in the", etc.
 
-CRITICAL RESPONSE FORMAT:
-You MUST return a valid JSON object with this EXACT structure:
+QUALITY RULES:
+- Terms must be specific and recognizable
+- Definitions must be concise but complete
+- Each pair must make ONE clear match (no ambiguity)
+- Difficulty: Mix of 2 easy, 3 medium, 1 hard
+- Definitions should be facts, not vague descriptions
+
+OUTPUT FORMAT:
 {
   "pairs": [
-    {"term": "example term", "definition": "example definition"}
+    {"term": "short term", "definition": "Complete sentence with 6-12 words exactly."}
   ]
 }
 
-RULES:
-- Return ONLY valid JSON (no markdown, no code blocks, no backticks)
-- Do NOT return numbered lists or plain text
-- Do NOT include any text before or after the JSON
-- The JSON must be directly parseable`;
+CRITICAL: Every definition must be a complete thought that fits in 6-12 words.`;
 
-      const userPrompt = `Generate 6 term-definition pairs for the topic: "${topic.name}"
+      // ✅ ENHANCED USER PROMPT WITH EXAMPLES
+      const userPrompt = `Generate 6 term-definition pairs for: "${topic.name}"
 
 TOPIC CONTEXT: ${topic.description}
 
-REQUIREMENTS:
-1. Each pair must have:
-   - term: A concise term/name/concept (1-4 words)
-   - definition: A brief but clear definition (5-15 words)
+STRICT FORMAT RULES:
+1. Terms: 1-3 words (names, concepts, technologies)
+2. Definitions: 6-12 words ONLY (complete sentences)
+3. NO trailing phrases, NO incomplete thoughts
+4. Start with the actual explanation, not filler words
 
-2. Quality Guidelines:
-   - Terms should be important for competitive exams
-   - Definitions should be educational and accurate
-   - Avoid overly simple or obvious pairs
-   - Mix difficulty levels (2 easy, 3 medium, 1 hard)
-   - Ensure variety in the types of terms
+---
 
-3. For different topics:
-   - General Knowledge: Mix of capitals, numbers, famous people, awards, etc.
-   - Indian History: Events, dates, personalities, movements, battles
-   - Science & Tech: Inventions, discoveries, scientists, concepts, units
+${getExamplesForTopic(topic.name)}
 
-CRITICAL OUTPUT FORMAT:
-You MUST return ONLY this JSON structure (no markdown, no code blocks, no backticks, no extra text):
+---
+
+YOUR TASK:
+Generate EXACTLY 6 pairs for "${topic.name}" following the format above.
+
+CRITICAL CHECKS:
+- Count words: Each definition must be 6-12 words
+- Complete sentences: No trailing "of the", "about the", etc.
+- Clear matches: Term and definition should obviously pair together
+- Factual accuracy: Definitions must be correct for competitive exams
+
+Return ONLY valid JSON (no markdown, no code blocks, no extra text):
 {
   "pairs": [
-    {
-      "term": "Capital of India",
-      "definition": "New Delhi, seat of the Government of India"
-    },
-    {
-      "term": "Mount Everest",
-      "definition": "World's highest mountain at 8,849 meters"
-    }
+    {"term": "...", "definition": "..."},
+    {"term": "...", "definition": "..."},
+    {"term": "...", "definition": "..."},
+    {"term": "...", "definition": "..."},
+    {"term": "...", "definition": "..."},
+    {"term": "...", "definition": "..."}
   ]
-}
-
-IMPORTANT: Generate exactly 6 diverse, high-quality pairs.
-IMPORTANT: Return ONLY the JSON object above. Do NOT return numbered lists.
-IMPORTANT: Start your response with { and end with }`;
+}`;
 
       // Try Parallel AI first, fallback to Perplexity
       let aiResponse: any;
@@ -267,13 +255,12 @@ IMPORTANT: Start your response with { and end with }`;
       try {
         console.log(`🔵 Trying Parallel AI for ${topic.name}...`);
 
-        // Try without jsonMode first
         aiResponse = await callParallel({
           systemPrompt,
           userPrompt,
           maxTokens: maxTokens,
           temperature: 0.7,
-          jsonMode: false,
+          jsonMode: true,
         });
 
         if (!aiResponse.content || aiResponse.content.trim().length === 0) {
@@ -283,45 +270,24 @@ IMPORTANT: Start your response with { and end with }`;
         usedParallel = true;
         logParallelUsage(`generate-match-${topic.name}`, aiResponse.tokensUsed, aiResponse.webSearchUsed);
         console.log(`✅ Using Parallel AI response for ${topic.name}`);
-      } catch (parallelError1) {
-        console.warn(`⚠️ Parallel AI without JSON mode failed for ${topic.name}, trying with JSON mode...`);
+      } catch (parallelError) {
+        console.warn(`⚠️ Parallel AI failed for ${topic.name}, falling back to Perplexity`);
 
-        // Try with jsonMode
-        try {
-          aiResponse = await callParallel({
-            systemPrompt,
-            userPrompt,
-            maxTokens: maxTokens,
-            temperature: 0.7,
-            jsonMode: true,
-          });
+        aiResponse = await callAI({
+          systemPrompt,
+          userPrompt,
+          maxTokens: maxTokens,
+          temperature: 0.7,
+          responseFormat: "json",
+        });
 
-          if (!aiResponse.content || aiResponse.content.trim().length === 0) {
-            throw new Error("Parallel AI returned empty response with JSON mode");
-          }
-
-          usedParallel = true;
-          logParallelUsage(`generate-match-${topic.name}`, aiResponse.tokensUsed, aiResponse.webSearchUsed);
-          console.log(`✅ Using Parallel AI response (JSON mode) for ${topic.name}`);
-        } catch (parallelError2) {
-          console.warn(`⚠️ Parallel AI completely failed for ${topic.name}, falling back to Perplexity`);
-
-          aiResponse = await callAI({
-            systemPrompt,
-            userPrompt,
-            maxTokens: maxTokens,
-            temperature: 0.7,
-            responseFormat: "json",
-          });
-
-          usedParallel = false;
-          console.log(`✅ Using Perplexity AI response for ${topic.name}`);
-        }
+        usedParallel = false;
+        console.log(`✅ Using Perplexity AI response for ${topic.name}`);
       }
 
       console.log(`📦 Received AI response for ${topic.name} (${aiResponse.content.length} chars)`);
 
-      // ✅ FIX: Check for truncation before parsing
+      // ✅ Check for truncation
       if (isTruncated(aiResponse.content)) {
         console.warn(`⚠️ Response appears truncated for ${topic.name} (attempt ${attempt})`);
         console.warn(`📊 Response length: ${aiResponse.content.length} chars`);
@@ -329,28 +295,27 @@ IMPORTANT: Start your response with { and end with }`;
 
         if (attempt < maxRetries) {
           console.log(`🔄 Retrying with increased token limit...`);
-          continue; // Retry with more tokens
+          continue;
         } else {
-          // Last attempt - try to salvage what we have
           console.warn(`⚠️ Final attempt, trying to salvage partial response...`);
         }
       }
 
       // Parse and validate
-      const pairsData = await parseMatchPairs(aiResponse.content, topic.name);
+      const pairsData = await parseAndValidateMatchPairs(aiResponse.content, topic.name);
 
-      // Validate pair count
+      // Check pair count
       if (pairsData.pairs.length < 6) {
         if (attempt < maxRetries) {
-          console.warn(`⚠️ Only got ${pairsData.pairs.length}/6 pairs, retrying...`);
+          console.warn(`⚠️ Only got ${pairsData.pairs.length}/6 valid pairs, retrying...`);
           continue;
         } else {
           // Pad with placeholders on last attempt
-          console.warn(`⚠️ Padding ${6 - pairsData.pairs.length} missing pairs with placeholders`);
+          console.warn(`⚠️ Padding ${6 - pairsData.pairs.length} missing pairs`);
           while (pairsData.pairs.length < 6) {
             pairsData.pairs.push({
-              term: `[Term ${pairsData.pairs.length + 1}]`,
-              definition: "Definition pending - please regenerate",
+              term: `Term ${pairsData.pairs.length + 1}`,
+              definition: "Definition pending - please regenerate to get complete pairs.",
             });
           }
         }
@@ -369,7 +334,7 @@ IMPORTANT: Start your response with { and end with }`;
 
       if (attempt < maxRetries) {
         console.log(`🔄 Will retry...`);
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // 1 second delay
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
   }
@@ -379,40 +344,132 @@ IMPORTANT: Start your response with { and end with }`;
 }
 
 // ============================================================
-// ✅ NEW: Check if response is truncated
+// Get examples for specific topic
+// ============================================================
+function getExamplesForTopic(topicName: string): string {
+  if (topicName === "Science & Tech") {
+    return `EXAMPLES FOR SCIENCE & TECH:
+
+✅ GOOD PAIRS:
+{
+  "term": "Photosynthesis",
+  "definition": "Plants convert sunlight into chemical energy using chlorophyll successfully."
+}
+{
+  "term": "DNA",
+  "definition": "Genetic molecule containing hereditary information in all living organisms."
+}
+{
+  "term": "Gravity",
+  "definition": "Force attracting objects toward Earth's center or other masses."
+}
+{
+  "term": "Electricity",
+  "definition": "Flow of electric charge through conductors producing energy and power."
+}
+{
+  "term": "Atom",
+  "definition": "Smallest unit of matter retaining element's chemical properties completely."
+}
+
+❌ BAD PAIRS (Too long/incomplete):
+{
+  "term": "Photosynthesis",
+  "definition": "Process by which green plants and some other organisms use sunlight to"
+}
+{
+  "term": "Scientific Method",
+  "definition": "Systematic approach involving observation, hypothesis formation, experimentation and analysis for"
+}`;
+  } else if (topicName === "Indian History") {
+    return `EXAMPLES FOR INDIAN HISTORY:
+
+✅ GOOD PAIRS:
+{
+  "term": "Quit India",
+  "definition": "1942 mass movement demanding immediate British withdrawal from India."
+}
+{
+  "term": "Jallianwala Bagh",
+  "definition": "1919 Amritsar massacre where British killed hundreds of Indian protesters."
+}
+{
+  "term": "Dandi March",
+  "definition": "Gandhi's 1930 salt satyagraha protesting against British salt monopoly."
+}
+{
+  "term": "Sepoy Mutiny",
+  "definition": "1857 rebellion by Indian soldiers against British East India Company."
+}
+{
+  "term": "Partition",
+  "definition": "1947 division of British India into India and Pakistan nations."
+}
+
+❌ BAD PAIRS (Too long/incomplete):
+{
+  "term": "Non-Cooperation",
+  "definition": "Movement launched by Mahatma Gandhi in 1920 that aimed to resist British rule through"
+}`;
+  } else {
+    // General Knowledge
+    return `EXAMPLES FOR GENERAL KNOWLEDGE:
+
+✅ GOOD PAIRS:
+{
+  "term": "UNESCO",
+  "definition": "United Nations agency promoting education, science and cultural cooperation worldwide."
+}
+{
+  "term": "Mount Everest",
+  "definition": "World's tallest mountain peak at 8849 meters in Himalayas."
+}
+{
+  "term": "Reserve Bank",
+  "definition": "India's central banking institution managing monetary policy and currency."
+}
+{
+  "term": "Lok Sabha",
+  "definition": "Lower house of India's Parliament with directly elected members."
+}
+{
+  "term": "Fundamental Rights",
+  "definition": "Basic human rights guaranteed to all Indian citizens by Constitution."
+}
+
+❌ BAD PAIRS (Too long/incomplete):
+{
+  "term": "Democracy",
+  "definition": "A system of government where citizens exercise power by voting and electing"
+}`;
+  }
+}
+
+// ============================================================
+// Check if response is truncated
 // ============================================================
 function isTruncated(content: string): boolean {
   const trimmed = content.trim();
 
-  // Check for incomplete JSON
-  if (trimmed.includes("{") && !trimmed.includes("}")) {
-    return true;
-  }
+  // Check for incomplete JSON brackets
+  if (trimmed.includes("{") && !trimmed.includes("}")) return true;
+  if (trimmed.includes("[") && !trimmed.includes("]")) return true;
 
-  if (trimmed.includes("[") && !trimmed.includes("]")) {
-    return true;
-  }
-
-  // Check for incomplete strings at the end
+  // Check for incomplete ending
   const lastChar = trimmed[trimmed.length - 1];
-  if (lastChar !== "}" && lastChar !== "]" && lastChar !== '"') {
-    // Likely truncated mid-word or mid-sentence
-    return true;
-  }
+  if (lastChar !== "}" && lastChar !== "]" && lastChar !== '"') return true;
 
   // Check for unbalanced quotes
   const quoteCount = (trimmed.match(/"/g) || []).length;
-  if (quoteCount % 2 !== 0) {
-    return true;
-  }
+  if (quoteCount % 2 !== 0) return true;
 
   return false;
 }
 
 // ============================================================
-// ✅ IMPROVED: Parse match pairs with better error handling
+// Parse and validate match pairs
 // ============================================================
-async function parseMatchPairs(content: string, topicName: string): Promise<{ pairs: MatchPair[] }> {
+async function parseAndValidateMatchPairs(content: string, topicName: string): Promise<{ pairs: MatchPair[] }> {
   let cleanedJson = content.trim();
 
   console.log(`📝 Parsing response for ${topicName} (${cleanedJson.length} chars)`);
@@ -424,14 +481,13 @@ async function parseMatchPairs(content: string, topicName: string): Promise<{ pa
     cleanedJson = cleanedJson.replace(/^```\s*/, "").replace(/\s*```$/, "");
   }
 
-  // Remove any leading/trailing whitespace
   cleanedJson = cleanedJson.trim();
 
   let pairsData: { pairs: MatchPair[] };
 
-  // Try parsing as JSON first
+  // Try parsing as JSON
   try {
-    // ✅ FIX: Handle double-escaped JSON
+    // Handle double-escaped JSON
     let unescapeAttempts = 0;
     let contentToParse = cleanedJson;
 
@@ -448,28 +504,22 @@ async function parseMatchPairs(content: string, topicName: string): Promise<{ pa
     pairsData = JSON.parse(contentToParse);
     console.log(`✅ JSON parsed successfully for ${topicName}`);
   } catch (parseError) {
-    console.log(`⚠️ JSON parsing failed for ${topicName}, attempting text parsing...`);
+    console.log(`⚠️ JSON parsing failed for ${topicName}, attempting recovery...`);
     console.error("📄 Raw response preview:", content.substring(0, 300));
-    console.error("📄 Response end:", content.substring(Math.max(0, content.length - 200)));
 
-    // ✅ FIX: Try to salvage incomplete JSON
-    try {
-      const salvaged = salvageIncompleteJSON(cleanedJson);
-      if (salvaged) {
-        pairsData = salvaged;
-        console.log(`✅ Salvaged ${salvaged.pairs.length} pairs from incomplete JSON`);
-      } else {
-        throw new Error("Could not salvage incomplete JSON");
-      }
-    } catch (salvageError) {
-      // Try parsing as numbered list text format
+    // Try to salvage incomplete JSON
+    const salvaged = salvageIncompleteJSON(cleanedJson);
+    if (salvaged && salvaged.pairs.length > 0) {
+      pairsData = salvaged;
+      console.log(`✅ Salvaged ${salvaged.pairs.length} pairs from incomplete JSON`);
+    } else {
+      // Try parsing as text list
       const pairs = parseAsTextList(content);
-
       if (pairs.length > 0) {
         pairsData = { pairs };
-        console.log(`✅ Text parsed successfully for ${topicName}, found ${pairs.length} pairs`);
+        console.log(`✅ Text parsed successfully, found ${pairs.length} pairs`);
       } else {
-        throw new Error(`Failed to parse match pairs for ${topicName}: Neither JSON nor text parsing succeeded`);
+        throw new Error(`Failed to parse match pairs for ${topicName}`);
       }
     }
   }
@@ -479,32 +529,66 @@ async function parseMatchPairs(content: string, topicName: string): Promise<{ pa
     throw new Error(`Invalid match pairs format for ${topicName}: pairs array missing`);
   }
 
-  // Validate each pair
+  // ✅ VALIDATE EACH PAIR
   const validPairs: MatchPair[] = [];
+
   for (let i = 0; i < pairsData.pairs.length; i++) {
     const pair = pairsData.pairs[i];
-    if (pair && pair.term && pair.definition) {
-      if (pair.term.length >= 2 && pair.definition.length >= 5) {
-        validPairs.push(pair);
-      } else {
-        console.warn(
-          `⚠️ Skipping pair ${i + 1} in ${topicName}: invalid lengths (term: ${pair.term.length}, def: ${pair.definition.length})`,
-        );
-      }
-    } else {
-      console.warn(`⚠️ Skipping pair ${i + 1} in ${topicName}: missing term or definition`);
+
+    if (!pair || !pair.term || !pair.definition) {
+      console.warn(`⚠️ Skipping pair ${i + 1}: missing term or definition`);
+      continue;
     }
+
+    // Validate term length (1-4 words)
+    const termWords = pair.term.trim().split(/\s+/).length;
+    if (termWords > 4) {
+      console.warn(`⚠️ Skipping pair ${i + 1}: term too long (${termWords} words)`);
+      console.warn(`   Term: "${pair.term}"`);
+      continue;
+    }
+
+    // ✅ VALIDATE DEFINITION LENGTH (6-12 words)
+    const defWords = pair.definition.trim().split(/\s+/).length;
+    if (defWords < 6 || defWords > 12) {
+      console.warn(`⚠️ Skipping pair ${i + 1}: definition wrong length (${defWords} words, need 6-12)`);
+      console.warn(`   Term: "${pair.term}"`);
+      console.warn(`   Definition: "${pair.definition}"`);
+      continue;
+    }
+
+    // ✅ CHECK FOR INCOMPLETE SENTENCES
+    const endsIncomplete = /\s(of|the|a|an|to|for|with|in|at|by|from|about|under|that|which)$/i.test(pair.definition);
+    if (endsIncomplete) {
+      console.warn(`⚠️ Skipping pair ${i + 1}: definition appears incomplete`);
+      console.warn(`   Term: "${pair.term}"`);
+      console.warn(`   Definition: "${pair.definition}"`);
+      continue;
+    }
+
+    // Ensure definition ends with punctuation
+    if (!pair.definition.match(/[.!?]$/)) {
+      pair.definition = pair.definition.trim() + ".";
+    }
+
+    // Passed all checks
+    validPairs.push({
+      term: pair.term.trim(),
+      definition: pair.definition.trim(),
+    });
   }
 
   if (validPairs.length === 0) {
-    throw new Error(`No valid pairs found for ${topicName}`);
+    throw new Error(`No valid pairs found for ${topicName} after validation`);
   }
+
+  console.log(`✅ Validated ${validPairs.length} pairs for ${topicName}`);
 
   return { pairs: validPairs };
 }
 
 // ============================================================
-// ✅ NEW: Salvage incomplete JSON
+// Salvage incomplete JSON
 // ============================================================
 function salvageIncompleteJSON(json: string): { pairs: MatchPair[] } | null {
   try {
@@ -529,18 +613,13 @@ function salvageIncompleteJSON(json: string): { pairs: MatchPair[] } | null {
 }
 
 // ============================================================
-// ✅ IMPROVED: Parse as text list with more patterns
+// Parse as text list
 // ============================================================
 function parseAsTextList(content: string): MatchPair[] {
   const pairs: MatchPair[] = [];
 
   // Try multiple patterns
-  const patterns = [
-    // Pattern 1: "1. Term – Definition"
-    /(\d+)\.\s*(.+?)\s*[–—:-]\s*(.+?)(?=\n\d+\.|$)/gs,
-    // Pattern 2: "Term - Definition" (without numbers)
-    /^(.+?)\s*[–—:-]\s*(.+?)$/gm,
-  ];
+  const patterns = [/(\d+)\.\s*(.+?)\s*[–—:-]\s*(.+?)(?=\n\d+\.|$)/gs, /^(.+?)\s*[–—:-]\s*(.+?)$/gm];
 
   for (const pattern of patterns) {
     const matches = Array.from(content.matchAll(pattern));
@@ -549,24 +628,22 @@ function parseAsTextList(content: string): MatchPair[] {
       let term, definition;
 
       if (match.length === 4) {
-        // Has number prefix
         term = match[2].trim();
         definition = match[3].trim();
       } else if (match.length === 3) {
-        // No number prefix
         term = match[1].trim();
         definition = match[2].trim();
       } else {
         continue;
       }
 
-      if (term && definition && term.length >= 2 && definition.length >= 5) {
+      if (term && definition && term.length >= 2 && definition.length >= 10) {
         pairs.push({ term, definition });
       }
     }
 
     if (pairs.length > 0) {
-      break; // Found matches with this pattern
+      break;
     }
   }
 
