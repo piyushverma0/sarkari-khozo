@@ -1567,6 +1567,51 @@ export type Database = {
         }
         Relationships: []
       }
+      onboarding_preferences: {
+        Row: {
+          completed_at: string
+          created_at: string
+          daily_study_hours: string
+          education_level: string
+          exam_goals: string[]
+          id: string
+          preferred_language: string
+          profile_type: string
+          subject_interests: string[]
+          target_timeline: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          created_at?: string
+          daily_study_hours: string
+          education_level: string
+          exam_goals?: string[]
+          id?: string
+          preferred_language: string
+          profile_type: string
+          subject_interests?: string[]
+          target_timeline: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          created_at?: string
+          daily_study_hours?: string
+          education_level?: string
+          exam_goals?: string[]
+          id?: string
+          preferred_language?: string
+          profile_type?: string
+          subject_interests?: string[]
+          target_timeline?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null
