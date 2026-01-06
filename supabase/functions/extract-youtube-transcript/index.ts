@@ -7,16 +7,12 @@ const corsHeaders = {
 };
 
 // ============================================================
-// COMPLETE FIXED VERSION WITH MULTI-STRATEGY APPROACH
+// HYBRID VERSION: YouTube Data API v3 + Free Methods Fallback
 // ============================================================
-// FIXES:
-// 1. Uses Innertube API (more reliable than timedtext)
-// 2. Fetches actual video metadata (title, description, duration)
-// 3. Tries multiple language codes with fallbacks
-// 4. Implements retry logic with exponential backoff
-// 5. Better error handling and messages
-// 6. Supports auto-generated captions
-// 7. Handles age-restricted and private videos
+// STRATEGY:
+// 1. PRIMARY: Use YouTube Data API v3 (official, reliable)
+// 2. FALLBACK: Use free methods (7 strategies) if API fails
+// 3. Best of both worlds: Official reliability + Free backup
 // ============================================================
 
 serve(async (req) => {
@@ -62,9 +58,9 @@ serve(async (req) => {
       })
       .eq("id", note_id);
 
-    // ✅ STEP 2: Fetch transcript with fallback strategies
+    // ✅ STEP 2: Fetch transcript (HYBRID: API first, then free methods)
     console.log(`📝 Fetching transcript (preferred language: ${language})...`);
-    const result = await fetchTranscriptWithFallback(videoId, language);
+    const result = await fetchTranscriptHybrid(videoId, language);
 
     console.log(`✅ Transcript fetched using ${result.method}`);
     console.log(`📏 Length: ${result.transcript.length} characters`);
@@ -83,7 +79,6 @@ serve(async (req) => {
         title: metadata.title,
         word_count: wordCount,
         estimated_read_time: readTime,
-        // Store metadata as JSON
         metadata: {
           video_id: videoId,
           duration: metadata.duration,
@@ -116,6 +111,7 @@ serve(async (req) => {
         title: metadata.title,
         word_count: wordCount,
         transcript_language: result.language,
+        method_used: result.method,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
@@ -153,7 +149,6 @@ serve(async (req) => {
 // Extract video ID from various YouTube URL formats
 // ============================================================
 function extractVideoId(url: string): string | null {
-  // Handle all possible YouTube URL formats
   const patterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
     /youtube\.com\/embed\/([^&\n?#]+)/,
@@ -165,12 +160,10 @@ function extractVideoId(url: string): string | null {
   for (const pattern of patterns) {
     const match = url.match(pattern);
     if (match && match[1]) {
-      // Clean up video ID (remove any trailing parameters)
       return match[1].split("&")[0].split("?")[0];
     }
   }
 
-  // If URL is just the video ID
   if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
     return url;
   }
@@ -179,7 +172,7 @@ function extractVideoId(url: string): string | null {
 }
 
 // ============================================================
-// ✅ NEW: Fetch video metadata using Innertube API
+// Fetch video metadata using oEmbed API
 // ============================================================
 interface VideoMetadata {
   title: string;
@@ -190,7 +183,6 @@ interface VideoMetadata {
 
 async function fetchVideoMetadata(videoId: string): Promise<VideoMetadata> {
   try {
-    // Use YouTube's oEmbed API (official and reliable)
     const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
     const response = await fetch(oembedUrl);
 
@@ -200,7 +192,6 @@ async function fetchVideoMetadata(videoId: string): Promise<VideoMetadata> {
 
     const data = await response.json();
 
-    // Get additional metadata from watch page
     const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
     const watchResponse = await fetch(watchUrl, {
       headers: {
@@ -209,11 +200,9 @@ async function fetchVideoMetadata(videoId: string): Promise<VideoMetadata> {
     });
     const html = await watchResponse.text();
 
-    // Extract duration from page (in seconds)
     const durationMatch = html.match(/"lengthSeconds":"(\d+)"/);
     const duration = durationMatch ? parseInt(durationMatch[1]) : 0;
 
-    // Extract description
     const descMatch = html.match(/"shortDescription":"([^"]*)"/);
     const description = descMatch ? decodeUnicode(descMatch[1]) : "";
 
@@ -221,7 +210,7 @@ async function fetchVideoMetadata(videoId: string): Promise<VideoMetadata> {
       title: data.title || `YouTube Video ${videoId}`,
       duration: duration,
       channel: data.author_name || "Unknown",
-      description: description.substring(0, 500), // Limit description length
+      description: description.substring(0, 500),
     };
   } catch (error) {
     console.warn("⚠️ Could not fetch full metadata, using fallback");
@@ -235,7 +224,7 @@ async function fetchVideoMetadata(videoId: string): Promise<VideoMetadata> {
 }
 
 // ============================================================
-// ✅ NEW: Fetch transcript with multiple fallback strategies
+// ✅ HYBRID: Try YouTube Data API v3 first, then free methods
 // ============================================================
 interface TranscriptResult {
   transcript: string;
@@ -243,21 +232,144 @@ interface TranscriptResult {
   method: string;
 }
 
+async function fetchTranscriptHybrid(videoId: string, preferredLanguage: string): Promise<TranscriptResult> {
+  const apiKey = Deno.env.get("YOUTUBE_API_KEY");
+
+  // ✅ PRIMARY METHOD: YouTube Data API v3 (Official)
+  if (apiKey && apiKey.trim().length > 0) {
+    try {
+      console.log("🔑 PRIMARY: Trying YouTube Data API v3 (official)...");
+      const result = await fetchTranscriptWithYouTubeAPI(videoId, preferredLanguage, apiKey);
+      console.log("✅ SUCCESS: YouTube Data API v3 worked!");
+      return result;
+    } catch (apiError) {
+      console.warn("⚠️ YouTube Data API v3 failed, falling back to free methods");
+      console.warn(`   Reason: ${apiError instanceof Error ? apiError.message : "Unknown"}`);
+      // Continue to fallback methods below
+    }
+  } else {
+    console.log("ℹ️ No YOUTUBE_API_KEY found, using free methods only");
+  }
+
+  // 🔄 FALLBACK METHOD: Free methods (7 strategies)
+  console.log("🔄 FALLBACK: Using free extraction methods...");
+  return await fetchTranscriptWithFallback(videoId, preferredLanguage);
+}
+
+// ============================================================
+// PRIMARY: YouTube Data API v3 implementation
+// ============================================================
+async function fetchTranscriptWithYouTubeAPI(
+  videoId: string,
+  preferredLanguage: string,
+  apiKey: string,
+): Promise<TranscriptResult> {
+  // Step 1: Verify video exists and get basic info
+  const videoUrl = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&key=${apiKey}&part=snippet`;
+  const videoResponse = await fetch(videoUrl);
+
+  if (!videoResponse.ok) {
+    const errorData = await videoResponse.json().catch(() => ({}));
+    throw new Error(`YouTube API error ${videoResponse.status}: ${errorData.error?.message || "Unknown error"}`);
+  }
+
+  const videoData = await videoResponse.json();
+
+  if (!videoData.items || videoData.items.length === 0) {
+    throw new Error("Video not found via YouTube API");
+  }
+
+  console.log(`   ✓ Video verified: ${videoData.items[0].snippet.title}`);
+
+  // Step 2: Get available caption tracks
+  const captionsUrl = `https://www.googleapis.com/youtube/v3/captions?videoId=${videoId}&key=${apiKey}&part=snippet`;
+  const captionsResponse = await fetch(captionsUrl);
+
+  if (!captionsResponse.ok) {
+    throw new Error("No captions available for this video");
+  }
+
+  const captionsData = await captionsResponse.json();
+
+  if (!captionsData.items || captionsData.items.length === 0) {
+    throw new Error("No caption tracks found");
+  }
+
+  console.log(`   ✓ Found ${captionsData.items.length} caption tracks`);
+
+  // Step 3: Find best caption track
+  const langCode = getLangCode(preferredLanguage);
+
+  // Try exact match first
+  let bestCaption = captionsData.items.find((cap: any) => cap.snippet.language === langCode);
+
+  // Try English if preferred not found
+  if (!bestCaption && langCode !== "en") {
+    bestCaption = captionsData.items.find((cap: any) => cap.snippet.language === "en");
+  }
+
+  // Use first available
+  if (!bestCaption) {
+    bestCaption = captionsData.items[0];
+  }
+
+  const captionLanguage = bestCaption.snippet.language;
+  const captionName = bestCaption.snippet.name || "auto-generated";
+  console.log(`   ✓ Selected caption: ${captionLanguage} (${captionName})`);
+
+  // Step 4: Download caption content
+  // Note: YouTube Data API v3 requires OAuth 2.0 to download captions directly
+  // We'll use the timedtext API with the confirmed caption language
+  // This hybrid approach: API confirms captions exist + free method downloads
+
+  const timedtextUrl = `https://www.youtube.com/api/timedtext?lang=${captionLanguage}&v=${videoId}`;
+  const transcriptResponse = await fetch(timedtextUrl, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    },
+  });
+
+  if (!transcriptResponse.ok) {
+    throw new Error(`Failed to download caption (timedtext returned ${transcriptResponse.status})`);
+  }
+
+  const xml = await transcriptResponse.text();
+
+  if (xml.length < 50) {
+    throw new Error("Caption XML too short or empty");
+  }
+
+  // Parse XML and extract text
+  const textMatches = xml.matchAll(/<text[^>]*>([^<]*)<\/text>/g);
+  const transcript = Array.from(textMatches)
+    .map((match) => decodeHTML(match[1]))
+    .filter((text) => text.trim().length > 0)
+    .join(" ");
+
+  if (transcript.length < 50) {
+    throw new Error("Parsed transcript too short");
+  }
+
+  console.log(`   ✓ Downloaded ${transcript.length} characters`);
+
+  return {
+    transcript,
+    language: captionLanguage,
+    method: "youtube-data-api-v3",
+  };
+}
+
+// ============================================================
+// FALLBACK: Free methods with 7 strategies
+// ============================================================
 async function fetchTranscriptWithFallback(videoId: string, preferredLanguage: string): Promise<TranscriptResult> {
   const strategies = [
-    // Strategy 1: Preferred language
     () => fetchTranscriptStrategy1(videoId, preferredLanguage),
-    // Strategy 2: Auto-generated in preferred language
     () => fetchTranscriptStrategy1(videoId, preferredLanguage, true),
-    // Strategy 3: English (most common)
     () => fetchTranscriptStrategy1(videoId, "en"),
-    // Strategy 4: Auto-generated English
     () => fetchTranscriptStrategy1(videoId, "en", true),
-    // Strategy 5: Hindi (if not already tried)
     () => (preferredLanguage !== "hi" ? fetchTranscriptStrategy1(videoId, "hi") : Promise.reject()),
-    // Strategy 6: Try Innertube API
     () => fetchTranscriptInnertube(videoId, preferredLanguage),
-    // Strategy 7: Try any available language
     () => fetchAnyAvailableTranscript(videoId),
   ];
 
@@ -265,28 +377,28 @@ async function fetchTranscriptWithFallback(videoId: string, preferredLanguage: s
 
   for (let i = 0; i < strategies.length; i++) {
     try {
-      console.log(`🔄 Trying strategy ${i + 1}/${strategies.length}...`);
+      console.log(`   🔄 Trying fallback strategy ${i + 1}/${strategies.length}...`);
       const result = await strategies[i]();
       if (result && result.transcript && result.transcript.length > 50) {
+        console.log(`   ✅ Strategy ${i + 1} succeeded!`);
         return result;
       }
     } catch (error) {
       lastError = error as Error;
-      console.log(`⚠️ Strategy ${i + 1} failed: ${lastError.message}`);
+      console.log(`   ⚠️ Strategy ${i + 1} failed: ${lastError.message}`);
       continue;
     }
   }
 
-  // All strategies failed
   throw new Error(
     `Could not fetch transcript for video ${videoId}. ` +
-      `This video may not have captions/subtitles available, or it may be age-restricted/private. ` +
+      `This video may not have captions available. ` +
       `Last error: ${lastError?.message}`,
   );
 }
 
 // ============================================================
-// Strategy 1: YouTube Timedtext API
+// Strategy 1: Timedtext API
 // ============================================================
 async function fetchTranscriptStrategy1(
   videoId: string,
@@ -294,11 +406,9 @@ async function fetchTranscriptStrategy1(
   autoGenerated: boolean = false,
 ): Promise<TranscriptResult> {
   const langCode = getLangCode(language);
-  const kind = autoGenerated ? "asr" : ""; // asr = auto-generated
+  const kind = autoGenerated ? "asr" : "";
 
   const url = `https://www.youtube.com/api/timedtext?lang=${langCode}&v=${videoId}${kind ? `&kind=${kind}` : ""}`;
-
-  console.log(`📡 Fetching from timedtext API: ${url}`);
 
   const response = await fetch(url, {
     headers: {
@@ -314,10 +424,9 @@ async function fetchTranscriptStrategy1(
   const xml = await response.text();
 
   if (xml.length < 50) {
-    throw new Error("Transcript XML too short or empty");
+    throw new Error("Transcript XML too short");
   }
 
-  // Parse XML and extract text
   const textMatches = xml.matchAll(/<text[^>]*>([^<]*)<\/text>/g);
   const transcript = Array.from(textMatches)
     .map((match) => decodeHTML(match[1]))
@@ -336,85 +445,69 @@ async function fetchTranscriptStrategy1(
 }
 
 // ============================================================
-// Strategy 6: Innertube API (YouTube's internal API)
+// Strategy 6: Innertube API
 // ============================================================
 async function fetchTranscriptInnertube(videoId: string, preferredLanguage: string): Promise<TranscriptResult> {
-  try {
-    // Get caption tracks first
-    const captionTracksUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    const response = await fetch(captionTracksUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      },
-    });
+  const captionTracksUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  const response = await fetch(captionTracksUrl, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    },
+  });
 
-    const html = await response.text();
+  const html = await response.text();
 
-    // Extract caption tracks from page
-    const captionTracksMatch = html.match(/"captionTracks":(\[.*?\])/s);
-    if (!captionTracksMatch) {
-      throw new Error("No caption tracks found in video page");
-    }
-
-    const captionTracks = JSON.parse(captionTracksMatch[1]);
-
-    if (!Array.isArray(captionTracks) || captionTracks.length === 0) {
-      throw new Error("No captions available for this video");
-    }
-
-    console.log(`📋 Found ${captionTracks.length} caption tracks`);
-
-    // Find best matching caption track
-    const langCode = getLangCode(preferredLanguage);
-    let bestTrack = captionTracks.find((track: any) => track.languageCode === langCode);
-
-    // Fallback to English
-    if (!bestTrack) {
-      bestTrack = captionTracks.find((track: any) => track.languageCode === "en");
-    }
-
-    // Use first available track
-    if (!bestTrack) {
-      bestTrack = captionTracks[0];
-    }
-
-    console.log(`📝 Using caption track: ${bestTrack.languageCode}`);
-
-    // Fetch caption XML
-    const captionUrl = bestTrack.baseUrl;
-    const captionResponse = await fetch(captionUrl);
-    const captionXml = await captionResponse.text();
-
-    // Parse XML
-    const textMatches = captionXml.matchAll(/<text[^>]*>([^<]*)<\/text>/g);
-    const transcript = Array.from(textMatches)
-      .map((match) => decodeHTML(match[1]))
-      .filter((text) => text.trim().length > 0)
-      .join(" ");
-
-    if (transcript.length < 50) {
-      throw new Error("Transcript too short");
-    }
-
-    return {
-      transcript,
-      language: bestTrack.languageCode,
-      method: "innertube",
-    };
-  } catch (error) {
-    throw new Error(`Innertube API failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+  const captionTracksMatch = html.match(/"captionTracks":(\[.*?\])/s);
+  if (!captionTracksMatch) {
+    throw new Error("No caption tracks found");
   }
+
+  const captionTracks = JSON.parse(captionTracksMatch[1]);
+
+  if (!Array.isArray(captionTracks) || captionTracks.length === 0) {
+    throw new Error("No captions available");
+  }
+
+  const langCode = getLangCode(preferredLanguage);
+  let bestTrack = captionTracks.find((track: any) => track.languageCode === langCode);
+
+  if (!bestTrack) {
+    bestTrack = captionTracks.find((track: any) => track.languageCode === "en");
+  }
+
+  if (!bestTrack) {
+    bestTrack = captionTracks[0];
+  }
+
+  const captionUrl = bestTrack.baseUrl;
+  const captionResponse = await fetch(captionUrl);
+  const captionXml = await captionResponse.text();
+
+  const textMatches = captionXml.matchAll(/<text[^>]*>([^<]*)<\/text>/g);
+  const transcript = Array.from(textMatches)
+    .map((match) => decodeHTML(match[1]))
+    .filter((text) => text.trim().length > 0)
+    .join(" ");
+
+  if (transcript.length < 50) {
+    throw new Error("Transcript too short");
+  }
+
+  return {
+    transcript,
+    language: bestTrack.languageCode,
+    method: "innertube",
+  };
 }
 
 // ============================================================
 // Strategy 7: Try any available language
 // ============================================================
 async function fetchAnyAvailableTranscript(videoId: string): Promise<TranscriptResult> {
-  const commonLanguages = ["en", "hi", "es", "fr", "de", "pt", "ja", "ko", "zh", "ar", "ru"];
+  const commonLanguages = ["en", "hi", "es", "fr", "de", "pt", "ja", "ko"];
 
   for (const lang of commonLanguages) {
     try {
-      console.log(`🔍 Trying language: ${lang}`);
       const result = await fetchTranscriptStrategy1(videoId, lang);
       if (result.transcript.length > 50) {
         return result;
@@ -424,7 +517,7 @@ async function fetchAnyAvailableTranscript(videoId: string): Promise<TranscriptR
     }
   }
 
-  throw new Error("No transcripts available in any common language");
+  throw new Error("No transcripts available in any language");
 }
 
 // ============================================================
