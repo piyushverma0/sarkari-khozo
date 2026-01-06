@@ -91,9 +91,10 @@ serve(async (req) => {
 
         storageUrl = publicUrl;
         console.log("File uploaded to:", storageUrl);
-      } catch (uploadErr) {
+      } catch (uploadErr: unknown) {
         console.error("File upload failed:", uploadErr);
-        return new Response(JSON.stringify({ error: "File upload failed", details: uploadErr.message }), {
+        const errorMessage = uploadErr instanceof Error ? uploadErr.message : "Unknown upload error";
+        return new Response(JSON.stringify({ error: "File upload failed", details: errorMessage }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -200,9 +201,10 @@ serve(async (req) => {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error in process-study-material:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
