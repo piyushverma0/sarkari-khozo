@@ -91,10 +91,9 @@ serve(async (req) => {
 
         storageUrl = publicUrl;
         console.log("File uploaded to:", storageUrl);
-      } catch (uploadErr: unknown) {
+      } catch (uploadErr) {
         console.error("File upload failed:", uploadErr);
-        const errorMessage = uploadErr instanceof Error ? uploadErr.message : "Unknown upload error";
-        return new Response(JSON.stringify({ error: "File upload failed", details: errorMessage }), {
+        return new Response(JSON.stringify({ error: "File upload failed", details: uploadErr.message }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -151,7 +150,7 @@ serve(async (req) => {
           : source_type === "docx"
             ? "extract-docx-content"
             : source_type === "youtube"
-              ? "extract-youtube-transcript-v2" // Use enhanced v2 function
+              ? "extract-youtube-transcript" // Use correct function
               : source_type === "audio"
                 ? "process-audio-lecture"
                 : "extract-web-content";
@@ -201,10 +200,9 @@ serve(async (req) => {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Error in process-study-material:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
