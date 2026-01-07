@@ -7,12 +7,7 @@ const corsHeaders = {
 };
 
 // ============================================================
-// HYBRID VERSION: YouTube Data API v3 + Free Methods Fallback
-// ============================================================
-// STRATEGY:
-// 1. PRIMARY: Use YouTube Data API v3 (official, reliable)
-// 2. FALLBACK: Use free methods (7 strategies) if API fails
-// 3. Best of both worlds: Official reliability + Free backup
+// FIXED VERSION: Enhanced logging and better error handling
 // ============================================================
 
 serve(async (req) => {
@@ -26,9 +21,30 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    const { note_id, source_url, language } = await req.json();
+    // ✅ ENHANCED: Parse and validate request body
+    let requestBody;
+    try {
+      requestBody = await req.json();
+      console.log("📦 Request body received:", JSON.stringify(requestBody, null, 2));
+    } catch (parseError) {
+      console.error("❌ Failed to parse request body:", parseError);
+      throw new Error("Invalid request body. Expected JSON.");
+    }
+
+    const { note_id, source_url, language } = requestBody;
+
+    // ✅ ENHANCED: Validate required fields
+    if (!note_id) {
+      throw new Error("Missing required field: note_id");
+    }
+
+    if (!source_url) {
+      throw new Error("Missing required field: source_url");
+    }
 
     console.log(`🎬 Starting YouTube extraction for note ${note_id}`);
+    console.log(`🔗 Source URL: "${source_url}"`);
+    console.log(`🌍 Language: ${language || "not specified"}`);
 
     // Update status
     await supabaseClient
@@ -36,10 +52,21 @@ serve(async (req) => {
       .update({ processing_status: "extracting", processing_progress: 10 })
       .eq("id", note_id);
 
-    // Extract video ID from YouTube URL
+    // ✅ ENHANCED: Extract video ID with better error handling
     const videoId = extractVideoId(source_url);
+
     if (!videoId) {
-      throw new Error("Invalid YouTube URL. Please provide a valid YouTube video link.");
+      // Log the exact URL that failed
+      console.error(`❌ Failed to extract video ID from URL: "${source_url}"`);
+      console.error(`📊 URL type: ${typeof source_url}`);
+      console.error(`📏 URL length: ${source_url?.length || 0}`);
+
+      throw new Error(
+        `Invalid YouTube URL format: "${source_url}". ` +
+          `Please provide a valid YouTube link like: ` +
+          `https://www.youtube.com/watch?v=VIDEO_ID or ` +
+          `https://youtu.be/VIDEO_ID`,
+      );
     }
 
     console.log(`📹 Video ID extracted: ${videoId}`);
@@ -58,9 +85,9 @@ serve(async (req) => {
       })
       .eq("id", note_id);
 
-    // ✅ STEP 2: Fetch transcript (HYBRID: API first, then free methods)
-    console.log(`📝 Fetching transcript (preferred language: ${language})...`);
-    const result = await fetchTranscriptHybrid(videoId, language);
+    // ✅ STEP 2: Fetch transcript (HYBRID)
+    console.log(`📝 Fetching transcript (preferred language: ${language || "en"})...`);
+    const result = await fetchTranscriptHybrid(videoId, language || "en");
 
     console.log(`✅ Transcript fetched using ${result.method}`);
     console.log(`📏 Length: ${result.transcript.length} characters`);
@@ -99,7 +126,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
         apikey: Deno.env.get("SUPABASE_ANON_KEY") ?? "",
       },
-      body: JSON.stringify({ note_id, raw_content: result.transcript, language }),
+      body: JSON.stringify({ note_id, raw_content: result.transcript, language: language || "en" }),
     }).catch((err) => console.error("❌ Summarization trigger error:", err));
 
     console.log("✅ YouTube extraction completed successfully");
@@ -118,8 +145,28 @@ serve(async (req) => {
   } catch (error) {
     console.error("❌ YouTube extraction error:", error);
 
-    const body = await req.json().catch(() => ({}));
-    const note_id = body.note_id;
+    // ✅ ENHANCED: Better error handling
+    let errorMessage = "Unknown error";
+    let errorDetails = "";
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      errorDetails = error.stack || "";
+    } else {
+      errorMessage = String(error);
+    }
+
+    console.error("📋 Error message:", errorMessage);
+    console.error("📋 Error details:", errorDetails);
+
+    // Try to get note_id from request
+    let note_id: string | undefined;
+    try {
+      const body = await req.json().catch(() => ({}));
+      note_id = body.note_id;
+    } catch (e) {
+      console.error("Could not parse request for note_id");
+    }
 
     if (note_id) {
       const supabaseClient = createClient(
@@ -130,15 +177,15 @@ serve(async (req) => {
         .from("study_notes")
         .update({
           processing_status: "failed",
-          processing_error: error instanceof Error ? error.message : "Unknown error",
+          processing_error: errorMessage,
         })
         .eq("id", note_id);
     }
 
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
-        details: error instanceof Error ? error.stack : undefined,
+        error: errorMessage,
+        details: errorDetails,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 },
     );
@@ -146,28 +193,60 @@ serve(async (req) => {
 });
 
 // ============================================================
-// Extract video ID from various YouTube URL formats
+// ✅ ENHANCED: Extract video ID with better pattern matching
 // ============================================================
 function extractVideoId(url: string): string | null {
+  // Handle null/undefined
+  if (!url) {
+    console.error("❌ URL is null or undefined");
+    return null;
+  }
+
+  // Convert to string and trim
+  const urlString = String(url).trim();
+
+  if (urlString.length === 0) {
+    console.error("❌ URL is empty string");
+    return null;
+  }
+
+  console.log(`🔍 Attempting to extract video ID from: "${urlString}"`);
+
+  // ✅ ENHANCED: More comprehensive patterns
   const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
-    /youtube\.com\/embed\/([^&\n?#]+)/,
-    /youtube\.com\/v\/([^&\n?#]+)/,
-    /youtube\.com\/shorts\/([^&\n?#]+)/,
-    /youtube\.com\/live\/([^&\n?#]+)/,
+    // Standard watch URLs
+    /(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})(?:[&?#]|$)/,
+    // Shortened youtu.be URLs
+    /(?:youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[&?#]|$)/,
+    // Embed URLs
+    /(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})(?:[&?#]|$)/,
+    // /v/ URLs
+    /(?:youtube\.com\/v\/)([a-zA-Z0-9_-]{11})(?:[&?#]|$)/,
+    // Shorts URLs
+    /(?:youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})(?:[&?#]|$)/,
+    // Live URLs
+    /(?:youtube\.com\/live\/)([a-zA-Z0-9_-]{11})(?:[&?#]|$)/,
+    // Watch URLs with additional parameters (more flexible)
+    /[?&]v=([a-zA-Z0-9_-]{11})(?:[&]|$)/,
   ];
 
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
+  for (let i = 0; i < patterns.length; i++) {
+    const pattern = patterns[i];
+    const match = urlString.match(pattern);
     if (match && match[1]) {
-      return match[1].split("&")[0].split("?")[0];
+      const videoId = match[1];
+      console.log(`✅ Video ID extracted using pattern ${i + 1}: ${videoId}`);
+      return videoId;
     }
   }
 
-  if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
-    return url;
+  // Check if URL is just the video ID (11 characters, alphanumeric + _ -)
+  if (/^[a-zA-Z0-9_-]{11}$/.test(urlString)) {
+    console.log(`✅ URL appears to be a direct video ID: ${urlString}`);
+    return urlString;
   }
 
+  console.error(`❌ No pattern matched for URL: "${urlString}"`);
   return null;
 }
 
@@ -224,7 +303,7 @@ async function fetchVideoMetadata(videoId: string): Promise<VideoMetadata> {
 }
 
 // ============================================================
-// ✅ HYBRID: Try YouTube Data API v3 first, then free methods
+// HYBRID: Try YouTube Data API v3 first, then free methods
 // ============================================================
 interface TranscriptResult {
   transcript: string;
@@ -235,7 +314,7 @@ interface TranscriptResult {
 async function fetchTranscriptHybrid(videoId: string, preferredLanguage: string): Promise<TranscriptResult> {
   const apiKey = Deno.env.get("YOUTUBE_API_KEY");
 
-  // ✅ PRIMARY METHOD: YouTube Data API v3 (Official)
+  // PRIMARY METHOD: YouTube Data API v3
   if (apiKey && apiKey.trim().length > 0) {
     try {
       console.log("🔑 PRIMARY: Trying YouTube Data API v3 (official)...");
@@ -245,26 +324,24 @@ async function fetchTranscriptHybrid(videoId: string, preferredLanguage: string)
     } catch (apiError) {
       console.warn("⚠️ YouTube Data API v3 failed, falling back to free methods");
       console.warn(`   Reason: ${apiError instanceof Error ? apiError.message : "Unknown"}`);
-      // Continue to fallback methods below
     }
   } else {
     console.log("ℹ️ No YOUTUBE_API_KEY found, using free methods only");
   }
 
-  // 🔄 FALLBACK METHOD: Free methods (7 strategies)
+  // FALLBACK METHOD: Free methods
   console.log("🔄 FALLBACK: Using free extraction methods...");
   return await fetchTranscriptWithFallback(videoId, preferredLanguage);
 }
 
 // ============================================================
-// PRIMARY: YouTube Data API v3 implementation
+// PRIMARY: YouTube Data API v3
 // ============================================================
 async function fetchTranscriptWithYouTubeAPI(
   videoId: string,
   preferredLanguage: string,
   apiKey: string,
 ): Promise<TranscriptResult> {
-  // Step 1: Verify video exists and get basic info
   const videoUrl = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&key=${apiKey}&part=snippet`;
   const videoResponse = await fetch(videoUrl);
 
@@ -281,7 +358,6 @@ async function fetchTranscriptWithYouTubeAPI(
 
   console.log(`   ✓ Video verified: ${videoData.items[0].snippet.title}`);
 
-  // Step 2: Get available caption tracks
   const captionsUrl = `https://www.googleapis.com/youtube/v3/captions?videoId=${videoId}&key=${apiKey}&part=snippet`;
   const captionsResponse = await fetch(captionsUrl);
 
@@ -297,18 +373,14 @@ async function fetchTranscriptWithYouTubeAPI(
 
   console.log(`   ✓ Found ${captionsData.items.length} caption tracks`);
 
-  // Step 3: Find best caption track
   const langCode = getLangCode(preferredLanguage);
 
-  // Try exact match first
   let bestCaption = captionsData.items.find((cap: any) => cap.snippet.language === langCode);
 
-  // Try English if preferred not found
   if (!bestCaption && langCode !== "en") {
     bestCaption = captionsData.items.find((cap: any) => cap.snippet.language === "en");
   }
 
-  // Use first available
   if (!bestCaption) {
     bestCaption = captionsData.items[0];
   }
@@ -316,11 +388,6 @@ async function fetchTranscriptWithYouTubeAPI(
   const captionLanguage = bestCaption.snippet.language;
   const captionName = bestCaption.snippet.name || "auto-generated";
   console.log(`   ✓ Selected caption: ${captionLanguage} (${captionName})`);
-
-  // Step 4: Download caption content
-  // Note: YouTube Data API v3 requires OAuth 2.0 to download captions directly
-  // We'll use the timedtext API with the confirmed caption language
-  // This hybrid approach: API confirms captions exist + free method downloads
 
   const timedtextUrl = `https://www.youtube.com/api/timedtext?lang=${captionLanguage}&v=${videoId}`;
   const transcriptResponse = await fetch(timedtextUrl, {
@@ -339,7 +406,6 @@ async function fetchTranscriptWithYouTubeAPI(
     throw new Error("Caption XML too short or empty");
   }
 
-  // Parse XML and extract text
   const textMatches = xml.matchAll(/<text[^>]*>([^<]*)<\/text>/g);
   const transcript = Array.from(textMatches)
     .map((match) => decodeHTML(match[1]))
@@ -360,7 +426,7 @@ async function fetchTranscriptWithYouTubeAPI(
 }
 
 // ============================================================
-// FALLBACK: Free methods with 7 strategies
+// FALLBACK: Free methods
 // ============================================================
 async function fetchTranscriptWithFallback(videoId: string, preferredLanguage: string): Promise<TranscriptResult> {
   const strategies = [
@@ -397,9 +463,6 @@ async function fetchTranscriptWithFallback(videoId: string, preferredLanguage: s
   );
 }
 
-// ============================================================
-// Strategy 1: Timedtext API
-// ============================================================
 async function fetchTranscriptStrategy1(
   videoId: string,
   language: string,
@@ -444,9 +507,6 @@ async function fetchTranscriptStrategy1(
   };
 }
 
-// ============================================================
-// Strategy 6: Innertube API
-// ============================================================
 async function fetchTranscriptInnertube(videoId: string, preferredLanguage: string): Promise<TranscriptResult> {
   const captionTracksUrl = `https://www.youtube.com/watch?v=${videoId}`;
   const response = await fetch(captionTracksUrl, {
@@ -500,9 +560,6 @@ async function fetchTranscriptInnertube(videoId: string, preferredLanguage: stri
   };
 }
 
-// ============================================================
-// Strategy 7: Try any available language
-// ============================================================
 async function fetchAnyAvailableTranscript(videoId: string): Promise<TranscriptResult> {
   const commonLanguages = ["en", "hi", "es", "fr", "de", "pt", "ja", "ko"];
 
@@ -520,9 +577,6 @@ async function fetchAnyAvailableTranscript(videoId: string): Promise<TranscriptR
   throw new Error("No transcripts available in any language");
 }
 
-// ============================================================
-// Helper: Get language code
-// ============================================================
 function getLangCode(language: string): string {
   const langMap: Record<string, string> = {
     hi: "hi",
@@ -552,9 +606,6 @@ function getLangCode(language: string): string {
   return langMap[language.toLowerCase()] || language.toLowerCase();
 }
 
-// ============================================================
-// Helper: Decode HTML entities
-// ============================================================
 function decodeHTML(html: string): string {
   return html
     .replace(/&amp;/g, "&")
@@ -568,9 +619,6 @@ function decodeHTML(html: string): string {
     .trim();
 }
 
-// ============================================================
-// Helper: Decode unicode escapes
-// ============================================================
 function decodeUnicode(str: string): string {
   return str.replace(/\\u[\dA-F]{4}/gi, (match) => {
     return String.fromCharCode(parseInt(match.replace(/\\u/g, ""), 16));
