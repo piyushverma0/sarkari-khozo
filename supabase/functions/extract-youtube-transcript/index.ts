@@ -3,7 +3,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { YoutubeTranscript } from "https://esm.sh/youtube-transcript@1.2.1?target=deno";
+import { YoutubeTranscript } from "https://esm.sh/youtube-transcript@1.2.1";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -67,17 +67,15 @@ async function fetchYouTubeUrlFromStorage(storageUrl: string): Promise<string> {
     }
 
     return trimmedContent;
-  } catch (error: unknown) {
+  } catch (error) {
     console.error(`❌ Storage fetch error:`, error);
 
-    const message = getErrorMessage(error);
-
     // Provide helpful error message
-    if (message.includes("Storage file not accessible")) {
+    if (error.message.includes("Storage file not accessible")) {
       throw error; // Pass through our custom error
     }
 
-    throw new Error(`Failed to fetch YouTube URL from storage: ${message}`);
+    throw new Error(`Failed to fetch YouTube URL from storage: ${error.message}`);
   }
 }
 
@@ -87,7 +85,6 @@ function extractVideoId(url: string): string | null {
     /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
     /youtube\.com\/embed\/([^&\n?#]+)/,
     /youtube\.com\/v\/([^&\n?#]+)/,
-    /youtube\.com\/live\/([^&\n?#]+)/,
   ];
 
   for (const pattern of patterns) {
@@ -124,8 +121,8 @@ async function fetchYouTubeTranscript(videoId: string, languageCode: string = "e
             return transcript;
           }
         }
-      } catch (err: unknown) {
-        console.log(`Failed to fetch transcript for lang ${lang}:`, getErrorMessage(err));
+      } catch (err) {
+        console.log(`Failed to fetch transcript for lang ${lang}:`, err.message);
         // Continue to next language
         continue;
       }
@@ -144,13 +141,13 @@ async function fetchYouTubeTranscript(videoId: string, languageCode: string = "e
           return transcript;
         }
       }
-    } catch (err: unknown) {
-      console.log("Failed to fetch default transcript:", getErrorMessage(err));
+    } catch (err) {
+      console.log("Failed to fetch default transcript:", err.message);
     }
 
     throw new Error("No transcript available for this video. The video may not have captions enabled.");
-  } catch (error: unknown) {
-    throw new Error(`Failed to fetch YouTube transcript: ${getErrorMessage(error)}`);
+  } catch (error) {
+    throw new Error(`Failed to fetch YouTube transcript: ${error.message}`);
   }
 }
 
@@ -233,8 +230,8 @@ serve(async (req) => {
         console.log("📊 Video title:", videoTitle);
         console.log("📺 Channel:", videoMetadata.channel);
       }
-    } catch (err: unknown) {
-      console.log("⚠️ Failed to fetch video metadata:", getErrorMessage(err));
+    } catch (err) {
+      console.log("⚠️ Failed to fetch video metadata:", err.message);
       videoMetadata = { title: videoTitle };
     }
 
@@ -269,9 +266,9 @@ serve(async (req) => {
 
       console.log("✅ Transcript extracted successfully");
       console.log(`📏 Transcript length: ${transcript.length} characters`);
-    } catch (transcriptError: unknown) {
+    } catch (transcriptError) {
       // FALLBACK: Generate context from metadata when transcript unavailable
-      console.warn("⚠️ Transcript extraction failed:", getErrorMessage(transcriptError));
+      console.warn("⚠️ Transcript extraction failed:", transcriptError.message);
       console.log("🔄 Video likely has no captions - falling back to metadata-based context generation...");
 
       try {
@@ -307,12 +304,12 @@ serve(async (req) => {
         console.log(`📏 Generated context length: ${contextData.context_length} characters`);
         console.log(`📚 Word count: ${contextData.word_count} words`);
         console.log(`🤖 Generation method: ${contextData.method}`);
-      } catch (contextError: unknown) {
+      } catch (contextError) {
         console.error("❌ Both transcript extraction and context generation failed");
         throw new Error(
           `Unable to extract content from video. ` +
-            `Transcript error: ${getErrorMessage(transcriptError)}. ` +
-            `Context generation error: ${getErrorMessage(contextError)}`,
+            `Transcript error: ${transcriptError.message}. ` +
+            `Context generation error: ${contextError.message}`,
         );
       }
     }
@@ -341,12 +338,6 @@ serve(async (req) => {
         word_count: wordCount,
         estimated_read_time: estimatedReadTime,
         processing_progress: 55,
-        metadata: {
-          video_id: videoId,
-          original_url: actualYouTubeUrl,
-          content_source: contentSource, // 'transcript' or 'metadata-generated'
-          transcript_method: contentSource === "transcript" ? "youtube-transcript-npm" : "ai-generated-from-metadata",
-        },
       })
       .eq("id", note_id);
 
@@ -355,7 +346,9 @@ serve(async (req) => {
       throw updateError;
     }
 
-    console.log(`💾 Content stored in database (source: ${contentSource})`);
+    console.log(`💾 Content stored in database`);
+    console.log(`📊 Content source: ${contentSource}`);
+    console.log(`🎯 Video ID: ${videoId}, URL: ${actualYouTubeUrl}`);
 
     // Step 5: Trigger summarization
     try {
@@ -403,7 +396,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("❌ Error in extract-youtube-transcript:", error);
 
     // Update note status to failed if we have the note_id
@@ -415,7 +408,7 @@ serve(async (req) => {
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: getErrorMessage(error) || "YouTube transcript extraction failed",
+            processing_error: error.message || "YouTube transcript extraction failed",
           })
           .eq("id", note_id);
 
@@ -427,8 +420,8 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        error: getErrorMessage(error) || "Unknown error",
-        details: getErrorStack(error) || "",
+        error: error.message || "Unknown error",
+        details: error.stack || "",
       }),
       {
         status: 500,
@@ -437,19 +430,3 @@ serve(async (req) => {
     );
   }
 });
-
-function getErrorMessage(err: unknown): string {
-  if (err instanceof Error) return err.message;
-  if (typeof err === "string") return err;
-  try {
-    return JSON.stringify(err);
-  } catch {
-    return String(err);
-  }
-}
-
-function getErrorStack(err: unknown): string {
-  if (err instanceof Error && err.stack) return err.stack;
-  return "";
-}
-
