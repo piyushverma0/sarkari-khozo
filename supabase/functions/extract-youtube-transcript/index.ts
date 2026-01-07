@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 // ============================================================
-// FIXED VERSION: Enhanced logging and better error handling
+// COMPLETE FIX: Handles both direct YouTube URLs and Storage URLs
 // ============================================================
 
 serve(async (req) => {
@@ -21,7 +21,6 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    // ✅ ENHANCED: Parse and validate request body
     let requestBody;
     try {
       requestBody = await req.json();
@@ -33,7 +32,6 @@ serve(async (req) => {
 
     const { note_id, source_url, language } = requestBody;
 
-    // ✅ ENHANCED: Validate required fields
     if (!note_id) {
       throw new Error("Missing required field: note_id");
     }
@@ -46,23 +44,27 @@ serve(async (req) => {
     console.log(`🔗 Source URL: "${source_url}"`);
     console.log(`🌍 Language: ${language || "not specified"}`);
 
-    // Update status
     await supabaseClient
       .from("study_notes")
       .update({ processing_status: "extracting", processing_progress: 10 })
       .eq("id", note_id);
 
-    // ✅ ENHANCED: Extract video ID with better error handling
-    const videoId = extractVideoId(source_url);
+    // ✅ NEW: Check if source_url is a Supabase Storage URL
+    let actualYouTubeUrl = source_url;
+
+    if (isSupabaseStorageUrl(source_url)) {
+      console.log("📂 Detected Supabase Storage URL, fetching content...");
+      actualYouTubeUrl = await fetchYouTubeUrlFromStorage(source_url);
+      console.log(`✅ Extracted YouTube URL from file: "${actualYouTubeUrl}"`);
+    }
+
+    // Extract video ID from actual YouTube URL
+    const videoId = extractVideoId(actualYouTubeUrl);
 
     if (!videoId) {
-      // Log the exact URL that failed
-      console.error(`❌ Failed to extract video ID from URL: "${source_url}"`);
-      console.error(`📊 URL type: ${typeof source_url}`);
-      console.error(`📏 URL length: ${source_url?.length || 0}`);
-
+      console.error(`❌ Failed to extract video ID from URL: "${actualYouTubeUrl}"`);
       throw new Error(
-        `Invalid YouTube URL format: "${source_url}". ` +
+        `Invalid YouTube URL format: "${actualYouTubeUrl}". ` +
           `Please provide a valid YouTube link like: ` +
           `https://www.youtube.com/watch?v=VIDEO_ID or ` +
           `https://youtu.be/VIDEO_ID`,
@@ -71,7 +73,7 @@ serve(async (req) => {
 
     console.log(`📹 Video ID extracted: ${videoId}`);
 
-    // ✅ STEP 1: Fetch video metadata
+    // Fetch video metadata
     console.log("📊 Fetching video metadata...");
     const metadata = await fetchVideoMetadata(videoId);
     console.log(`✅ Video title: ${metadata.title}`);
@@ -85,7 +87,7 @@ serve(async (req) => {
       })
       .eq("id", note_id);
 
-    // ✅ STEP 2: Fetch transcript (HYBRID)
+    // Fetch transcript
     console.log(`📝 Fetching transcript (preferred language: ${language || "en"})...`);
     const result = await fetchTranscriptHybrid(videoId, language || "en");
 
@@ -93,11 +95,9 @@ serve(async (req) => {
     console.log(`📏 Length: ${result.transcript.length} characters`);
     console.log(`🗣️ Language: ${result.language}`);
 
-    // Calculate stats
     const wordCount = result.transcript.split(/\s+/).filter((w) => w.length > 0).length;
     const readTime = Math.ceil(wordCount / 200);
 
-    // Save complete data
     await supabaseClient
       .from("study_notes")
       .update({
@@ -112,13 +112,13 @@ serve(async (req) => {
           channel: metadata.channel,
           transcript_language: result.language,
           transcript_method: result.method,
+          original_url: actualYouTubeUrl,
         },
       })
       .eq("id", note_id);
 
     console.log("🔄 Triggering summarization...");
 
-    // Trigger summarization
     await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-notes-summary`, {
       method: "POST",
       headers: {
@@ -145,7 +145,6 @@ serve(async (req) => {
   } catch (error) {
     console.error("❌ YouTube extraction error:", error);
 
-    // ✅ ENHANCED: Better error handling
     let errorMessage = "Unknown error";
     let errorDetails = "";
 
@@ -159,7 +158,6 @@ serve(async (req) => {
     console.error("📋 Error message:", errorMessage);
     console.error("📋 Error details:", errorDetails);
 
-    // Try to get note_id from request
     let note_id: string | undefined;
     try {
       const body = await req.json().catch(() => ({}));
@@ -193,16 +191,114 @@ serve(async (req) => {
 });
 
 // ============================================================
-// ✅ ENHANCED: Extract video ID with better pattern matching
+// ✅ NEW: Check if URL is a Supabase Storage URL
+// ============================================================
+function isSupabaseStorageUrl(url: string): boolean {
+  const storagePatterns = [
+    /supabase\.co\/storage\/v1\/object\/public/,
+    /supabase\.co\/storage\/v1\/object\/sign/,
+    /supabase\.co\/storage\/v1\/object\/authenticated/,
+  ];
+
+  return storagePatterns.some((pattern) => pattern.test(url));
+}
+
+// ============================================================
+// ✅ NEW: Fetch YouTube URL from Supabase Storage file
+// ============================================================
+async function fetchYouTubeUrlFromStorage(storageUrl: string): Promise<string> {
+  console.log(`📥 Fetching content from storage: ${storageUrl}`);
+
+  try {
+    const response = await fetch(storageUrl);
+
+    if (!response.ok) {
+      throw new Error(`Storage fetch failed: ${response.status} ${response.statusText}`);
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+    console.log(`📄 Content type: ${contentType}`);
+
+    // Read as text
+    const content = await response.text();
+    console.log(`📏 File content length: ${content.length} characters`);
+    console.log(`📝 File content preview: ${content.substring(0, 200)}`);
+
+    // Extract YouTube URL from content
+    const youtubeUrl = extractYouTubeUrlFromText(content);
+
+    if (!youtubeUrl) {
+      throw new Error(
+        `Could not find YouTube URL in storage file. ` + `File content: "${content.substring(0, 100)}..."`,
+      );
+    }
+
+    return youtubeUrl;
+  } catch (error) {
+    throw new Error(
+      `Failed to fetch YouTube URL from storage: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
+  }
+}
+
+// ============================================================
+// ✅ NEW: Extract YouTube URL from text content
+// ============================================================
+function extractYouTubeUrlFromText(text: string): string | null {
+  // Trim whitespace
+  const trimmed = text.trim();
+
+  // If the entire content is a YouTube URL, return it
+  if (isYouTubeUrl(trimmed)) {
+    return trimmed;
+  }
+
+  // Try to find YouTube URL in text using regex
+  const urlPatterns = [
+    /https?:\/\/(?:www\.)?youtube\.com\/watch\?v=[a-zA-Z0-9_-]{11}[^\s]*/g,
+    /https?:\/\/youtu\.be\/[a-zA-Z0-9_-]{11}[^\s]*/g,
+    /https?:\/\/(?:www\.)?youtube\.com\/embed\/[a-zA-Z0-9_-]{11}[^\s]*/g,
+    /https?:\/\/(?:www\.)?youtube\.com\/shorts\/[a-zA-Z0-9_-]{11}[^\s]*/g,
+  ];
+
+  for (const pattern of urlPatterns) {
+    const matches = text.match(pattern);
+    if (matches && matches.length > 0) {
+      return matches[0];
+    }
+  }
+
+  // If still not found, check if it's just a video ID
+  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+    return `https://www.youtube.com/watch?v=${trimmed}`;
+  }
+
+  return null;
+}
+
+// ============================================================
+// ✅ NEW: Check if string is a YouTube URL
+// ============================================================
+function isYouTubeUrl(url: string): boolean {
+  const youtubePatterns = [
+    /^https?:\/\/(?:www\.)?youtube\.com\/watch\?v=[a-zA-Z0-9_-]{11}/,
+    /^https?:\/\/youtu\.be\/[a-zA-Z0-9_-]{11}/,
+    /^https?:\/\/(?:www\.)?youtube\.com\/embed\/[a-zA-Z0-9_-]{11}/,
+    /^https?:\/\/(?:www\.)?youtube\.com\/shorts\/[a-zA-Z0-9_-]{11}/,
+  ];
+
+  return youtubePatterns.some((pattern) => pattern.test(url));
+}
+
+// ============================================================
+// Extract video ID from YouTube URL
 // ============================================================
 function extractVideoId(url: string): string | null {
-  // Handle null/undefined
   if (!url) {
     console.error("❌ URL is null or undefined");
     return null;
   }
 
-  // Convert to string and trim
   const urlString = String(url).trim();
 
   if (urlString.length === 0) {
@@ -212,21 +308,13 @@ function extractVideoId(url: string): string | null {
 
   console.log(`🔍 Attempting to extract video ID from: "${urlString}"`);
 
-  // ✅ ENHANCED: More comprehensive patterns
   const patterns = [
-    // Standard watch URLs
     /(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})(?:[&?#]|$)/,
-    // Shortened youtu.be URLs
     /(?:youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[&?#]|$)/,
-    // Embed URLs
     /(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})(?:[&?#]|$)/,
-    // /v/ URLs
     /(?:youtube\.com\/v\/)([a-zA-Z0-9_-]{11})(?:[&?#]|$)/,
-    // Shorts URLs
     /(?:youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})(?:[&?#]|$)/,
-    // Live URLs
     /(?:youtube\.com\/live\/)([a-zA-Z0-9_-]{11})(?:[&?#]|$)/,
-    // Watch URLs with additional parameters (more flexible)
     /[?&]v=([a-zA-Z0-9_-]{11})(?:[&]|$)/,
   ];
 
@@ -240,7 +328,6 @@ function extractVideoId(url: string): string | null {
     }
   }
 
-  // Check if URL is just the video ID (11 characters, alphanumeric + _ -)
   if (/^[a-zA-Z0-9_-]{11}$/.test(urlString)) {
     console.log(`✅ URL appears to be a direct video ID: ${urlString}`);
     return urlString;
@@ -251,7 +338,7 @@ function extractVideoId(url: string): string | null {
 }
 
 // ============================================================
-// Fetch video metadata using oEmbed API
+// Fetch video metadata
 // ============================================================
 interface VideoMetadata {
   title: string;
@@ -303,7 +390,7 @@ async function fetchVideoMetadata(videoId: string): Promise<VideoMetadata> {
 }
 
 // ============================================================
-// HYBRID: Try YouTube Data API v3 first, then free methods
+// HYBRID: YouTube API + Free methods
 // ============================================================
 interface TranscriptResult {
   transcript: string;
@@ -314,7 +401,6 @@ interface TranscriptResult {
 async function fetchTranscriptHybrid(videoId: string, preferredLanguage: string): Promise<TranscriptResult> {
   const apiKey = Deno.env.get("YOUTUBE_API_KEY");
 
-  // PRIMARY METHOD: YouTube Data API v3
   if (apiKey && apiKey.trim().length > 0) {
     try {
       console.log("🔑 PRIMARY: Trying YouTube Data API v3 (official)...");
@@ -329,14 +415,10 @@ async function fetchTranscriptHybrid(videoId: string, preferredLanguage: string)
     console.log("ℹ️ No YOUTUBE_API_KEY found, using free methods only");
   }
 
-  // FALLBACK METHOD: Free methods
   console.log("🔄 FALLBACK: Using free extraction methods...");
   return await fetchTranscriptWithFallback(videoId, preferredLanguage);
 }
 
-// ============================================================
-// PRIMARY: YouTube Data API v3
-// ============================================================
 async function fetchTranscriptWithYouTubeAPI(
   videoId: string,
   preferredLanguage: string,
@@ -362,7 +444,7 @@ async function fetchTranscriptWithYouTubeAPI(
   const captionsResponse = await fetch(captionsUrl);
 
   if (!captionsResponse.ok) {
-    throw new Error("No captions available for this video");
+    throw new Error("No captions available");
   }
 
   const captionsData = await captionsResponse.json();
@@ -374,7 +456,6 @@ async function fetchTranscriptWithYouTubeAPI(
   console.log(`   ✓ Found ${captionsData.items.length} caption tracks`);
 
   const langCode = getLangCode(preferredLanguage);
-
   let bestCaption = captionsData.items.find((cap: any) => cap.snippet.language === langCode);
 
   if (!bestCaption && langCode !== "en") {
@@ -386,8 +467,7 @@ async function fetchTranscriptWithYouTubeAPI(
   }
 
   const captionLanguage = bestCaption.snippet.language;
-  const captionName = bestCaption.snippet.name || "auto-generated";
-  console.log(`   ✓ Selected caption: ${captionLanguage} (${captionName})`);
+  console.log(`   ✓ Selected caption: ${captionLanguage}`);
 
   const timedtextUrl = `https://www.youtube.com/api/timedtext?lang=${captionLanguage}&v=${videoId}`;
   const transcriptResponse = await fetch(timedtextUrl, {
@@ -397,13 +477,13 @@ async function fetchTranscriptWithYouTubeAPI(
   });
 
   if (!transcriptResponse.ok) {
-    throw new Error(`Failed to download caption (timedtext returned ${transcriptResponse.status})`);
+    throw new Error(`Failed to download caption`);
   }
 
   const xml = await transcriptResponse.text();
 
   if (xml.length < 50) {
-    throw new Error("Caption XML too short or empty");
+    throw new Error("Caption XML too short");
   }
 
   const textMatches = xml.matchAll(/<text[^>]*>([^<]*)<\/text>/g);
@@ -425,9 +505,6 @@ async function fetchTranscriptWithYouTubeAPI(
   };
 }
 
-// ============================================================
-// FALLBACK: Free methods
-// ============================================================
 async function fetchTranscriptWithFallback(videoId: string, preferredLanguage: string): Promise<TranscriptResult> {
   const strategies = [
     () => fetchTranscriptStrategy1(videoId, preferredLanguage),
