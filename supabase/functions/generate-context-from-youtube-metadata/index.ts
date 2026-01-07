@@ -2,43 +2,42 @@
 // Fallback for videos without transcripts/captions
 // Generates comprehensive study context using AI analysis of video metadata
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { callParallel, logParallelUsage } from '../_shared/parallel-client.ts'
-import { callAI, logAIUsage } from '../_shared/ai-client.ts'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { callAI, logAIUsage } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 interface MetadataContextRequest {
-  video_id: string
+  video_id: string;
   metadata: {
-    title: string
-    description?: string
-    channel?: string
-    duration?: number
-    tags?: string[]
-  }
-  language: string
+    title: string;
+    description?: string;
+    channel?: string;
+    duration?: number;
+    tags?: string[];
+  };
+  language: string;
 }
 
 interface ContextResponse {
-  success: boolean
-  context: string
-  method: string
-  context_length: number
-  word_count: number
+  success: boolean;
+  context: string;
+  method: string;
+  context_length: number;
+  word_count: number;
 }
 
 /**
  * Build comprehensive system prompt for context generation
  */
 function buildContextGenerationPrompt(metadata: any, language: string): string {
-  const title = metadata.title || 'Unknown Title'
-  const description = metadata.description || 'No description available'
-  const duration = metadata.duration ? `${Math.floor(metadata.duration / 60)} minutes` : 'Unknown'
-  const tags = metadata.tags?.join(', ') || 'No tags available'
+  const title = metadata.title || "Unknown Title";
+  const description = metadata.description || "No description available";
+  const duration = metadata.duration ? `${Math.floor(metadata.duration / 60)} minutes` : "Unknown";
+  const tags = metadata.tags?.join(", ") || "No tags available";
 
   return `You are an expert educational content analyst and study material creator. Your task is to generate comprehensive, exam-focused study notes from YouTube video metadata when the actual transcript is unavailable.
 
@@ -131,7 +130,7 @@ CRITICAL INSTRUCTIONS:
    - Add exam-relevant information even if not explicitly mentioned
    - Use educational knowledge to fill gaps comprehensively
 
-IMPORTANT: Generate detailed, comprehensive study material that a student can use to learn the topic completely, even without watching the video. The content should be thorough enough to serve as standalone study notes.`
+IMPORTANT: Generate detailed, comprehensive study material that a student can use to learn the topic completely, even without watching the video. The content should be thorough enough to serve as standalone study notes.`;
 }
 
 /**
@@ -148,141 +147,108 @@ Requirements:
 5. Include all relevant concepts for the identified topic
 6. Make it comprehensive enough for self-study
 
-Begin generating the study notes now:`
+Begin generating the study notes now:`;
 }
 
 serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const { video_id, metadata, language }: MetadataContextRequest = await req.json()
+    const { video_id, metadata, language }: MetadataContextRequest = await req.json();
 
     if (!video_id || !metadata || !metadata.title) {
-      return new Response(
-        JSON.stringify({ error: 'video_id and metadata.title are required' }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
+      return new Response(JSON.stringify({ error: "video_id and metadata.title are required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log('🎯 Generating context from YouTube metadata')
-    console.log('📹 Video ID:', video_id)
-    console.log('📝 Title:', metadata.title)
-    console.log('🌍 Language:', language || 'en')
+    console.log("🎯 Generating context from YouTube metadata");
+    console.log("📹 Video ID:", video_id);
+    console.log("📝 Title:", metadata.title);
+    console.log("🌍 Language:", language || "en");
 
     // Build prompts
-    const systemPrompt = buildContextGenerationPrompt(metadata, language || 'en')
-    const userPrompt = buildUserPrompt()
+    const systemPrompt = buildContextGenerationPrompt(metadata, language || "en");
+    const userPrompt = buildUserPrompt();
 
-    let context: string
-    let method: string
-    let tokensUsed: { prompt: number; completion: number; total: number }
+    let context: string;
+    let method: string;
+    let tokensUsed: { prompt: number; completion: number; total: number };
 
-    // Try Parallel AI first (supports web search for better accuracy)
-    try {
-      console.log('🔵 Attempting Parallel AI with web search enabled...')
-      const response = await callParallel({
-        systemPrompt: systemPrompt,
-        userPrompt: userPrompt,
-        enableWebSearch: true, // Enable web search for accurate information
-        maxTokens: 7000,
-        temperature: 0.4 // Slightly higher for creative yet factual content
-      })
+    // Use Sonar Pro / GPT-4 directly (better for long-form content generation)
+    // Note: Parallel AI's lite model has limitations on output length
+    console.log("🔵 Using Sonar Pro / GPT-4 for long-form content generation...");
 
-      context = response.content
-      method = 'parallel-ai-with-search'
-      tokensUsed = response.tokensUsed
+    const response = await callAI({
+      systemPrompt: systemPrompt,
+      userPrompt: userPrompt,
+      enableWebSearch: true, // Sonar Pro supports web search
+      maxTokens: 7000,
+      temperature: 0.5, // Slightly higher for creative content generation
+    });
 
-      console.log('✅ Parallel AI succeeded')
-      logParallelUsage('generate-context-from-youtube-metadata', tokensUsed, true)
+    context = response.content;
+    method = response.modelUsed;
+    tokensUsed = {
+      prompt: response.tokensUsed.input,
+      completion: response.tokensUsed.output,
+      total: response.tokensUsed.input + response.tokensUsed.output,
+    };
 
-    } catch (parallelError: unknown) {
-      const parallelErrorMsg = parallelError instanceof Error ? parallelError.message : String(parallelError)
-      console.warn('⚠️ Parallel AI failed:', parallelErrorMsg)
-      console.log('🔄 Falling back to ai-client (Sonar Pro / GPT-4)...')
-
-      // Fallback to Sonar Pro / GPT-4 via ai-client
-      try {
-        const response = await callAI({
-          systemPrompt: systemPrompt,
-          userPrompt: userPrompt,
-          enableWebSearch: true, // Sonar Pro supports web search
-          maxTokens: 7000,
-          temperature: 0.4
-        })
-
-        context = response.content
-        method = response.modelUsed
-        tokensUsed = {
-          prompt: response.tokensUsed.input,
-          completion: response.tokensUsed.output,
-          total: response.tokensUsed.input + response.tokensUsed.output
-        }
-
-        console.log(`✅ ${response.modelUsed} succeeded`)
-        logAIUsage('generate-context-from-youtube-metadata', response.tokensUsed, true, response.modelUsed)
-
-      } catch (aiError: unknown) {
-        const aiErrorMsg = aiError instanceof Error ? aiError.message : String(aiError)
-        console.error('❌ All AI providers failed')
-        throw new Error(
-          `Failed to generate context: Parallel AI - ${parallelErrorMsg}, ` +
-          `AI Client - ${aiErrorMsg}`
-        )
-      }
-    }
+    console.log(`✅ ${response.modelUsed} succeeded`);
+    logAIUsage("generate-context-from-youtube-metadata", response.tokensUsed, true, response.modelUsed);
 
     // Validate generated context
-    if (!context || context.trim().length < 1000) {
+    if (!context || context.trim().length < 500) {
       throw new Error(
         `Generated context is too short (${context?.length || 0} chars). ` +
-        `Minimum 1000 characters required for meaningful study content.`
-      )
+          `Minimum 500 characters required for meaningful study content. ` +
+          `This may indicate an issue with the AI provider or video metadata quality.`,
+      );
     }
 
-    const wordCount = context.split(/\s+/).filter(w => w.length > 0).length
+    const wordCount = context.split(/\s+/).filter((w) => w.length > 0).length;
 
-    console.log('✅ Context generation completed successfully')
-    console.log(`📊 Method: ${method}`)
-    console.log(`📏 Length: ${context.length} characters`)
-    console.log(`📚 Word count: ${wordCount} words`)
-    console.log(`🎯 Tokens used: ${tokensUsed.total}`)
+    // Warn if content is shorter than ideal
+    if (context.length < 2000) {
+      console.warn(`⚠️ Generated context is shorter than ideal (${context.length} chars, ${wordCount} words)`);
+      console.warn("   Consider: Better video metadata, different AI model, or manual review");
+    }
+
+    console.log("✅ Context generation completed successfully");
+    console.log(`📊 Method: ${method}`);
+    console.log(`📏 Length: ${context.length} characters`);
+    console.log(`📚 Word count: ${wordCount} words`);
+    console.log(`🎯 Tokens used: ${tokensUsed.total}`);
 
     const response: ContextResponse = {
       success: true,
       context: context,
       method: method,
       context_length: context.length,
-      word_count: wordCount
-    }
+      word_count: wordCount,
+    };
 
-    return new Response(
-      JSON.stringify(response),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
-
-  } catch (error: unknown) {
-    const errorMsg = error instanceof Error ? error.message : 'Unknown error occurred'
-    const errorStack = error instanceof Error ? error.stack : ''
-    console.error('❌ Failed to generate context from metadata:', error)
+    return new Response(JSON.stringify(response), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    console.error("❌ Failed to generate context from metadata:", error);
 
     return new Response(
       JSON.stringify({
-        error: errorMsg,
-        details: errorStack
+        error: error.message || "Unknown error occurred",
+        details: error.stack || "",
       }),
       {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
-})
+});
