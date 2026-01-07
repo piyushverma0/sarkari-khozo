@@ -19,6 +19,16 @@ interface ExtractRequest {
   language: string;
 }
 
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return typeof err === "string" ? err : JSON.stringify(err);
+}
+
+function getErrorStack(err: unknown): string {
+  if (err instanceof Error) return err.stack ?? "";
+  return "";
+}
+
 // ============================================================
 // Check if URL is a Supabase Storage URL
 // ============================================================
@@ -51,9 +61,9 @@ async function fetchYouTubeUrlFromStorage(storageUrl: string): Promise<string> {
     }
 
     return trimmedContent;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`❌ Storage fetch error:`, error);
-    throw new Error(`Failed to fetch YouTube URL from storage: ${error.message}`);
+    throw new Error(`Failed to fetch YouTube URL from storage: ${getErrorMessage(error)}`);
   }
 }
 
@@ -99,8 +109,8 @@ async function fetchYouTubeTranscript(videoId: string, languageCode: string = "e
             return transcript;
           }
         }
-      } catch (err) {
-        console.log(`Failed to fetch transcript for lang ${lang}:`, err.message);
+      } catch (err: unknown) {
+        console.log(`Failed to fetch transcript for lang ${lang}:`, getErrorMessage(err));
         // Continue to next language
         continue;
       }
@@ -119,13 +129,13 @@ async function fetchYouTubeTranscript(videoId: string, languageCode: string = "e
           return transcript;
         }
       }
-    } catch (err) {
-      console.log("Failed to fetch default transcript:", err.message);
+    } catch (err: unknown) {
+      console.log("Failed to fetch default transcript:", getErrorMessage(err));
     }
 
     throw new Error("No transcript available for this video. The video may not have captions enabled.");
-  } catch (error) {
-    throw new Error(`Failed to fetch YouTube transcript: ${error.message}`);
+  } catch (error: unknown) {
+    throw new Error(`Failed to fetch YouTube transcript: ${getErrorMessage(error)}`);
   }
 }
 
@@ -203,8 +213,8 @@ serve(async (req) => {
         console.log("📊 Video title:", videoTitle);
         console.log("📺 Channel:", videoMetadata.channel);
       }
-    } catch (err) {
-      console.log("⚠️ Failed to fetch video metadata:", err.message);
+    } catch (err: unknown) {
+      console.log("⚠️ Failed to fetch video metadata:", getErrorMessage(err));
       videoMetadata = { title: videoTitle };
     }
 
@@ -239,9 +249,9 @@ serve(async (req) => {
 
       console.log("✅ Transcript extracted successfully");
       console.log(`📏 Transcript length: ${transcript.length} characters`);
-    } catch (transcriptError) {
+    } catch (transcriptError: unknown) {
       // FALLBACK: Generate context from metadata when transcript unavailable
-      console.warn("⚠️ Transcript extraction failed:", transcriptError.message);
+      console.warn("⚠️ Transcript extraction failed:", getErrorMessage(transcriptError));
       console.log("🔄 Video likely has no captions - falling back to metadata-based context generation...");
 
       try {
@@ -277,12 +287,12 @@ serve(async (req) => {
         console.log(`📏 Generated context length: ${contextData.context_length} characters`);
         console.log(`📚 Word count: ${contextData.word_count} words`);
         console.log(`🤖 Generation method: ${contextData.method}`);
-      } catch (contextError) {
+      } catch (contextError: unknown) {
         console.error("❌ Both transcript extraction and context generation failed");
         throw new Error(
           `Unable to extract content from video. ` +
-            `Transcript error: ${transcriptError.message}. ` +
-            `Context generation error: ${contextError.message}`,
+            `Transcript error: ${getErrorMessage(transcriptError)}. ` +
+            `Context generation error: ${getErrorMessage(contextError)}`,
         );
       }
     }
@@ -373,7 +383,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("❌ Error in extract-youtube-transcript:", error);
 
     // Update note status to failed
@@ -387,18 +397,18 @@ serve(async (req) => {
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: error.message || "YouTube transcript extraction failed",
+            processing_error: getErrorMessage(error) || "YouTube transcript extraction failed",
           })
           .eq("id", body.note_id);
       }
-    } catch (e) {
+    } catch (e: unknown) {
       console.error("Failed to update error status:", e);
     }
 
     return new Response(
       JSON.stringify({
-        error: error.message || "Unknown error",
-        details: error.stack || "",
+        error: getErrorMessage(error) || "Unknown error",
+        details: getErrorStack(error),
       }),
       {
         status: 500,
