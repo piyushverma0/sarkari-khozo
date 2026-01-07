@@ -183,7 +183,7 @@ serve(async (req) => {
     // Note: Parallel AI's lite model has limitations on output length
     console.log("🔵 Using Sonar Pro / GPT-4 for long-form content generation...");
 
-    const response = await callAI({
+    const aiResponse = await callAI({
       systemPrompt: systemPrompt,
       userPrompt: userPrompt,
       enableWebSearch: true, // Sonar Pro supports web search
@@ -191,16 +191,16 @@ serve(async (req) => {
       temperature: 0.5, // Slightly higher for creative content generation
     });
 
-    context = response.content;
-    method = response.modelUsed;
+    context = aiResponse.content;
+    method = aiResponse.modelUsed;
     tokensUsed = {
-      prompt: response.tokensUsed.input,
-      completion: response.tokensUsed.output,
-      total: response.tokensUsed.input + response.tokensUsed.output,
+      prompt: aiResponse.tokensUsed.input,
+      completion: aiResponse.tokensUsed.output,
+      total: aiResponse.tokensUsed.input + aiResponse.tokensUsed.output,
     };
 
-    console.log(`✅ ${response.modelUsed} succeeded`);
-    logAIUsage("generate-context-from-youtube-metadata", response.tokensUsed, true, response.modelUsed);
+    console.log(`✅ ${aiResponse.modelUsed} succeeded`);
+    logAIUsage("generate-context-from-youtube-metadata", aiResponse.tokensUsed, true, aiResponse.modelUsed);
 
     // Validate generated context
     if (!context || context.trim().length < 500) {
@@ -225,7 +225,7 @@ serve(async (req) => {
     console.log(`📚 Word count: ${wordCount} words`);
     console.log(`🎯 Tokens used: ${tokensUsed.total}`);
 
-    const response: ContextResponse = {
+    const result: ContextResponse = {
       success: true,
       context: context,
       method: method,
@@ -233,17 +233,19 @@ serve(async (req) => {
       word_count: wordCount,
     };
 
-    return new Response(JSON.stringify(response), {
+    return new Response(JSON.stringify(result), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error) {
-    console.error("❌ Failed to generate context from metadata:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    const errorStack = error instanceof Error ? error.stack : "";
+    console.error("❌ Failed to generate context from metadata:", errorMessage);
 
     return new Response(
       JSON.stringify({
-        error: error.message || "Unknown error occurred",
-        details: error.stack || "",
+        error: errorMessage,
+        details: errorStack,
       }),
       {
         status: 500,
