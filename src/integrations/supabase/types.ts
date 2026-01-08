@@ -449,6 +449,56 @@ export type Database = {
           },
         ]
       }
+      collaboration_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          joiner_id: string | null
+          joiner_name: string | null
+          message: string
+          note_id: string
+          notification_type: string
+          read_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          joiner_id?: string | null
+          joiner_name?: string | null
+          message: string
+          note_id: string
+          notification_type: string
+          read_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          joiner_id?: string | null
+          joiner_name?: string | null
+          message?: string
+          note_id?: string
+          notification_type?: string
+          read_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaboration_notifications_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "study_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collaborative_quiz_sessions: {
         Row: {
           created_at: string | null
@@ -2882,6 +2932,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_unread_notification_count: { Args: never; Returns: number }
       get_user_best_time_for_topic: {
         Args: { p_topic: string; p_user_id: string }
         Returns: number
@@ -2919,6 +2970,11 @@ export type Database = {
       is_note_owner: {
         Args: { p_note_id: string; p_user_id: string }
         Returns: boolean
+      }
+      mark_all_notifications_read: { Args: never; Returns: undefined }
+      mark_notification_read: {
+        Args: { notification_id: string }
+        Returns: undefined
       }
       migrate_session_to_socratic: {
         Args: { session_id: string }
