@@ -301,3 +301,6 @@ verify_jwt = false
 
 [functions.generate-uppolice-numerical-notes]
 verify_jwt = false
+
+[functions.generate-uppolice-reasoning-notes]
+verify_jwt = false
