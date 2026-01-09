@@ -292,3 +292,9 @@ verify_jwt = false
 
 [functions.generate-context-from-youtube-metadata]
 verify_jwt = false
+
+[functions.generate-uppolice-gk-notes]
+verify_jwt = false
+
+[functions.generate-uppolice-hindi-notes]
+verify_jwt = false
