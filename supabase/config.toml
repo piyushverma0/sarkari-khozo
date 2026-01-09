@@ -298,3 +298,6 @@ verify_jwt = false
 
 [functions.generate-uppolice-hindi-notes]
 verify_jwt = false
+
+[functions.generate-uppolice-numerical-notes]
+verify_jwt = false
