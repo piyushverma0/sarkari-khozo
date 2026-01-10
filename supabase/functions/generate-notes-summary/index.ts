@@ -310,7 +310,7 @@ serve(async (req) => {
     // Build the system prompt
     const systemPrompt = `You are an expert study assistant specializing in Indian government exams, jobs, and educational content. Transform the following text into clean, well-structured study notes optimized for learning and exam preparation.
 
-**CRITICAL: Keep response under 10,000 tokens to ensure complete JSON delivery. Be concise - prioritize quality over quantity.**
+**CRITICAL: Keep response under 15,000 tokens to ensure complete JSON delivery. Be concise - prioritize quality over quantity.**
 
 CRITICAL REQUIREMENTS:
 1. Create clear hierarchical sections with descriptive headings
@@ -403,7 +403,7 @@ OUTPUT FORMAT: Return ONLY valid JSON (no markdown, no backticks):
   ]
 }
 
-Remember: Return ONLY the JSON object, nothing else. Keep response under 10,000 tokens to ensure complete JSON.`;
+Remember: Return ONLY the JSON object, nothing else. Keep response under 15,000 tokens to ensure complete JSON.`;
 
     const userPrompt = `TEXT TO PROCESS:\n${raw_content.substring(0, 30000)}`;
 
@@ -423,7 +423,7 @@ Remember: Return ONLY the JSON object, nothing else. Keep response under 10,000 
       systemPrompt,
       userPrompt,
       temperature: 0.3,
-      maxTokens: 10000,
+      maxTokens: 20000,
       responseFormat: "json",
     });
 
