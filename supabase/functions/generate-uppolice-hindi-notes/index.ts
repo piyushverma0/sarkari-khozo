@@ -1,336 +1,350 @@
 // Generate UP Police General Hindi Notes - AI-powered exam-focused content generation
-// Optimized for UP Police Constable 2026 Hindi syllabus (व्याकरण, समझ, और साहित्य)
+// Optimized for UP Police Constable 2026 exam syllabus
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
-import { callAI, logAIUsage } from '../_shared/ai-client.ts'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { callAI, logAIUsage } from "../_shared/ai-client.ts";
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 interface GenerateNotesRequest {
-  note_id: string
-  user_id: string
-  topic?: string
+  note_id: string;
+  user_id: string;
+  topic?: string;
 }
 
 serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
+  let note_id: string | undefined;
+  let user_id: string | undefined;
+
   try {
-    const { note_id, user_id, topic }: GenerateNotesRequest = await req.json()
+    const { note_id: noteIdFromBody, user_id: userIdFromBody, topic }: GenerateNotesRequest = await req.json();
+
+    note_id = noteIdFromBody;
+    user_id = userIdFromBody;
 
     if (!note_id || !user_id) {
-      return new Response(
-        JSON.stringify({ error: 'note_id and user_id are required' }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
+      return new Response(JSON.stringify({ error: "note_id and user_id are required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log('Generating UP Police Hindi notes for:', note_id, 'Topic:', topic || 'General')
+    console.log("Generating UP Police Hindi notes for:", note_id, "Topic:", topic || "General");
 
     // Initialize Supabase client
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Update progress
     await supabase
-      .from('study_notes')
+      .from("study_notes")
       .update({
-        processing_status: 'generating',
-        processing_progress: 10
+        processing_status: "generating",
+        processing_progress: 10,
       })
-      .eq('id', note_id)
+      .eq("id", note_id);
 
     // Build comprehensive UP Police Hindi system prompt
-    const systemPrompt = `You are an expert UP Police Constable 2026 exam preparation specialist with deep expertise in Hindi language (हिंदी भाषा) for competitive exams.
+    const systemPrompt = `You are an expert UP Police Constable 2026 exam preparation specialist with deep knowledge of the General Hindi syllabus for UP Police recruitment.
 
-**परीक्षा संदर्भ (EXAM CONTEXT):**
-- **परीक्षा:** UP Police Constable 2026
-- **कुल पद:** 32,679+ positions
-- **विषय:** सामान्य हिंदी (General Hindi)
-- **प्रश्न प्रकार:** बहुविकल्पीय प्रश्न (MCQs)
-- **फोकस क्षेत्र:** व्याकरण, शब्दावली, समझ, साहित्य, मुहावरे, लोकोक्तियाँ
+**EXAM CONTEXT:**
+- **Exam:** UP Police Constable 2026
+- **Total Vacancies:** 32,679+ positions
+- **Subject:** General Hindi (सामान्य ज्ञान)
+- **Question Pattern:** Multiple Choice Questions (MCQs)
+- **Focus Areas:** Current Affairs, History, Geography, Polity, Economy, Science, UP State Hindi, National & International Affairs
 
-**विस्तृत पाठ्यक्रम (DETAILED SYLLABUS):**
+**DETAILED SYLLABUS COVERAGE:**
 
-1. **हिंदी वर्णमाला और वर्तनी (Alphabet & Spelling)**
-   - स्वर (Vowels): अ, आ, इ, ई, उ, ऊ, ऋ, ए, ऐ, ओ, औ, अं, अः
-   - व्यंजन (Consonants): क से ज्ञ तक (35 व्यंजन)
-   - संयुक्त व्यंजन: क्ष, त्र, ज्ञ, श्र
-   - वर्तनी शुद्धि (Spelling Correction): सामान्य गलतियाँ और सुधार
-   - शुद्ध-अशुद्ध वाक्य: वाक्य शुद्धिकरण के नियम
+1. **Indian History (भारतीय इतिहास)**
+   - Ancient India: Indus Valley Civilization, Vedic Age, Mauryan Empire, Gupta Period
+   - Medieval India: Delhi Sultanate, Mughal Empire, Maratha Empire, Bhakti & Sufi Movements
+   - Modern India: British Rule, Freedom Struggle (1857 Revolt, INC Formation, Quit India Movement)
+   - Important Battles, Treaties, and Freedom Fighters
+   - Post-Independence India: Integration of Princely States, Constitutional Development
 
-2. **संधि और संधि विच्छेद (Sandhi)**
-   - स्वर संधि (Vowel Sandhi): दीर्घ, गुण, वृद्धि, यण, अयादि
-   - व्यंजन संधि (Consonant Sandhi): परसवर्ण, अनुस्वार, विसर्ग
-   - विसर्ग संधि: सकार, रेफ, उत्व
-   - उदाहरण और प्रैक्टिस प्रश्न
+2. **Indian Geography (भारतीय भूगोल)**
+   - Physical Geography: Mountains (Himalayas), Rivers (Ganga, Yamuna, Brahmaputra), Plateaus, Deserts
+   - Climate: Monsoon System, Seasons, Rainfall Distribution
+   - Agriculture: Major Crops, Green Revolution, Agricultural Practices
+   - Minerals & Resources: Coal, Iron Ore, Petroleum, Natural Gas
+   - Transportation: Railways, Airways, Roadways, Waterways
 
-3. **समास (Compound Words)**
-   - अव्ययीभाव समास: यथाशक्ति, प्रतिदिन, आजीवन
-   - तत्पुरुष समास: राजपुत्र, देशभक्ति, गृहप्रवेश
-   - कर्मधारय समास: नीलकमल, महापुरुष, कृष्णसर्प
-   - द्विगु समास: त्रिलोक, सप्तर्षि, नवरत्न
-   - द्वंद्व समास: माता-पिता, राम-लक्ष्मण, सीता-राम
-   - बहुव्रीहि समास: चक्रपाणि, दशानन, लंबोदर
-   - समास विग्रह और पहचान के ट्रिक्स
+3. **Indian Polity & Constitution (भारतीय राजव्यवस्था)**
+   - Constitutional Framework: Preamble, Fundamental Rights (Articles 14-35), Fundamental Duties (Article 51A)
+   - Directive Principles of State Policy (Articles 36-51)
+   - Union Government: President, Prime Minister, Parliament (Lok Sabha & Rajya Sabha)
+   - State Government: Governor, Chief Minister, State Legislature
+   - Judiciary: Supreme Court, High Courts, Subordinate Courts
+   - Important Constitutional Amendments (1st, 42nd, 44th, 73rd, 74th, 101st)
+   - Local Self Government: Panchayati Raj, Municipalities
 
-4. **उपसर्ग और प्रत्यय (Prefix & Suffix)**
-   - संस्कृत उपसर्ग: अति, अधि, अनु, अप, उप, दुर, दुस, नि, निर, परा, परि, प्र, वि, सम, सु
-   - हिंदी उपसर्ग: अ, अन, क, कु, दुर, नि, बिन, भर
-   - उर्दू उपसर्ग: कम, खुश, गैर, ना, ला, बद, बे, हम, हर
-   - कृत प्रत्यय: आई, त, ता, ती, वाला, हारा, अक्कड़
-   - तद्धित प्रत्यय: आई, आरा, इया, ई, एरा, पन, त्व, ता
+4. **Indian Economy (भारतीय अर्थव्यवस्था)**
+   - Economic Planning: Five Year Plans, NITI Aayog
+   - Banking & Finance: RBI, Commercial Banks, NBFCs, Payment Systems
+   - Budget: Revenue, Expenditure, Fiscal Deficit, Revenue Deficit
+   - Taxation: GST, Income Tax, Corporate Tax
+   - Key Economic Indicators: GDP, Inflation, WPI, CPI, Unemployment Rate
+   - Government Schemes: PM-KISAN, Ayushman Bharat, MGNREGA, Pradhan Mantri Awas Yojana
 
-5. **शब्द भेद (Parts of Speech)**
-   - संज्ञा (Noun): व्यक्तिवाचक, जातिवाचक, भाववाचक, समूहवाचक, द्रव्यवाचक
-   - सर्वनाम (Pronoun): पुरुषवाचक, निश्चयवाचक, अनिश्चयवाचक, संबंधवाचक, प्रश्नवाचक, निजवाचक
-   - विशेषण (Adjective): गुणवाचक, संख्यावाचक, परिमाणवाचक, सार्वनामिक
-   - क्रिया (Verb): सकर्मक, अकर्मक, प्रेरणार्थक, संयुक्त, नामधातु
-   - क्रिया विशेषण (Adverb): कालवाचक, स्थानवाचक, रीतिवाचक, परिमाणवाचक
-   - संबंधबोधक (Postposition): के लिए, की ओर, के सामने, के बिना, के साथ
-   - समुच्चयबोधक (Conjunction): और, या, परंतु, किंतु, लेकिन, इसलिए, क्योंकि
-   - विस्मयादिबोधक (Interjection): अहा, वाह, हाय, छि, ओह, अरे
+5. **General Science (सामान्य विज्ञान)**
+   - Physics: Motion, Force, Energy, Light, Sound, Electricity, Magnetism
+   - Chemistry: Elements, Compounds, Acids & Bases, Metals & Non-metals, Chemical Reactions
+   - Biology: Cell Structure, Human Body Systems (Digestive, Respiratory, Circulatory, Nervous), Diseases & Vitamins
+   - Environmental Science: Pollution, Climate Change, Conservation, Biodiversity
 
-6. **काल और वाच्य (Tense & Voice)**
-   - वर्तमान काल: सामान्य, अपूर्ण, संदिग्ध, तात्कालिक, संभाव्य
-   - भूतकाल: सामान्य, आसन्न, पूर्ण, अपूर्ण, संदिग्ध, हेतुहेतुमद
-   - भविष्य काल: सामान्य, संभाव्य
-   - वाच्य: कर्तृवाच्य, कर्मवाच्य, भाववाच्य
-   - वाच्य परिवर्तन के नियम और उदाहरण
+6. **Current Affairs (समसामयिक घटनाएं)**
+   - National News: Government Policies, Schemes, Appointments, Bills & Acts
+   - International Affairs: Global Summits, Treaties, Organizations (UN, WHO, IMF, World Bank)
+   - Sports: Major Tournaments (Olympics, FIFA World Cup, IPL), Indian Sportspersons
+   - Awards & Honours: Bharat Ratna, Padma Awards, Nobel Prize, Oscar, Man Booker Prize
+   - Important Days & Dates: National & International Days
+   - Books & Authors: Recent Publications, Prominent Writers
 
-7. **पर्यायवाची और विलोम शब्द (Synonyms & Antonyms)**
-   - महत्वपूर्ण शब्दों के पर्यायवाची (100+ उदाहरण)
-   - प्रचलित विलोम शब्द (100+ जोड़े)
-   - परीक्षा में आने वाले मुख्य शब्द
-   - शब्द चयन की ट्रिक्स
+7. **Uttar Pradesh State Hindi (उत्तर प्रदेश सामान्य ज्ञान)**
+   - History of UP: Ancient Kingdoms, British Rule, Post-Independence Development
+   - Geography: Rivers (Ganga, Yamuna, Gomti), Districts (75 districts), Major Cities
+   - Culture & Heritage: Festivals, Folk Dances, Music, Handicrafts
+   - Important Personalities: Freedom Fighters, Politicians, Social Reformers
+   - Government Schemes: UP-specific welfare programs
+   - Administration: Governor, Chief Minister, Council of Ministers, Legislative Assembly
+   - Tourism: Taj Mahal (Agra), Varanasi Ghats, Lucknow Monuments, Buddhist Sites (Sarnath, Kushinagar)
+   - Economy: Agriculture, Industries, IT Sector
+   - UP Police: History, Structure, Ranks, Training Centers
 
-8. **मुहावरे और लोकोक्तियाँ (Idioms & Proverbs)**
-   - प्रचलित मुहावरे (50+): अंगारों पर पैर रखना, आँखों में धूल झोंकना, टस से मस न होना
-   - लोकोक्तियाँ (50+): अब पछताए होत क्या, अधजल गगरी छलकत जाए, आम के आम गुठलियों के दाम
-   - अर्थ और प्रयोग के साथ
-   - वाक्यों में प्रयोग की विधि
+8. **Computer Awareness (कंप्यूटर जागरूकता)**
+   - Computer Basics: Input/Output Devices, CPU, Memory (RAM, ROM)
+   - Software: Operating Systems (Windows, Linux), MS Office (Word, Excel, PowerPoint)
+   - Internet: Browsers, Email, Search Engines, Social Media
+   - Cyber Security: Viruses, Malware, Phishing, Antivirus Software
+   - Digital India Initiatives: Digital Payments (UPI, BHIM), e-Governance, Aadhaar
 
-9. **अनेक शब्दों के लिए एक शब्द (One Word Substitution)**
-   - परीक्षा में पूछे जाने वाले प्रमुख उदाहरण (100+)
-   - जैसे: जो देखा न जा सके = अदृश्य, जिसकी कोई उपमा न हो = अनुपम
+**CONTENT GENERATION GUIDELINES:**
 
-10. **अपठित गद्यांश और पद्यांश (Comprehension)**
-    - गद्यांश समझ: केंद्रीय भाव, शीर्षक, सारांश
-    - पद्यांश समझ: काव्य भाव, अलंकार, रस
-    - प्रश्नों के उत्तर खोजने की तकनीक
+1. **Exam-Focused Structure:**
+   - Start with most frequently asked topics in UP Police exams
+   - Prioritize high-weightage areas: Current Affairs (20%), Indian Polity (15%), Indian History (15%)
+   - Include topic-specific MCQ patterns and previous year trends
+   - Add quick revision points for last-minute preparation
 
-11. **हिंदी साहित्य का इतिहास (Hindi Literature)**
-    - आदिकाल, भक्तिकाल, रीतिकाल, आधुनिक काल
-    - प्रमुख कवि और लेखक: कबीर, तुलसीदास, सूरदास, प्रेमचंद, महादेवी वर्मा, जयशंकर प्रसाद
-    - प्रमुख रचनाएं और उनके रचयिता
+2. **Information Depth:**
+   - Provide comprehensive coverage with specific facts, dates, numbers
+   - Include memory hooks, mnemonics, and shortcut techniques
+   - Add comparison tables for similar concepts (e.g., Articles of Constitution)
+   - Create timeline charts for historical events
+   - Use acronyms for easy memorization (e.g., BRICS, ASEAN)
 
-**सामग्री निर्माण दिशानिर्देश (CONTENT GENERATION GUIDELINES):**
+3. **UP Police Specific:**
+   - Emphasize UP State Hindi (10-15% weightage)
+   - Focus on current UP Government schemes and policies
+   - Include UP Police organizational structure and history
+   - Add questions on UP's geography, culture, and heritage
+   - Mention UP-specific current affairs and developments
 
-1. **परीक्षा-केंद्रित संरचना:**
-   - UP Police परीक्षा में अधिक पूछे जाने वाले विषयों से शुरुआत करें
-   - प्रत्येक व्याकरण नियम के साथ 5-10 उदाहरण दें
-   - सामान्य गलतियों और उनके सुधार पर ध्यान दें
-   - त्वरित संशोधन बिंदुओं को शामिल करें
+4. **Current Affairs (Critical):**
+   - Cover last 6 months of major national and international events
+   - Include government appointments, policy changes, new schemes
+   - List recent awards, sports achievements, scientific discoveries
+   - Add important dates, summits, and treaties
+   - Focus on India's relations with neighboring countries
 
-2. **जानकारी की गहराई:**
-   - प्रत्येक टॉपिक की संपूर्ण व्याख्या देवनागरी लिपि में
-   - स्मरण तकनीक (Mnemonics) हिंदी में प्रदान करें
-   - तुलना तालिकाएं (जैसे: संधि के प्रकार)
-   - शब्द सूचियां (पर्यायवाची, विलोम, मुहावरे)
+5. **Practice Questions:**
+   - Include 15-20 sample MCQs on the topic with detailed explanations
+   - Mix difficulty levels: Easy (40%), Medium (40%), Hard (20%)
+   - Provide answers with reasoning and related facts
+   - Add tips for eliminating wrong options
 
-3. **व्यावहारिक अभ्यास:**
-   - 15-20 अभ्यास प्रश्न (MCQs) विस्तृत व्याख्या के साथ
-   - विभिन्न कठिनाई स्तर: आसान (40%), मध्यम (40%), कठिन (20%)
-   - पिछले वर्ष के प्रश्न पैटर्न
-   - सामान्य गलतियों से बचने के टिप्स
+**MARKDOWN FORMATTING (Critical for readability):**
+1. **Headings:** Use ### for main topics, #### for subtopics
+2. **Bold:** Important terms, dates, numbers, names (**text**)
+3. **Italic:** Definitions, emphasis (*text*)
+4. **Code:** Specific numbers, codes, years (\`2026\`, \`Article 14\`)
+5. **Highlights:** Critical exam points (==urgent information==)
+6. **Lists:** Use bullet points for multiple items
+7. **Tables:** For comparisons and data (use markdown tables)
+8. **Short Paragraphs:** Max 4 lines per paragraph
 
-4. **भाषा और प्रस्तुति:**
-   - सभी व्याकरण नियम देवनागरी में लिखें
-   - अंग्रेजी में केवल तकनीकी शब्द (जैसे: Noun, Verb)
-   - सरल और स्पष्ट भाषा का उपयोग
-   - उदाहरण रोज़मर्रा के वाक्यों से
-
-**MARKDOWN FORMATTING:**
-1. **शीर्षक:** ### मुख्य विषय, #### उप-विषय
-2. **बोल्ड:** महत्वपूर्ण नियम, शब्द (**पाठ**)
-3. **इटैलिक:** परिभाषाएं, उदाहरण (*पाठ*)
-4. **कोड:** विशेष प्रतीक (\`उदाहरण\`)
-5. **हाइलाइट:** परीक्षा के लिए महत्वपूर्ण (==जरूरी जानकारी==)
-6. **सूचियां:** बुलेट पॉइंट्स का उपयोग
-7. **तालिका:** तुलना के लिए markdown tables
-8. **छोटे पैराग्राफ:** अधिकतम 4 पंक्तियां
-
-**OUTPUT FORMAT:** Return ONLY valid JSON:
+**OUTPUT FORMAT:** Return ONLY valid JSON (no markdown wrapper):
 {
-  "title": "UP Police हिंदी: [विषय नाम] - परीक्षा तैयारी नोट्स",
-  "summary": "2-3 वाक्यों में मुख्य परीक्षा फोकस क्षेत्रों का विवरण",
+  "title": "UP Police Hindi: [Topic Name] - Exam Preparation Notes",
+  "summary": "2-3 sentence overview highlighting key exam focus areas",
   "key_points": [
-    "सबसे महत्वपूर्ण परीक्षा बिंदु 1 (विशिष्ट तथ्यों के साथ)",
-    "सबसे महत्वपूर्ण परीक्षा बिंदु 2",
-    "सबसे महत्वपूर्ण परीक्षा बिंदु 3",
-    "सबसे महत्वपूर्ण परीक्षा बिंदु 4",
-    "सबसे महत्वपूर्ण परीक्षा बिंदु 5"
+    "Most important exam point 1 (with specific facts/numbers)",
+    "Most important exam point 2",
+    "Most important exam point 3",
+    "Most important exam point 4",
+    "Most important exam point 5"
   ],
   "sections": [
     {
-      "title": "खंड शीर्षक (परीक्षा-प्रासंगिक)",
-      "content": "विस्तृत सामग्री markdown formatting के साथ। **बोल्ड** महत्वपूर्ण शब्दों के लिए, \`कोड\` उदाहरणों के लिए, ==हाइलाइट== महत्वपूर्ण बिंदुओं के लिए।\\n\\n**उदाहरण प्रारूप:**\\n- पहला मुख्य बिंदु विवरण के साथ\\n- दूसरा मुख्य बिंदु\\n\\nअवधारणाओं की व्याख्या करने वाला छोटा पैराग्राफ।",
+      "title": "Section heading (exam-relevant)",
+      "content": "Comprehensive content with markdown formatting. Include specific facts, dates, numbers. Use **bold** for key terms, \`code\` for numbers/codes, ==highlights== for critical points.\\n\\n**Example Format:**\\n- First key point with details\\n- Second key point\\n\\nShort paragraph explaining concepts.",
       "subsections": [
         {
-          "title": "उप-विषय शीर्षक",
-          "content": "विस्तृत उप-विषय सामग्री समान formatting नियमों के साथ"
+          "title": "Subtopic heading",
+          "content": "Detailed subtopic content following same formatting rules"
         }
       ],
       "highlights": [
         {
-          "type": "exam_tip" | "important_rule" | "mnemonic" | "common_mistake",
-          "text": "परीक्षा के लिए महत्वपूर्ण हाइलाइट की गई जानकारी"
+          "type": "exam_tip" | "important_fact" | "mnemonic" | "previous_year",
+          "text": "Important highlighted information for exam"
         }
       ]
     }
   ],
   "practice_questions": [
     {
-      "question": "पूर्ण MCQ प्रश्न हिंदी में",
-      "options": ["विकल्प A", "विकल्प B", "विकल्प C", "विकल्प D"],
+      "question": "Full MCQ question text",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
       "correct_answer": "B",
-      "explanation": "विस्तृत व्याख्या तर्क और संबंधित तथ्यों के साथ"
+      "explanation": "Detailed explanation with reasoning and related facts"
     }
   ]
 }
 
-याद रखें: विस्तृत, परीक्षा-केंद्रित नोट्स बनाएं जो छात्रों को UP Police Constable 2026 हिंदी अनुभाग में सफल होने में मदद करें।`
+Remember: Create comprehensive, exam-focused notes that help students ace the UP Police Constable 2026 General Hindi section.`;
 
-    const topicContext = topic ? `विशेष रूप से इस पर ध्यान दें: ${topic}` : 'UP Police परीक्षा के लिए व्यापक हिंदी व्याकरण कवरेज प्रदान करें'
+    const topicContext = topic
+      ? `Focus specifically on: ${topic}`
+      : "Provide comprehensive General Hindi coverage for UP Police exam";
 
-    const userPrompt = `UP Police Constable 2026 सामान्य हिंदी के लिए विस्तृत अध्ययन नोट्स तैयार करें।
+    const userPrompt = `Generate comprehensive UP Police Constable 2026 General Hindi study notes.
 
 ${topicContext}
 
-आवश्यकताएं:
-- UP Police परीक्षा के लिए सभी प्रासंगिक हिंदी व्याकरण विषयों को कवर करें
-- प्रत्येक नियम के साथ 5-10 उदाहरण शामिल करें
-- 50+ मुहावरे और लोकोक्तियां अर्थ के साथ
-- 100+ पर्यायवाची और विलोम शब्द
-- 15-20 अभ्यास MCQs विस्तृत व्याख्या के साथ
-- स्मरण तकनीक और याद रखने की ट्रिक्स
-- सामान्य गलतियों से बचने के टिप्स
-- त्वरित संशोधन बिंदु
+Requirements:
+- Cover all relevant Hindi syllabus topics for UP Police exam
+- Include current affairs from last 6 months
+- Add UP State Hindi (10-15% weightage)
+- Provide 15-20 practice MCQs with detailed explanations
+- Use memory hooks and mnemonics for easy retention
+- Focus on high-frequency exam topics
+- Include quick revision points
 
-विस्तृत, परीक्षा-केंद्रित सामग्री बनाएं जो छात्रों की UP Police हिंदी अनुभाग में सफलता को अधिकतम करे।`
+Create detailed, exam-focused content that maximizes student success in UP Police Hindi section.`;
 
     // Update progress
     await supabase
-      .from('study_notes')
+      .from("study_notes")
       .update({
-        processing_progress: 30
+        processing_progress: 30,
       })
-      .eq('id', note_id)
+      .eq("id", note_id);
 
     // Call AI to generate content
-    console.log('Calling AI for UP Police Hindi content generation...')
+    console.log("Calling AI for UP Police Hindi content generation...");
     const aiResponse = await callAI({
       systemPrompt,
       userPrompt,
       temperature: 0.4,
-      maxTokens: 8500,
-      responseFormat: 'json'
-    })
+      maxTokens: 10000, // Reduced from 8500 to avoid incomplete JSON
+      responseFormat: "json",
+    });
 
-    logAIUsage('generate-uppolice-hindi-notes', aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed)
+    logAIUsage("generate-uppolice-hindi-notes", aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed);
 
-    console.log('AI generation complete with', aiResponse.modelUsed)
+    console.log("AI generation complete with", aiResponse.modelUsed);
 
     // Update progress
     await supabase
-      .from('study_notes')
+      .from("study_notes")
       .update({
-        processing_progress: 70
+        processing_progress: 70,
       })
-      .eq('id', note_id)
+      .eq("id", note_id);
 
     // Parse AI response
-    let responseText = aiResponse.content
-    let cleanedJson = responseText.trim()
+    let responseText = aiResponse.content;
+    let cleanedJson = responseText.trim();
 
     // Remove markdown code blocks if present
-    if (cleanedJson.startsWith('```json')) {
-      cleanedJson = cleanedJson.replace(/^```json\s*/, '').replace(/\s*```$/, '')
-    } else if (cleanedJson.startsWith('```')) {
-      cleanedJson = cleanedJson.replace(/^```\s*/, '').replace(/\s*```$/, '')
+    if (cleanedJson.startsWith("```json")) {
+      cleanedJson = cleanedJson.replace(/^```json\s*/, "").replace(/\s*```$/, "");
+    } else if (cleanedJson.startsWith("```")) {
+      cleanedJson = cleanedJson.replace(/^```\s*/, "").replace(/\s*```$/, "");
     }
 
-    let structuredContent
+    // Validate JSON is complete (check for closing brace)
+    if (!cleanedJson.endsWith("}") && !cleanedJson.endsWith("]}")) {
+      console.error("Incomplete JSON detected, attempting to fix...");
+      // Try to close the JSON if it's incomplete
+      cleanedJson = cleanedJson + (cleanedJson.includes('"practice_questions"') ? "]}" : "}");
+    }
+
+    let structuredContent;
     try {
-      structuredContent = JSON.parse(cleanedJson)
-    } catch (parseError: unknown) {
-      console.error('Failed to parse JSON:', parseError)
-      const errorMessage = parseError instanceof Error ? parseError.message : 'Unknown parse error'
-      throw new Error(`Failed to parse generated content: ${errorMessage}`)
+      structuredContent = JSON.parse(cleanedJson);
+    } catch (parseError) {
+      console.error("Failed to parse JSON:", parseError);
+      console.error("First 500 chars:", cleanedJson.substring(0, 500));
+      console.error("Last 500 chars:", cleanedJson.substring(cleanedJson.length - 500));
+      throw new Error(`Failed to parse generated content: ${parseError.message}`);
     }
 
     // Update progress
     await supabase
-      .from('study_notes')
+      .from("study_notes")
       .update({
-        processing_progress: 90
+        processing_progress: 90,
       })
-      .eq('id', note_id)
+      .eq("id", note_id);
 
     // Store in database
     const { error: updateError } = await supabase
-      .from('study_notes')
+      .from("study_notes")
       .update({
-        title: structuredContent.title || 'UP Police हिंदी नोट्स',
+        title: structuredContent.title || "UP Police Hindi Notes",
         summary: structuredContent.summary,
         key_points: structuredContent.key_points || [],
         structured_content: {
           sections: structuredContent.sections || [],
-          practice_questions: structuredContent.practice_questions || []
+          practice_questions: structuredContent.practice_questions || [],
         },
         raw_content: JSON.stringify(structuredContent),
-        processing_status: 'completed',
+        category: "UP Police 2026",
+        subject: "General Hindi",
+        processing_status: "completed",
         processing_progress: 100,
         processing_error: null,
-        user_id: user_id
+        user_id: user_id,
       })
-      .eq('id', note_id)
+      .eq("id", note_id);
 
     if (updateError) {
-      console.error('Failed to update note:', updateError)
-      throw updateError
+      console.error("Failed to update note:", updateError);
+      throw updateError;
     }
 
-    console.log('UP Police Hindi notes generated and stored successfully')
+    console.log("UP Police Hindi notes generated and stored successfully");
 
     // Trigger recall questions generation asynchronously
     try {
       fetch(`${SUPABASE_URL}/functions/v1/generate-recall-questions`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
         },
         body: JSON.stringify({
           note_id,
           structured_content: { sections: structuredContent.sections || [] },
-          max_questions_per_section: 3
-        })
-      }).catch(err => console.error('Failed to trigger recall questions:', err))
+          max_questions_per_section: 3,
+        }),
+      }).catch((err) => console.error("Failed to trigger recall questions:", err));
     } catch (e) {
-      console.error('Error triggering recall questions:', e)
+      console.error("Error triggering recall questions:", e);
     }
 
     return new Response(
@@ -339,32 +353,35 @@ ${topicContext}
         note_id,
         title: structuredContent.title,
         sections_count: structuredContent.sections?.length || 0,
-        practice_questions_count: structuredContent.practice_questions?.length || 0
+        practice_questions_count: structuredContent.practice_questions?.length || 0,
       }),
       {
         status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
+  } catch (error) {
+    console.error("Error in generate-uppolice-hindi-notes:", error);
+
+    // Update note status to failed (use note_id from outer scope)
+    if (note_id) {
+      try {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        await supabase
+          .from("study_notes")
+          .update({
+            processing_status: "failed",
+            processing_error: error.message || "UP Police Hindi notes generation failed",
+          })
+          .eq("id", note_id);
+      } catch (e) {
+        console.error("Failed to update error status:", e);
       }
-    )
-
-  } catch (error: unknown) {
-    console.error('Error in generate-uppolice-hindi-notes:', error)
-    const errorMessage = error instanceof Error ? error.message : 'UP Police Hindi notes generation failed'
-
-    // Update note status to failed
-    try {
-      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-      // We can't re-read the body after it's been consumed, so we skip updating on error
-    } catch (e) {
-      console.error('Failed to update error status:', e)
     }
 
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
-})
+});
