@@ -33,9 +33,9 @@ serve(async (req) => {
   try {
     // ✅ FIX: Parse body once and store it
     requestBody = await req.json();
-    note_id = requestBody.note_id;
-    user_id = requestBody.user_id;
-    const topic = requestBody.topic;
+    note_id = requestBody?.note_id;
+    user_id = requestBody?.user_id;
+    const topic = requestBody?.topic;
 
     if (!note_id || !user_id) {
       return new Response(JSON.stringify({ error: "note_id and user_id are required" }), {
@@ -303,9 +303,10 @@ Create detailed, exam-focused content that maximizes student success in UP Polic
       try {
         structuredContent = JSON.parse(cleanedJson);
         console.log("✅ Aggressive repair succeeded!");
-      } catch (finalError) {
+      } catch (finalError: unknown) {
         console.error("❌ Aggressive repair also failed");
-        throw new Error(`Failed to parse generated content after all repair attempts: ${finalError.message}`);
+        const errorMessage = finalError instanceof Error ? finalError.message : String(finalError);
+        throw new Error(`Failed to parse generated content after all repair attempts: ${errorMessage}`);
       }
     }
 
@@ -387,8 +388,9 @@ Create detailed, exam-focused content that maximizes student success in UP Polic
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("❌ Error in generate-uppolice-gk-notes:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
 
     // ✅ FIX: Use stored variables instead of re-parsing body
     if (note_id) {
@@ -398,7 +400,7 @@ Create detailed, exam-focused content that maximizes student success in UP Polic
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: error.message || "UP Police GK notes generation failed",
+            processing_error: errorMessage || "UP Police GK notes generation failed",
           })
           .eq("id", note_id);
       } catch (e) {
@@ -406,7 +408,7 @@ Create detailed, exam-focused content that maximizes student success in UP Polic
       }
     }
 
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
