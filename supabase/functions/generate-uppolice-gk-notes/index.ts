@@ -33,6 +33,12 @@ serve(async (req) => {
   try {
     // ✅ FIX: Parse body once and store it
     requestBody = await req.json();
+    if (!requestBody) {
+      return new Response(JSON.stringify({ error: "Invalid request body" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     note_id = requestBody.note_id;
     user_id = requestBody.user_id;
     const topic = requestBody.topic;
@@ -164,14 +170,15 @@ Create detailed, exam-focused markdown content.`;
 
       const summaryData = await summaryResponse.json();
       console.log("Summarization triggered successfully:", summaryData);
-    } catch (summaryError) {
+    } catch (summaryError: unknown) {
       console.error("Failed to trigger summarization:", summaryError);
+      const errorMessage = summaryError instanceof Error ? summaryError.message : String(summaryError);
       // Update note with error
       await supabase
         .from("study_notes")
         .update({
           processing_status: "failed",
-          processing_error: `Summarization failed: ${summaryError.message}`,
+          processing_error: `Summarization failed: ${errorMessage}`,
         })
         .eq("id", note_id);
 
@@ -189,8 +196,9 @@ Create detailed, exam-focused markdown content.`;
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("❌ Error in generate-uppolice-gk-notes:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
 
     // ✅ FIX: Use stored variables instead of re-parsing body
     if (note_id) {
@@ -200,7 +208,7 @@ Create detailed, exam-focused markdown content.`;
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: error.message || "UP Police GK notes generation failed",
+            processing_error: errorMessage || "UP Police GK notes generation failed",
           })
           .eq("id", note_id);
       } catch (e) {
@@ -208,7 +216,7 @@ Create detailed, exam-focused markdown content.`;
       }
     }
 
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
