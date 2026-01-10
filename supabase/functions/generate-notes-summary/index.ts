@@ -275,13 +275,14 @@ serve(async (req) => {
   }
 
   let note_id: string | undefined;
+  let requestBody: SummarizeRequest | undefined; // ✅ FIX: Store parsed body
 
   try {
-    // Parse body once (typed) and store it
-    const requestBody = (await req.json()) as SummarizeRequest;
-    note_id = requestBody?.note_id;
-    const raw_content = requestBody?.raw_content;
-    const language = requestBody?.language;
+    // ✅ FIX: Parse body once and store it
+    requestBody = await req.json();
+    note_id = requestBody.note_id;
+    const raw_content = requestBody.raw_content;
+    const language = requestBody.language;
 
     if (!note_id || !raw_content) {
       return new Response(JSON.stringify({ error: "note_id and raw_content are required" }), {
@@ -310,6 +311,8 @@ serve(async (req) => {
 
     // Build the system prompt
     const systemPrompt = `You are an expert study assistant specializing in Indian government exams, jobs, and educational content. Transform the following text into clean, well-structured study notes optimized for learning and exam preparation.
+
+**CRITICAL: Keep response under 10,000 tokens to ensure complete JSON delivery. Be concise - prioritize quality over quantity.**
 
 CRITICAL REQUIREMENTS:
 1. Create clear hierarchical sections with descriptive headings
@@ -651,6 +654,32 @@ Remember: Return ONLY the JSON object, nothing else. Keep response under 10,000 
 function repairIncompleteJSON(json: string): string {
   let repaired = json.trim();
 
+  // ✅ FIX: Close unterminated strings FIRST (before counting brackets)
+  // Find last quote and check if it's unterminated
+  const lastQuoteIndex = repaired.lastIndexOf('"');
+  if (lastQuoteIndex > 0) {
+    // Check if quote is escaped
+    const beforeQuote = repaired.substring(0, lastQuoteIndex);
+    const escapedQuotes = (beforeQuote.match(/\\"/g) || []).length;
+    const totalQuotes = (repaired.match(/"/g) || []).length;
+
+    // If odd number of quotes (excluding escaped), we have unterminated string
+    if ((totalQuotes - escapedQuotes) % 2 !== 0) {
+      console.log("🔧 Detected unterminated string, closing it...");
+
+      // Find where the unterminated string likely started
+      // Look for common patterns like "key": "value (unterminated)
+      const afterLastQuote = repaired.substring(lastQuoteIndex + 1);
+
+      // If there's content after last quote without closing quote, truncate it and add quote
+      if (afterLastQuote.length > 0 && !afterLastQuote.startsWith(":") && !afterLastQuote.startsWith(",")) {
+        // Remove incomplete content after last quote
+        repaired = repaired.substring(0, lastQuoteIndex + 1) + '"';
+        console.log("✅ Closed unterminated string");
+      }
+    }
+  }
+
   // Remove trailing commas
   repaired = repaired.replace(/,\s*([}\]])/g, "$1");
 
@@ -688,65 +717,84 @@ function aggressiveJSONRepair(json: string): string {
 
   let repaired = json.trim();
 
-  // Strategy 1: Remove everything after last complete object/array
-  const lastCompleteObject = repaired.lastIndexOf("}");
-  const lastCompleteArray = repaired.lastIndexOf("]");
-  const lastComplete = Math.max(lastCompleteObject, lastCompleteArray);
+  // Strategy 1: Find the last COMPLETE field and truncate after it
+  // Look for patterns like: "field": "value",  or  "field": [...],
+  const fieldPatterns = [
+    /"key_points"\s*:\s*\[[^\]]*\]/, // key_points array (complete)
+    /"summary"\s*:\s*"[^"]*"/, // summary field (complete)
+    /"title"\s*:\s*"[^"]*"/, // title field (complete)
+  ];
 
-  if (lastComplete > 0) {
-    const afterLast = repaired.substring(lastComplete + 1).trim();
-    if (afterLast.length > 0 && !afterLast.match(/^[}\]]*$/)) {
-      console.log("🗑️ Removing incomplete trailing content");
-      repaired = repaired.substring(0, lastComplete + 1);
-    }
-  }
-
-  // Strategy 2: If still broken, extract core fields
-  try {
-    JSON.parse(repaired);
-    return repaired;
-  } catch (e) {
-    console.log("🔍 Trying to extract core fields only...");
-
-    const titleMatch = repaired.match(/"title"\s*:\s*"([^"]*)"/);
-    const summaryMatch = repaired.match(/"summary"\s*:\s*"([^"]*)"/);
-    const keyPointsMatch = repaired.match(/"key_points"\s*:\s*\[([\s\S]*?)\](?=\s*,\s*"sections")/);
-
-    const sectionsStart = repaired.indexOf('"sections"');
-    let sectionsContent = "";
-
-    if (sectionsStart > 0) {
-      const afterSections = repaired.substring(sectionsStart);
-      const arrayStart = afterSections.indexOf("[");
-      if (arrayStart > 0) {
-        let depth = 0;
-        let endPos = arrayStart;
-        for (let i = arrayStart; i < afterSections.length; i++) {
-          if (afterSections[i] === "[") depth++;
-          if (afterSections[i] === "]") {
-            depth--;
-            if (depth === 0) {
-              endPos = i;
-              break;
-            }
-          }
-        }
-        if (depth === 0) {
-          sectionsContent = afterSections.substring(arrayStart, endPos + 1);
-        }
+  let lastCompleteFieldEnd = -1;
+  for (const pattern of fieldPatterns) {
+    const match = repaired.match(pattern);
+    if (match) {
+      const endPos = repaired.indexOf(match[0]) + match[0].length;
+      if (endPos > lastCompleteFieldEnd) {
+        lastCompleteFieldEnd = endPos;
       }
     }
-
-    const minimalJSON = {
-      title: titleMatch ? titleMatch[1] : "Study Notes",
-      summary: summaryMatch ? summaryMatch[1] : "Study notes summary",
-      key_points: keyPointsMatch ? JSON.parse(`[${keyPointsMatch[1]}]`) : [],
-      sections: sectionsContent ? JSON.parse(sectionsContent) : [],
-      important_dates: [],
-      action_items: [],
-    };
-
-    console.log("✅ Extracted minimal valid structure");
-    return JSON.stringify(minimalJSON);
   }
+
+  if (lastCompleteFieldEnd > 0) {
+    console.log(`✂️ Found last complete field at position ${lastCompleteFieldEnd}`);
+    // Truncate everything after last complete field and close JSON
+    repaired = repaired.substring(0, lastCompleteFieldEnd);
+
+    // Add missing closing for incomplete arrays/objects
+    const openBraces = (repaired.match(/{/g) || []).length;
+    const closeBraces = (repaired.match(/}/g) || []).length;
+    const openBrackets = (repaired.match(/\[/g) || []).length;
+    const closeBrackets = (repaired.match(/]/g) || []).length;
+
+    // Close arrays
+    for (let i = 0; i < openBrackets - closeBrackets; i++) {
+      repaired += "]";
+    }
+
+    // Close objects
+    for (let i = 0; i < openBraces - closeBraces; i++) {
+      repaired += "}";
+    }
+
+    console.log("✅ Truncated to last complete field and closed JSON");
+
+    try {
+      JSON.parse(repaired);
+      return repaired;
+    } catch (e) {
+      console.log("⚠️ Still broken after truncation, trying minimal extraction...");
+    }
+  }
+
+  // Strategy 2: Create minimal valid JSON from extractable fields
+  console.log("🔍 Extracting minimal valid JSON structure...");
+
+  const titleMatch = repaired.match(/"title"\s*:\s*"([^"]*)"/);
+  const summaryMatch = repaired.match(/"summary"\s*:\s*"([^"]*)"/);
+
+  // Extract key_points if it's complete
+  let keyPoints: string[] = [];
+  const keyPointsMatch = repaired.match(/"key_points"\s*:\s*\[([\s\S]*?)\](?=\s*,)/);
+  if (keyPointsMatch) {
+    try {
+      keyPoints = JSON.parse(`[${keyPointsMatch[1]}]`);
+    } catch (e) {
+      // If parse fails, extract individual items
+      const items = keyPointsMatch[1].match(/"([^"]*)"/g);
+      keyPoints = items ? items.map((s) => s.replace(/"/g, "")) : [];
+    }
+  }
+
+  const minimalJSON = {
+    title: titleMatch ? titleMatch[1] : "Study Notes",
+    summary: summaryMatch ? summaryMatch[1] : "Study notes summary",
+    key_points: keyPoints,
+    sections: [], // Empty sections rather than trying to extract broken ones
+    important_dates: [],
+    action_items: [],
+  };
+
+  console.log("✅ Created minimal valid JSON");
+  return JSON.stringify(minimalJSON);
 }
