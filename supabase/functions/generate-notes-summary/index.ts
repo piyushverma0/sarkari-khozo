@@ -275,11 +275,9 @@ serve(async (req) => {
   }
 
   let note_id: string | undefined;
-  let requestBody: SummarizeRequest | undefined; // ✅ FIX: Store parsed body
 
   try {
-    // ✅ FIX: Parse body once and store it
-    requestBody = await req.json();
+    const requestBody: SummarizeRequest = await req.json();
     note_id = requestBody.note_id;
     const raw_content = requestBody.raw_content;
     const language = requestBody.language;
