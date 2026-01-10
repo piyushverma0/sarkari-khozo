@@ -1,6 +1,5 @@
 // Generate UP Police General Knowledge Notes - AI-powered exam-focused content generation
 // Optimized for UP Police Constable 2026 exam syllabus
-// FIXED: Handles incomplete JSON responses and prevents body consumption errors
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
@@ -28,14 +27,12 @@ serve(async (req) => {
 
   let note_id: string | undefined;
   let user_id: string | undefined;
-  let requestBody: GenerateNotesRequest | undefined; // ✅ FIX: Store parsed body
 
   try {
-    // ✅ FIX: Parse body once and store it
-    requestBody = await req.json();
-    note_id = requestBody?.note_id;
-    user_id = requestBody?.user_id;
-    const topic = requestBody?.topic;
+    const { note_id: noteIdFromBody, user_id: userIdFromBody, topic }: GenerateNotesRequest = await req.json();
+
+    note_id = noteIdFromBody;
+    user_id = userIdFromBody;
 
     if (!note_id || !user_id) {
       return new Response(JSON.stringify({ error: "note_id and user_id are required" }), {
@@ -162,13 +159,6 @@ serve(async (req) => {
    - Add important dates, summits, and treaties
    - Focus on India's relations with neighboring countries
 
-5. **Practice Questions:**
-   - Include 10-15 sample MCQs on the topic with detailed explanations
-   - Mix difficulty levels: Easy (40%), Medium (40%), Hard (20%)
-   - Provide answers with reasoning and related facts
-   - Add tips for eliminating wrong options
-
-**CRITICAL: Keep response under 12,000 tokens to avoid truncation**
 
 **MARKDOWN FORMATTING (Critical for readability):**
 1. **Headings:** Use ### for main topics, #### for subtopics
@@ -219,7 +209,7 @@ serve(async (req) => {
   ]
 }
 
-**IMPORTANT:** Ensure JSON is complete and properly closed. Limit content to fit within token limits.`;
+Remember: Create comprehensive, exam-focused notes that help students ace the UP Police Constable 2026 General Knowledge section.`;
 
     const topicContext = topic
       ? `Focus specifically on: ${topic}`
@@ -233,11 +223,10 @@ Requirements:
 - Cover all relevant GK syllabus topics for UP Police exam
 - Include current affairs from last 6 months
 - Add UP State GK (10-15% weightage)
-- Provide 10-15 practice MCQs with detailed explanations
+- Provide 15-20 practice MCQs with detailed explanations
 - Use memory hooks and mnemonics for easy retention
 - Focus on high-frequency exam topics
 - Include quick revision points
-- **CRITICAL:** Keep response under 12,000 tokens to ensure complete JSON
 
 Create detailed, exam-focused content that maximizes student success in UP Police GK section.`;
 
@@ -251,20 +240,17 @@ Create detailed, exam-focused content that maximizes student success in UP Polic
 
     // Call AI to generate content
     console.log("Calling AI for UP Police GK content generation...");
-
-    // ✅ FIX: Increased maxTokens to 12000 (from 10000)
     const aiResponse = await callAI({
       systemPrompt,
       userPrompt,
       temperature: 0.4,
-      maxTokens: 12000,
+      maxTokens: 10000, // Reduced from 8500 to avoid incomplete JSON
       responseFormat: "json",
     });
 
     logAIUsage("generate-uppolice-gk-notes", aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed);
 
     console.log("AI generation complete with", aiResponse.modelUsed);
-    console.log("Output tokens:", aiResponse.tokensUsed);
 
     // Update progress
     await supabase
@@ -274,7 +260,7 @@ Create detailed, exam-focused content that maximizes student success in UP Polic
       })
       .eq("id", note_id);
 
-    // ✅ FIX: Enhanced JSON repair logic
+    // Parse AI response
     let responseText = aiResponse.content;
     let cleanedJson = responseText.trim();
 
@@ -285,40 +271,22 @@ Create detailed, exam-focused content that maximizes student success in UP Polic
       cleanedJson = cleanedJson.replace(/^```\s*/, "").replace(/\s*```$/, "");
     }
 
-    // ✅ FIX: Comprehensive JSON repair
-    cleanedJson = repairIncompleteJSON(cleanedJson);
+    // Validate JSON is complete (check for closing brace)
+    if (!cleanedJson.endsWith("}") && !cleanedJson.endsWith("]}")) {
+      console.error("Incomplete JSON detected, attempting to fix...");
+      // Try to close the JSON if it's incomplete
+      cleanedJson = cleanedJson + (cleanedJson.includes('"practice_questions"') ? "]}" : "}");
+    }
 
     let structuredContent;
     try {
       structuredContent = JSON.parse(cleanedJson);
-    } catch (parseError) {
-      console.error("❌ Failed to parse JSON after repair:", parseError);
-      console.error("📏 Response length:", cleanedJson.length);
-      console.error("🔍 First 500 chars:", cleanedJson.substring(0, 500));
-      console.error("🔍 Last 500 chars:", cleanedJson.substring(cleanedJson.length - 500));
-
-      // ✅ FIX: Try aggressive repair
-      cleanedJson = aggressiveJSONRepair(cleanedJson);
-
-      try {
-        structuredContent = JSON.parse(cleanedJson);
-        console.log("✅ Aggressive repair succeeded!");
-      } catch (finalError: unknown) {
-        console.error("❌ Aggressive repair also failed");
-        const errorMessage = finalError instanceof Error ? finalError.message : String(finalError);
-        throw new Error(`Failed to parse generated content after all repair attempts: ${errorMessage}`);
-      }
-    }
-
-    // Validate structure
-    if (!structuredContent.title || !structuredContent.sections) {
-      console.warn("⚠️ Missing required fields, adding defaults");
-      structuredContent.title = structuredContent.title || "UP Police GK Notes";
-      structuredContent.summary =
-        structuredContent.summary || "Comprehensive General Knowledge notes for UP Police exam preparation";
-      structuredContent.key_points = structuredContent.key_points || [];
-      structuredContent.sections = structuredContent.sections || [];
-      structuredContent.practice_questions = structuredContent.practice_questions || [];
+    } catch (parseError: unknown) {
+      console.error("Failed to parse JSON:", parseError);
+      console.error("First 500 chars:", cleanedJson.substring(0, 500));
+      console.error("Last 500 chars:", cleanedJson.substring(cleanedJson.length - 500));
+      const errorMessage = parseError instanceof Error ? parseError.message : "Unknown parse error";
+      throw new Error(`Failed to parse generated content: ${errorMessage}`);
     }
 
     // Update progress
@@ -355,7 +323,7 @@ Create detailed, exam-focused content that maximizes student success in UP Polic
       throw updateError;
     }
 
-    console.log("✅ UP Police GK notes generated and stored successfully");
+    console.log("UP Police GK notes generated and stored successfully");
 
     // Trigger recall questions generation asynchronously
     try {
@@ -389,10 +357,10 @@ Create detailed, exam-focused content that maximizes student success in UP Polic
       },
     );
   } catch (error: unknown) {
-    console.error("❌ Error in generate-uppolice-gk-notes:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("Error in generate-uppolice-gk-notes:", error);
+    const errorMessage = error instanceof Error ? error.message : "UP Police GK notes generation failed";
 
-    // ✅ FIX: Use stored variables instead of re-parsing body
+    // Update note status to failed (use note_id from outer scope)
     if (note_id) {
       try {
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -400,7 +368,7 @@ Create detailed, exam-focused content that maximizes student success in UP Polic
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: errorMessage || "UP Police GK notes generation failed",
+            processing_error: errorMessage,
           })
           .eq("id", note_id);
       } catch (e) {
@@ -414,122 +382,3 @@ Create detailed, exam-focused content that maximizes student success in UP Polic
     });
   }
 });
-
-// ============================================================
-// ✅ NEW: JSON Repair Functions
-// ============================================================
-
-/**
- * Repair incomplete JSON by detecting common truncation patterns
- */
-function repairIncompleteJSON(json: string): string {
-  let repaired = json.trim();
-
-  // Remove trailing commas in arrays/objects
-  repaired = repaired.replace(/,\s*([}\]])/g, "$1");
-
-  // Check if JSON ends properly
-  if (!repaired.endsWith("}") && !repaired.endsWith("]")) {
-    console.log("🔧 Attempting to close incomplete JSON...");
-
-    // Count unclosed braces
-    const openBraces = (repaired.match(/{/g) || []).length;
-    const closeBraces = (repaired.match(/}/g) || []).length;
-    const openBrackets = (repaired.match(/\[/g) || []).length;
-    const closeBrackets = (repaired.match(/]/g) || []).length;
-
-    console.log(`📊 Braces: ${openBraces} open, ${closeBraces} close`);
-    console.log(`📊 Brackets: ${openBrackets} open, ${closeBrackets} close`);
-
-    // Close unclosed arrays first (practice_questions is usually last)
-    for (let i = 0; i < openBrackets - closeBrackets; i++) {
-      repaired += "]";
-    }
-
-    // Close unclosed objects
-    for (let i = 0; i < openBraces - closeBraces; i++) {
-      repaired += "}";
-    }
-
-    console.log("✅ Added closing brackets/braces");
-  }
-
-  return repaired;
-}
-
-/**
- * Aggressive JSON repair - removes incomplete sections
- */
-function aggressiveJSONRepair(json: string): string {
-  console.log("🔨 Attempting aggressive JSON repair...");
-
-  let repaired = json.trim();
-
-  // Strategy 1: Remove everything after last complete object/array
-  const lastCompleteObject = repaired.lastIndexOf("}");
-  const lastCompleteArray = repaired.lastIndexOf("]");
-  const lastComplete = Math.max(lastCompleteObject, lastCompleteArray);
-
-  if (lastComplete > 0) {
-    // Check if there's garbage after this point
-    const afterLast = repaired.substring(lastComplete + 1).trim();
-    if (afterLast.length > 0 && !afterLast.match(/^[}\]]*$/)) {
-      console.log("🗑️ Removing incomplete trailing content");
-      repaired = repaired.substring(0, lastComplete + 1);
-    }
-  }
-
-  // Strategy 2: If still broken, try to extract just the core fields
-  try {
-    JSON.parse(repaired);
-    return repaired;
-  } catch (e) {
-    console.log("🔍 Trying to extract core fields only...");
-
-    // Try to extract title, summary, key_points, sections
-    const titleMatch = repaired.match(/"title"\s*:\s*"([^"]*)"/);
-    const summaryMatch = repaired.match(/"summary"\s*:\s*"([^"]*)"/);
-
-    // Find key_points array
-    const keyPointsMatch = repaired.match(/"key_points"\s*:\s*\[([\s\S]*?)\](?=\s*,\s*"sections")/);
-
-    // Find sections array (up to last valid closing)
-    const sectionsStart = repaired.indexOf('"sections"');
-    let sectionsContent = "";
-
-    if (sectionsStart > 0) {
-      const afterSections = repaired.substring(sectionsStart);
-      // Find the sections array
-      const arrayStart = afterSections.indexOf("[");
-      if (arrayStart > 0) {
-        let depth = 0;
-        let endPos = arrayStart;
-        for (let i = arrayStart; i < afterSections.length; i++) {
-          if (afterSections[i] === "[") depth++;
-          if (afterSections[i] === "]") {
-            depth--;
-            if (depth === 0) {
-              endPos = i;
-              break;
-            }
-          }
-        }
-        if (depth === 0) {
-          sectionsContent = afterSections.substring(arrayStart, endPos + 1);
-        }
-      }
-    }
-
-    // Reconstruct minimal valid JSON
-    const minimalJSON = {
-      title: titleMatch ? titleMatch[1] : "UP Police GK Notes",
-      summary: summaryMatch ? summaryMatch[1] : "Comprehensive notes for UP Police exam",
-      key_points: keyPointsMatch ? JSON.parse(`[${keyPointsMatch[1]}]`) : [],
-      sections: sectionsContent ? JSON.parse(sectionsContent) : [],
-      practice_questions: [],
-    };
-
-    console.log("✅ Extracted minimal valid structure");
-    return JSON.stringify(minimalJSON);
-  }
-}
