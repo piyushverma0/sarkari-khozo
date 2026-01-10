@@ -286,11 +286,12 @@ Create detailed, exam-focused content that maximizes student success in UP Polic
     let structuredContent;
     try {
       structuredContent = JSON.parse(cleanedJson);
-    } catch (parseError) {
+    } catch (parseError: unknown) {
       console.error("Failed to parse JSON:", parseError);
       console.error("First 500 chars:", cleanedJson.substring(0, 500));
       console.error("Last 500 chars:", cleanedJson.substring(cleanedJson.length - 500));
-      throw new Error(`Failed to parse generated content: ${parseError.message}`);
+      const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
+      throw new Error(`Failed to parse generated content: ${errorMessage}`);
     }
 
     // Update progress
@@ -360,8 +361,9 @@ Create detailed, exam-focused content that maximizes student success in UP Polic
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error in generate-uppolice-hindi-notes:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
 
     // Update note status to failed (use note_id from outer scope)
     if (note_id) {
@@ -371,7 +373,7 @@ Create detailed, exam-focused content that maximizes student success in UP Polic
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: error.message || "UP Police Hindi notes generation failed",
+            processing_error: errorMessage || "UP Police Hindi notes generation failed",
           })
           .eq("id", note_id);
       } catch (e) {
@@ -379,7 +381,7 @@ Create detailed, exam-focused content that maximizes student success in UP Polic
       }
     }
 
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
