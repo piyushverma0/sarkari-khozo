@@ -275,14 +275,13 @@ serve(async (req) => {
   }
 
   let note_id: string | undefined;
-  let requestBody: SummarizeRequest | undefined; // ✅ FIX: Store parsed body
 
   try {
-    // ✅ FIX: Parse body once and store it
-    requestBody = await req.json();
-    note_id = requestBody.note_id;
-    const raw_content = requestBody.raw_content;
-    const language = requestBody.language;
+    // Parse body once (typed) and store it
+    const requestBody = (await req.json()) as SummarizeRequest;
+    note_id = requestBody?.note_id;
+    const raw_content = requestBody?.raw_content;
+    const language = requestBody?.language;
 
     if (!note_id || !raw_content) {
       return new Response(JSON.stringify({ error: "note_id and raw_content are required" }), {
