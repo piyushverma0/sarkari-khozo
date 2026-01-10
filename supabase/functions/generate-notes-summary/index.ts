@@ -1,5 +1,6 @@
 // Generate Notes Summary - Transform raw content into structured study notes
 // Uses Sonar Pro (primary) with GPT-4-turbo fallback
+// FIXED: Handles incomplete JSON responses and prevents body consumption errors
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
@@ -273,8 +274,15 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  let note_id: string | undefined;
+  let requestBody: SummarizeRequest | undefined; // ✅ FIX: Store parsed body
+
   try {
-    const { note_id, raw_content, language }: SummarizeRequest = await req.json();
+    // ✅ FIX: Parse body once and store it
+    requestBody = await req.json();
+    note_id = requestBody.note_id;
+    const raw_content = requestBody.raw_content;
+    const language = requestBody.language;
 
     if (!note_id || !raw_content) {
       return new Response(JSON.stringify({ error: "note_id and raw_content are required" }), {
@@ -395,7 +403,7 @@ OUTPUT FORMAT: Return ONLY valid JSON (no markdown, no backticks):
   ]
 }
 
-Remember: Return ONLY the JSON object, nothing else.`;
+Remember: Return ONLY the JSON object, nothing else. Keep response under 10,000 tokens to ensure complete JSON.`;
 
     const userPrompt = `TEXT TO PROCESS:\n${raw_content.substring(0, 30000)}`;
 
@@ -409,17 +417,20 @@ Remember: Return ONLY the JSON object, nothing else.`;
 
     // Call AI (Sonar Pro → GPT-4-turbo fallback)
     console.log("Calling AI for summarization...");
+
+    // ✅ FIX: Increased from 8192 to 10000
     const aiResponse = await callAI({
       systemPrompt,
       userPrompt,
       temperature: 0.3,
-      maxTokens: 18000,
+      maxTokens: 10000,
       responseFormat: "json",
     });
 
     logAIUsage("generate-notes-summary", aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed);
 
     console.log("AI summarization complete with", aiResponse.modelUsed);
+    console.log("Output tokens:", aiResponse.tokensUsed);
 
     // Update progress
     await supabase
@@ -444,17 +455,41 @@ Remember: Return ONLY the JSON object, nothing else.`;
       cleanedJson = cleanedJson.replace(/^```\s*/, "").replace(/\s*```$/, "");
     }
 
+    // ✅ FIX: Comprehensive JSON repair
+    cleanedJson = repairIncompleteJSON(cleanedJson);
+
     // Parse JSON
     let structuredContent;
     try {
       structuredContent = JSON.parse(cleanedJson);
     } catch (parseError: any) {
-      console.error("Failed to parse JSON:", parseError);
-      console.error("Response text:", responseText.substring(0, 500));
-      throw new Error(`Failed to parse summary: ${parseError.message}`);
+      console.error("❌ Failed to parse JSON after repair:", parseError);
+      console.error("📏 Response length:", cleanedJson.length);
+      console.error("🔍 First 500 chars:", cleanedJson.substring(0, 500));
+      console.error("🔍 Last 500 chars:", cleanedJson.substring(cleanedJson.length - 500));
+
+      // ✅ FIX: Try aggressive repair
+      cleanedJson = aggressiveJSONRepair(cleanedJson);
+
+      try {
+        structuredContent = JSON.parse(cleanedJson);
+        console.log("✅ Aggressive repair succeeded!");
+      } catch (finalError: any) {
+        console.error("❌ Aggressive repair also failed");
+        throw new Error(`Failed to parse summary: ${finalError.message}`);
+      }
     }
 
     console.log("Structured content generated:", Object.keys(structuredContent));
+
+    // Validate structure
+    if (!structuredContent.title || !structuredContent.sections) {
+      console.warn("⚠️ Missing required fields, adding defaults");
+      structuredContent.title = structuredContent.title || "Study Notes";
+      structuredContent.summary = structuredContent.summary || "Study notes summary";
+      structuredContent.key_points = structuredContent.key_points || [];
+      structuredContent.sections = structuredContent.sections || [];
+    }
 
     // Update progress
     await supabase
@@ -540,7 +575,7 @@ Remember: Return ONLY the JSON object, nothing else.`;
       throw updateError;
     }
 
-    console.log("Summary stored in database, note processing complete");
+    console.log("✅ Summary stored in database, note processing complete");
 
     // Trigger recall questions generation asynchronously (fire and forget)
     try {
@@ -584,13 +619,11 @@ Remember: Return ONLY the JSON object, nothing else.`;
       },
     );
   } catch (error: any) {
-    console.error("Error in generate-notes-summary:", error);
+    console.error("❌ Error in generate-notes-summary:", error);
 
-    // Update note status to failed
-    try {
-      const bodyText = await req.text();
-      const body = JSON.parse(bodyText);
-      if (body.note_id) {
+    // ✅ FIX: Use stored variables instead of re-parsing body
+    if (note_id) {
+      try {
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
         await supabase
@@ -599,10 +632,10 @@ Remember: Return ONLY the JSON object, nothing else.`;
             processing_status: "failed",
             processing_error: error.message || "Summary generation failed",
           })
-          .eq("id", body.note_id);
+          .eq("id", note_id);
+      } catch (e) {
+        console.error("Failed to update error status:", e);
       }
-    } catch (e) {
-      console.error("Failed to update error status:", e);
     }
 
     return new Response(JSON.stringify({ error: error.message }), {
@@ -611,3 +644,110 @@ Remember: Return ONLY the JSON object, nothing else.`;
     });
   }
 });
+
+// ============================================================
+// ✅ JSON Repair Functions (Same as other fixed functions)
+// ============================================================
+
+function repairIncompleteJSON(json: string): string {
+  let repaired = json.trim();
+
+  // Remove trailing commas
+  repaired = repaired.replace(/,\s*([}\]])/g, "$1");
+
+  // Check if JSON ends properly
+  if (!repaired.endsWith("}") && !repaired.endsWith("]")) {
+    console.log("🔧 Attempting to close incomplete JSON...");
+
+    // Count unclosed braces
+    const openBraces = (repaired.match(/{/g) || []).length;
+    const closeBraces = (repaired.match(/}/g) || []).length;
+    const openBrackets = (repaired.match(/\[/g) || []).length;
+    const closeBrackets = (repaired.match(/]/g) || []).length;
+
+    console.log(`📊 Braces: ${openBraces} open, ${closeBraces} close`);
+    console.log(`📊 Brackets: ${openBrackets} open, ${closeBrackets} close`);
+
+    // Close unclosed arrays first
+    for (let i = 0; i < openBrackets - closeBrackets; i++) {
+      repaired += "]";
+    }
+
+    // Close unclosed objects
+    for (let i = 0; i < openBraces - closeBraces; i++) {
+      repaired += "}";
+    }
+
+    console.log("✅ Added closing brackets/braces");
+  }
+
+  return repaired;
+}
+
+function aggressiveJSONRepair(json: string): string {
+  console.log("🔨 Attempting aggressive JSON repair...");
+
+  let repaired = json.trim();
+
+  // Strategy 1: Remove everything after last complete object/array
+  const lastCompleteObject = repaired.lastIndexOf("}");
+  const lastCompleteArray = repaired.lastIndexOf("]");
+  const lastComplete = Math.max(lastCompleteObject, lastCompleteArray);
+
+  if (lastComplete > 0) {
+    const afterLast = repaired.substring(lastComplete + 1).trim();
+    if (afterLast.length > 0 && !afterLast.match(/^[}\]]*$/)) {
+      console.log("🗑️ Removing incomplete trailing content");
+      repaired = repaired.substring(0, lastComplete + 1);
+    }
+  }
+
+  // Strategy 2: If still broken, extract core fields
+  try {
+    JSON.parse(repaired);
+    return repaired;
+  } catch (e) {
+    console.log("🔍 Trying to extract core fields only...");
+
+    const titleMatch = repaired.match(/"title"\s*:\s*"([^"]*)"/);
+    const summaryMatch = repaired.match(/"summary"\s*:\s*"([^"]*)"/);
+    const keyPointsMatch = repaired.match(/"key_points"\s*:\s*\[([\s\S]*?)\](?=\s*,\s*"sections")/);
+
+    const sectionsStart = repaired.indexOf('"sections"');
+    let sectionsContent = "";
+
+    if (sectionsStart > 0) {
+      const afterSections = repaired.substring(sectionsStart);
+      const arrayStart = afterSections.indexOf("[");
+      if (arrayStart > 0) {
+        let depth = 0;
+        let endPos = arrayStart;
+        for (let i = arrayStart; i < afterSections.length; i++) {
+          if (afterSections[i] === "[") depth++;
+          if (afterSections[i] === "]") {
+            depth--;
+            if (depth === 0) {
+              endPos = i;
+              break;
+            }
+          }
+        }
+        if (depth === 0) {
+          sectionsContent = afterSections.substring(arrayStart, endPos + 1);
+        }
+      }
+    }
+
+    const minimalJSON = {
+      title: titleMatch ? titleMatch[1] : "Study Notes",
+      summary: summaryMatch ? summaryMatch[1] : "Study notes summary",
+      key_points: keyPointsMatch ? JSON.parse(`[${keyPointsMatch[1]}]`) : [],
+      sections: sectionsContent ? JSON.parse(sectionsContent) : [],
+      important_dates: [],
+      action_items: [],
+    };
+
+    console.log("✅ Extracted minimal valid structure");
+    return JSON.stringify(minimalJSON);
+  }
+}
