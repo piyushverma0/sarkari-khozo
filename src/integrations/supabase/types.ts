@@ -2052,6 +2052,7 @@ export type Database = {
           audio_last_played_at: string | null
           audio_script_english: Json | null
           audio_script_hindi: Json | null
+          category: string | null
           cheat_code_blocks: Json | null
           created_at: string | null
           current_language: string | null
@@ -2090,6 +2091,7 @@ export type Database = {
           source_url: string | null
           storage_path: string | null
           structured_content: Json | null
+          subject: string | null
           summary: string | null
           tags: string[] | null
           title: string
@@ -2111,6 +2113,7 @@ export type Database = {
           audio_last_played_at?: string | null
           audio_script_english?: Json | null
           audio_script_hindi?: Json | null
+          category?: string | null
           cheat_code_blocks?: Json | null
           created_at?: string | null
           current_language?: string | null
@@ -2149,6 +2152,7 @@ export type Database = {
           source_url?: string | null
           storage_path?: string | null
           structured_content?: Json | null
+          subject?: string | null
           summary?: string | null
           tags?: string[] | null
           title: string
@@ -2170,6 +2174,7 @@ export type Database = {
           audio_last_played_at?: string | null
           audio_script_english?: Json | null
           audio_script_hindi?: Json | null
+          category?: string | null
           cheat_code_blocks?: Json | null
           created_at?: string | null
           current_language?: string | null
@@ -2208,6 +2213,7 @@ export type Database = {
           source_url?: string | null
           storage_path?: string | null
           structured_content?: Json | null
+          subject?: string | null
           summary?: string | null
           tags?: string[] | null
           title?: string
