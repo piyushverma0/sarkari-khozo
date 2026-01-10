@@ -1,56 +1,59 @@
 // Generate UP Police General Knowledge Notes - AI-powered exam-focused content generation
 // Optimized for UP Police Constable 2026 exam syllabus
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
-import { callAI, logAIUsage } from '../_shared/ai-client.ts'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { callAI, logAIUsage } from "../_shared/ai-client.ts";
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 interface GenerateNotesRequest {
-  note_id: string
-  user_id: string
-  topic?: string
+  note_id: string;
+  user_id: string;
+  topic?: string;
 }
 
 serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
+  let note_id: string | undefined;
+  let user_id: string | undefined;
+
   try {
-    const { note_id, user_id, topic }: GenerateNotesRequest = await req.json()
+    const { note_id: noteIdFromBody, user_id: userIdFromBody, topic }: GenerateNotesRequest = await req.json();
+
+    note_id = noteIdFromBody;
+    user_id = userIdFromBody;
 
     if (!note_id || !user_id) {
-      return new Response(
-        JSON.stringify({ error: 'note_id and user_id are required' }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
+      return new Response(JSON.stringify({ error: "note_id and user_id are required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log('Generating UP Police GK notes for:', note_id, 'Topic:', topic || 'General')
+    console.log("Generating UP Police GK notes for:", note_id, "Topic:", topic || "General");
 
     // Initialize Supabase client
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Update progress
     await supabase
-      .from('study_notes')
+      .from("study_notes")
       .update({
-        processing_status: 'generating',
-        processing_progress: 10
+        processing_status: "generating",
+        processing_progress: 10,
       })
-      .eq('id', note_id)
+      .eq("id", note_id);
 
     // Build comprehensive UP Police GK system prompt
     const systemPrompt = `You are an expert UP Police Constable 2026 exam preparation specialist with deep knowledge of the General Knowledge syllabus for UP Police recruitment.
@@ -211,9 +214,11 @@ serve(async (req) => {
   ]
 }
 
-Remember: Create comprehensive, exam-focused notes that help students ace the UP Police Constable 2026 General Knowledge section.`
+Remember: Create comprehensive, exam-focused notes that help students ace the UP Police Constable 2026 General Knowledge section.`;
 
-    const topicContext = topic ? `Focus specifically on: ${topic}` : 'Provide comprehensive General Knowledge coverage for UP Police exam'
+    const topicContext = topic
+      ? `Focus specifically on: ${topic}`
+      : "Provide comprehensive General Knowledge coverage for UP Police exam";
 
     const userPrompt = `Generate comprehensive UP Police Constable 2026 General Knowledge study notes.
 
@@ -228,108 +233,118 @@ Requirements:
 - Focus on high-frequency exam topics
 - Include quick revision points
 
-Create detailed, exam-focused content that maximizes student success in UP Police GK section.`
+Create detailed, exam-focused content that maximizes student success in UP Police GK section.`;
 
     // Update progress
     await supabase
-      .from('study_notes')
+      .from("study_notes")
       .update({
-        processing_progress: 30
+        processing_progress: 30,
       })
-      .eq('id', note_id)
+      .eq("id", note_id);
 
     // Call AI to generate content
-    console.log('Calling AI for UP Police GK content generation...')
+    console.log("Calling AI for UP Police GK content generation...");
     const aiResponse = await callAI({
       systemPrompt,
       userPrompt,
       temperature: 0.4,
-      maxTokens: 8500,
-      responseFormat: 'json'
-    })
+      maxTokens: 10000, // Reduced from 8500 to avoid incomplete JSON
+      responseFormat: "json",
+    });
 
-    logAIUsage('generate-uppolice-gk-notes', aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed)
+    logAIUsage("generate-uppolice-gk-notes", aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed);
 
-    console.log('AI generation complete with', aiResponse.modelUsed)
+    console.log("AI generation complete with", aiResponse.modelUsed);
 
     // Update progress
     await supabase
-      .from('study_notes')
+      .from("study_notes")
       .update({
-        processing_progress: 70
+        processing_progress: 70,
       })
-      .eq('id', note_id)
+      .eq("id", note_id);
 
     // Parse AI response
-    let responseText = aiResponse.content
-    let cleanedJson = responseText.trim()
+    let responseText = aiResponse.content;
+    let cleanedJson = responseText.trim();
 
     // Remove markdown code blocks if present
-    if (cleanedJson.startsWith('```json')) {
-      cleanedJson = cleanedJson.replace(/^```json\s*/, '').replace(/\s*```$/, '')
-    } else if (cleanedJson.startsWith('```')) {
-      cleanedJson = cleanedJson.replace(/^```\s*/, '').replace(/\s*```$/, '')
+    if (cleanedJson.startsWith("```json")) {
+      cleanedJson = cleanedJson.replace(/^```json\s*/, "").replace(/\s*```$/, "");
+    } else if (cleanedJson.startsWith("```")) {
+      cleanedJson = cleanedJson.replace(/^```\s*/, "").replace(/\s*```$/, "");
     }
 
-    let structuredContent
+    // Validate JSON is complete (check for closing brace)
+    if (!cleanedJson.endsWith("}") && !cleanedJson.endsWith("]}")) {
+      console.error("Incomplete JSON detected, attempting to fix...");
+      // Try to close the JSON if it's incomplete
+      cleanedJson = cleanedJson + (cleanedJson.includes('"practice_questions"') ? "]}" : "}");
+    }
+
+    let structuredContent;
     try {
-      structuredContent = JSON.parse(cleanedJson)
-    } catch (parseError: unknown) {
-      console.error('Failed to parse JSON:', parseError)
-      const errorMessage = parseError instanceof Error ? parseError.message : 'Unknown parse error'
-      throw new Error(`Failed to parse generated content: ${errorMessage}`)
+      structuredContent = JSON.parse(cleanedJson);
+    } catch (parseError) {
+      console.error("Failed to parse JSON:", parseError);
+      console.error("First 500 chars:", cleanedJson.substring(0, 500));
+      console.error("Last 500 chars:", cleanedJson.substring(cleanedJson.length - 500));
+      throw new Error(`Failed to parse generated content: ${parseError.message}`);
     }
 
     // Update progress
     await supabase
-      .from('study_notes')
+      .from("study_notes")
       .update({
-        processing_progress: 90
+        processing_progress: 90,
       })
-      .eq('id', note_id)
+      .eq("id", note_id);
 
     // Store in database
     const { error: updateError } = await supabase
-      .from('study_notes')
+      .from("study_notes")
       .update({
-        title: structuredContent.title || 'UP Police GK Notes',
+        title: structuredContent.title || "UP Police GK Notes",
         summary: structuredContent.summary,
         key_points: structuredContent.key_points || [],
         structured_content: {
           sections: structuredContent.sections || [],
-          practice_questions: structuredContent.practice_questions || []
+          practice_questions: structuredContent.practice_questions || [],
         },
         raw_content: JSON.stringify(structuredContent),
-        processing_status: 'completed',
+        category: "UP Police 2026",
+        subject: "General Knowledge",
+        processing_status: "completed",
         processing_progress: 100,
         processing_error: null,
-        user_id: user_id
+        user_id: user_id,
       })
-      .eq('id', note_id)
+      .eq("id", note_id);
 
     if (updateError) {
-      console.error('Failed to update note:', updateError)
-      throw updateError
+      console.error("Failed to update note:", updateError);
+      throw updateError;
     }
 
-    console.log('UP Police GK notes generated and stored successfully')
+    console.log("UP Police GK notes generated and stored successfully");
 
     // Trigger recall questions generation asynchronously
     try {
       fetch(`${SUPABASE_URL}/functions/v1/generate-recall-questions`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
         },
         body: JSON.stringify({
           note_id,
           structured_content: { sections: structuredContent.sections || [] },
-          max_questions_per_section: 3
-        })
-      }).catch(err => console.error('Failed to trigger recall questions:', err))
+          max_questions_per_section: 3,
+        }),
+      }).catch((err) => console.error("Failed to trigger recall questions:", err));
     } catch (e) {
-      console.error('Error triggering recall questions:', e)
+      console.error("Error triggering recall questions:", e);
     }
 
     return new Response(
@@ -338,42 +353,35 @@ Create detailed, exam-focused content that maximizes student success in UP Polic
         note_id,
         title: structuredContent.title,
         sections_count: structuredContent.sections?.length || 0,
-        practice_questions_count: structuredContent.practice_questions?.length || 0
+        practice_questions_count: structuredContent.practice_questions?.length || 0,
       }),
       {
         status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
+  } catch (error) {
+    console.error("Error in generate-uppolice-gk-notes:", error);
 
-  } catch (error: unknown) {
-    console.error('Error in generate-uppolice-gk-notes:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-
-    // Update note status to failed
-    try {
-      const bodyText = await req.text()
-      const body = JSON.parse(bodyText)
-      if (body.note_id) {
-        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    // Update note status to failed (use note_id from outer scope)
+    if (note_id) {
+      try {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
         await supabase
-          .from('study_notes')
+          .from("study_notes")
           .update({
-            processing_status: 'failed',
-            processing_error: errorMessage || 'UP Police GK notes generation failed'
+            processing_status: "failed",
+            processing_error: error.message || "UP Police GK notes generation failed",
           })
-          .eq('id', body.note_id)
+          .eq("id", note_id);
+      } catch (e) {
+        console.error("Failed to update error status:", e);
       }
-    } catch (e) {
-      console.error('Failed to update error status:', e)
     }
 
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
-})
+});
