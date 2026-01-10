@@ -1,5 +1,6 @@
 // Generate UP Police General Knowledge Notes - AI-powered exam-focused content generation
-// Optimized for UP Police Constable 2026 exam syllabus
+// Step 1: Generate comprehensive raw content
+// Step 2: Trigger generate-notes-summary for final structuring
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
@@ -27,12 +28,14 @@ serve(async (req) => {
 
   let note_id: string | undefined;
   let user_id: string | undefined;
+  let requestBody: GenerateNotesRequest | undefined; // ✅ FIX: Store parsed body
 
   try {
-    const { note_id: noteIdFromBody, user_id: userIdFromBody, topic }: GenerateNotesRequest = await req.json();
-
-    note_id = noteIdFromBody;
-    user_id = userIdFromBody;
+    // ✅ FIX: Parse body once and store it
+    requestBody = await req.json();
+    note_id = requestBody.note_id;
+    user_id = requestBody.user_id;
+    const topic = requestBody.topic;
 
     if (!note_id || !user_id) {
       return new Response(JSON.stringify({ error: "note_id and user_id are required" }), {
@@ -41,7 +44,7 @@ serve(async (req) => {
       });
     }
 
-    console.log("Generating UP Police GK notes for:", note_id, "Topic:", topic || "General");
+    console.log("Generating UP Police GK RAW content for:", note_id, "Topic:", topic || "General");
 
     // Initialize Supabase client
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -55,180 +58,49 @@ serve(async (req) => {
       })
       .eq("id", note_id);
 
-    // Build comprehensive UP Police GK system prompt
-    const systemPrompt = `You are an expert UP Police Constable 2026 exam preparation specialist with deep knowledge of the General Knowledge syllabus for UP Police recruitment.
+    // Simplified system prompt for RAW content generation (not structured JSON)
+    const systemPrompt = `You are an expert UP Police Constable 2026 exam preparation specialist.
 
-**EXAM CONTEXT:**
-- **Exam:** UP Police Constable 2026
-- **Total Vacancies:** 32,679+ positions
-- **Subject:** General Knowledge (सामान्य ज्ञान)
-- **Question Pattern:** Multiple Choice Questions (MCQs)
-- **Focus Areas:** Current Affairs, History, Geography, Polity, Economy, Science, UP State GK, National & International Affairs
+Generate comprehensive study material for UP Police General Knowledge exam.
 
-**DETAILED SYLLABUS COVERAGE:**
+**Cover these key topics:**
+1. Indian History (Ancient, Medieval, Modern, Freedom Struggle)
+2. Indian Geography (Physical, Climate, Agriculture, Resources)
+3. Indian Polity & Constitution (Fundamental Rights, Government Structure, Amendments)
+4. Indian Economy (Planning, Banking, Budget, Government Schemes)
+5. General Science (Physics, Chemistry, Biology, Environment)
+6. Current Affairs (Last 6 months - National/International events, Awards, Sports)
+7. Uttar Pradesh State GK (History, Geography, Culture, Administration, UP Police)
+8. Computer Awareness (Basics, Software, Internet, Cyber Security, Digital India)
 
-1. **Indian History (भारतीय इतिहास)**
-   - Ancient India: Indus Valley Civilization, Vedic Age, Mauryan Empire, Gupta Period
-   - Medieval India: Delhi Sultanate, Mughal Empire, Maratha Empire, Bhakti & Sufi Movements
-   - Modern India: British Rule, Freedom Struggle (1857 Revolt, INC Formation, Quit India Movement)
-   - Important Battles, Treaties, and Freedom Fighters
-   - Post-Independence India: Integration of Princely States, Constitutional Development
+**Content Guidelines:**
+- Provide comprehensive, exam-focused content with specific facts, dates, and numbers
+- Include memory hooks, mnemonics, and shortcut techniques
+- Add 15-20 practice MCQs with detailed explanations
+- Focus on high-weightage topics (Current Affairs 20%, Polity 15%, History 15%)
+- Emphasize UP State GK (10-15% weightage)
+- Use markdown formatting (headings, bold, lists, tables)
+- Keep paragraphs short (max 4 lines)
 
-2. **Indian Geography (भारतीय भूगोल)**
-   - Physical Geography: Mountains (Himalayas), Rivers (Ganga, Yamuna, Brahmaputra), Plateaus, Deserts
-   - Climate: Monsoon System, Seasons, Rainfall Distribution
-   - Agriculture: Major Crops, Green Revolution, Agricultural Practices
-   - Minerals & Resources: Coal, Iron Ore, Petroleum, Natural Gas
-   - Transportation: Railways, Airways, Roadways, Waterways
-
-3. **Indian Polity & Constitution (भारतीय राजव्यवस्था)**
-   - Constitutional Framework: Preamble, Fundamental Rights (Articles 14-35), Fundamental Duties (Article 51A)
-   - Directive Principles of State Policy (Articles 36-51)
-   - Union Government: President, Prime Minister, Parliament (Lok Sabha & Rajya Sabha)
-   - State Government: Governor, Chief Minister, State Legislature
-   - Judiciary: Supreme Court, High Courts, Subordinate Courts
-   - Important Constitutional Amendments (1st, 42nd, 44th, 73rd, 74th, 101st)
-   - Local Self Government: Panchayati Raj, Municipalities
-
-4. **Indian Economy (भारतीय अर्थव्यवस्था)**
-   - Economic Planning: Five Year Plans, NITI Aayog
-   - Banking & Finance: RBI, Commercial Banks, NBFCs, Payment Systems
-   - Budget: Revenue, Expenditure, Fiscal Deficit, Revenue Deficit
-   - Taxation: GST, Income Tax, Corporate Tax
-   - Key Economic Indicators: GDP, Inflation, WPI, CPI, Unemployment Rate
-   - Government Schemes: PM-KISAN, Ayushman Bharat, MGNREGA, Pradhan Mantri Awas Yojana
-
-5. **General Science (सामान्य विज्ञान)**
-   - Physics: Motion, Force, Energy, Light, Sound, Electricity, Magnetism
-   - Chemistry: Elements, Compounds, Acids & Bases, Metals & Non-metals, Chemical Reactions
-   - Biology: Cell Structure, Human Body Systems (Digestive, Respiratory, Circulatory, Nervous), Diseases & Vitamins
-   - Environmental Science: Pollution, Climate Change, Conservation, Biodiversity
-
-6. **Current Affairs (समसामयिक घटनाएं)**
-   - National News: Government Policies, Schemes, Appointments, Bills & Acts
-   - International Affairs: Global Summits, Treaties, Organizations (UN, WHO, IMF, World Bank)
-   - Sports: Major Tournaments (Olympics, FIFA World Cup, IPL), Indian Sportspersons
-   - Awards & Honours: Bharat Ratna, Padma Awards, Nobel Prize, Oscar, Man Booker Prize
-   - Important Days & Dates: National & International Days
-   - Books & Authors: Recent Publications, Prominent Writers
-
-7. **Uttar Pradesh State GK (उत्तर प्रदेश सामान्य ज्ञान)**
-   - History of UP: Ancient Kingdoms, British Rule, Post-Independence Development
-   - Geography: Rivers (Ganga, Yamuna, Gomti), Districts (75 districts), Major Cities
-   - Culture & Heritage: Festivals, Folk Dances, Music, Handicrafts
-   - Important Personalities: Freedom Fighters, Politicians, Social Reformers
-   - Government Schemes: UP-specific welfare programs
-   - Administration: Governor, Chief Minister, Council of Ministers, Legislative Assembly
-   - Tourism: Taj Mahal (Agra), Varanasi Ghats, Lucknow Monuments, Buddhist Sites (Sarnath, Kushinagar)
-   - Economy: Agriculture, Industries, IT Sector
-   - UP Police: History, Structure, Ranks, Training Centers
-
-8. **Computer Awareness (कंप्यूटर जागरूकता)**
-   - Computer Basics: Input/Output Devices, CPU, Memory (RAM, ROM)
-   - Software: Operating Systems (Windows, Linux), MS Office (Word, Excel, PowerPoint)
-   - Internet: Browsers, Email, Search Engines, Social Media
-   - Cyber Security: Viruses, Malware, Phishing, Antivirus Software
-   - Digital India Initiatives: Digital Payments (UPI, BHIM), e-Governance, Aadhaar
-
-**CONTENT GENERATION GUIDELINES:**
-
-1. **Exam-Focused Structure:**
-   - Start with most frequently asked topics in UP Police exams
-   - Prioritize high-weightage areas: Current Affairs (20%), Indian Polity (15%), Indian History (15%)
-   - Include topic-specific MCQ patterns and previous year trends
-   - Add quick revision points for last-minute preparation
-
-2. **Information Depth:**
-   - Provide comprehensive coverage with specific facts, dates, numbers
-   - Include memory hooks, mnemonics, and shortcut techniques
-   - Add comparison tables for similar concepts (e.g., Articles of Constitution)
-   - Create timeline charts for historical events
-   - Use acronyms for easy memorization (e.g., BRICS, ASEAN)
-
-3. **UP Police Specific:**
-   - Emphasize UP State GK (10-15% weightage)
-   - Focus on current UP Government schemes and policies
-   - Include UP Police organizational structure and history
-   - Add questions on UP's geography, culture, and heritage
-   - Mention UP-specific current affairs and developments
-
-4. **Current Affairs (Critical):**
-   - Cover last 6 months of major national and international events
-   - Include government appointments, policy changes, new schemes
-   - List recent awards, sports achievements, scientific discoveries
-   - Add important dates, summits, and treaties
-   - Focus on India's relations with neighboring countries
-
-
-**MARKDOWN FORMATTING (Critical for readability):**
-1. **Headings:** Use ### for main topics, #### for subtopics
-2. **Bold:** Important terms, dates, numbers, names (**text**)
-3. **Italic:** Definitions, emphasis (*text*)
-4. **Code:** Specific numbers, codes, years (\`2026\`, \`Article 14\`)
-5. **Highlights:** Critical exam points (==urgent information==)
-6. **Lists:** Use bullet points for multiple items
-7. **Tables:** For comparisons and data (use markdown tables)
-8. **Short Paragraphs:** Max 4 lines per paragraph
-
-**OUTPUT FORMAT:** Return ONLY valid JSON (no markdown wrapper):
-{
-  "title": "UP Police GK: [Topic Name] - Exam Preparation Notes",
-  "summary": "2-3 sentence overview highlighting key exam focus areas",
-  "key_points": [
-    "Most important exam point 1 (with specific facts/numbers)",
-    "Most important exam point 2",
-    "Most important exam point 3",
-    "Most important exam point 4",
-    "Most important exam point 5"
-  ],
-  "sections": [
-    {
-      "title": "Section heading (exam-relevant)",
-      "content": "Comprehensive content with markdown formatting. Include specific facts, dates, numbers. Use **bold** for key terms, \`code\` for numbers/codes, ==highlights== for critical points.\\n\\n**Example Format:**\\n- First key point with details\\n- Second key point\\n\\nShort paragraph explaining concepts.",
-      "subsections": [
-        {
-          "title": "Subtopic heading",
-          "content": "Detailed subtopic content following same formatting rules"
-        }
-      ],
-      "highlights": [
-        {
-          "type": "exam_tip" | "important_fact" | "mnemonic" | "previous_year",
-          "text": "Important highlighted information for exam"
-        }
-      ]
-    }
-  ],
-  "practice_questions": [
-    {
-      "question": "Full MCQ question text",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correct_answer": "B",
-      "explanation": "Detailed explanation with reasoning and related facts"
-    }
-  ]
-}
-
-Remember: Create comprehensive, exam-focused notes that help students ace the UP Police Constable 2026 General Knowledge section.`;
+Return detailed markdown-formatted study material (NOT JSON). This raw content will be processed into structured notes.`;
 
     const topicContext = topic
       ? `Focus specifically on: ${topic}`
       : "Provide comprehensive General Knowledge coverage for UP Police exam";
 
-    const userPrompt = `Generate comprehensive UP Police Constable 2026 General Knowledge study notes.
+    const userPrompt = `Generate comprehensive UP Police Constable 2026 General Knowledge study material.
 
 ${topicContext}
 
-Requirements:
-- Cover all relevant GK syllabus topics for UP Police exam
-- Include current affairs from last 6 months
-- Add UP State GK (10-15% weightage)
-- Provide 15-20 practice MCQs with detailed explanations
-- Use memory hooks and mnemonics for easy retention
-- Focus on high-frequency exam topics
-- Include quick revision points
+Include:
+- All major GK topics relevant to UP Police exam
+- Current affairs from last 6 months
+- UP State GK (10-15% weightage)
+- 15-20 practice MCQs with explanations
+- Memory hooks and mnemonics
+- Quick revision points
 
-Create detailed, exam-focused content that maximizes student success in UP Police GK section.`;
+Create detailed, exam-focused markdown content.`;
 
     // Update progress
     await supabase
@@ -238,96 +110,40 @@ Create detailed, exam-focused content that maximizes student success in UP Polic
       })
       .eq("id", note_id);
 
-    // Call AI to generate content
-    console.log("Calling AI for UP Police GK content generation...");
+    // Call AI to generate RAW content (markdown text, not JSON)
+    console.log("Calling AI for UP Police GK RAW content generation...");
     const aiResponse = await callAI({
       systemPrompt,
       userPrompt,
       temperature: 0.4,
-      maxTokens: 10000, // Reduced from 8500 to avoid incomplete JSON
-      responseFormat: "json",
+      maxTokens: 6000,
+      responseFormat: "text", // Text format, not JSON
     });
 
     logAIUsage("generate-uppolice-gk-notes", aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed);
 
-    console.log("AI generation complete with", aiResponse.modelUsed);
+    console.log(
+      "AI RAW content generation complete with",
+      aiResponse.modelUsed,
+      "- Length:",
+      aiResponse.content.length,
+    );
 
-    // Update progress
+    // Store raw content and mark as extracting (will be completed by generate-notes-summary)
     await supabase
       .from("study_notes")
       .update({
-        processing_progress: 70,
+        raw_content: aiResponse.content,
+        processing_status: "extracting", // Will be completed by generate-notes-summary
+        processing_progress: 50,
       })
       .eq("id", note_id);
 
-    // Parse AI response
-    let responseText = aiResponse.content;
-    let cleanedJson = responseText.trim();
+    // Step 2: Trigger generate-notes-summary (same pattern as PDF/YouTube/DOCX)
+    console.log("📝 Triggering summarization for UP Police GK notes...");
 
-    // Remove markdown code blocks if present
-    if (cleanedJson.startsWith("```json")) {
-      cleanedJson = cleanedJson.replace(/^```json\s*/, "").replace(/\s*```$/, "");
-    } else if (cleanedJson.startsWith("```")) {
-      cleanedJson = cleanedJson.replace(/^```\s*/, "").replace(/\s*```$/, "");
-    }
-
-    // Validate JSON is complete (check for closing brace)
-    if (!cleanedJson.endsWith("}") && !cleanedJson.endsWith("]}")) {
-      console.error("Incomplete JSON detected, attempting to fix...");
-      // Try to close the JSON if it's incomplete
-      cleanedJson = cleanedJson + (cleanedJson.includes('"practice_questions"') ? "]}" : "}");
-    }
-
-    let structuredContent;
     try {
-      structuredContent = JSON.parse(cleanedJson);
-    } catch (parseError: unknown) {
-      console.error("Failed to parse JSON:", parseError);
-      console.error("First 500 chars:", cleanedJson.substring(0, 500));
-      console.error("Last 500 chars:", cleanedJson.substring(cleanedJson.length - 500));
-      const errorMessage = parseError instanceof Error ? parseError.message : "Unknown parse error";
-      throw new Error(`Failed to parse generated content: ${errorMessage}`);
-    }
-
-    // Update progress
-    await supabase
-      .from("study_notes")
-      .update({
-        processing_progress: 90,
-      })
-      .eq("id", note_id);
-
-    // Store in database
-    const { error: updateError } = await supabase
-      .from("study_notes")
-      .update({
-        title: structuredContent.title || "UP Police GK Notes",
-        summary: structuredContent.summary,
-        key_points: structuredContent.key_points || [],
-        structured_content: {
-          sections: structuredContent.sections || [],
-          practice_questions: structuredContent.practice_questions || [],
-        },
-        raw_content: JSON.stringify(structuredContent),
-        category: "UP Police 2026",
-        subject: "General Knowledge",
-        processing_status: "completed",
-        processing_progress: 100,
-        processing_error: null,
-        user_id: user_id,
-      })
-      .eq("id", note_id);
-
-    if (updateError) {
-      console.error("Failed to update note:", updateError);
-      throw updateError;
-    }
-
-    console.log("UP Police GK notes generated and stored successfully");
-
-    // Trigger recall questions generation asynchronously
-    try {
-      fetch(`${SUPABASE_URL}/functions/v1/generate-recall-questions`, {
+      const summaryResponse = await fetch(`${SUPABASE_URL}/functions/v1/generate-notes-summary`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -335,32 +151,48 @@ Create detailed, exam-focused content that maximizes student success in UP Polic
         },
         body: JSON.stringify({
           note_id,
-          structured_content: { sections: structuredContent.sections || [] },
-          max_questions_per_section: 3,
+          raw_content: aiResponse.content,
+          language: "en",
         }),
-      }).catch((err) => console.error("Failed to trigger recall questions:", err));
-    } catch (e) {
-      console.error("Error triggering recall questions:", e);
+      });
+
+      if (!summaryResponse.ok) {
+        const errorText = await summaryResponse.text();
+        console.error("Summarization error:", errorText);
+        throw new Error(`Summarization failed: ${errorText}`);
+      }
+
+      const summaryData = await summaryResponse.json();
+      console.log("Summarization triggered successfully:", summaryData);
+    } catch (summaryError) {
+      console.error("Failed to trigger summarization:", summaryError);
+      // Update note with error
+      await supabase
+        .from("study_notes")
+        .update({
+          processing_status: "failed",
+          processing_error: `Summarization failed: ${summaryError.message}`,
+        })
+        .eq("id", note_id);
+
+      throw summaryError;
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         note_id,
-        title: structuredContent.title,
-        sections_count: structuredContent.sections?.length || 0,
-        practice_questions_count: structuredContent.practice_questions?.length || 0,
+        raw_content_length: aiResponse.content.length,
       }),
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
-    console.error("Error in generate-uppolice-gk-notes:", error);
-    const errorMessage = error instanceof Error ? error.message : "UP Police GK notes generation failed";
+  } catch (error) {
+    console.error("❌ Error in generate-uppolice-gk-notes:", error);
 
-    // Update note status to failed (use note_id from outer scope)
+    // ✅ FIX: Use stored variables instead of re-parsing body
     if (note_id) {
       try {
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -368,7 +200,7 @@ Create detailed, exam-focused content that maximizes student success in UP Polic
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: errorMessage,
+            processing_error: error.message || "UP Police GK notes generation failed",
           })
           .eq("id", note_id);
       } catch (e) {
@@ -376,9 +208,128 @@ Create detailed, exam-focused content that maximizes student success in UP Polic
       }
     }
 
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
+
+// ============================================================
+// ✅ NEW: JSON Repair Functions
+// ============================================================
+
+/**
+ * Repair incomplete JSON by detecting common truncation patterns
+ */
+function repairIncompleteJSON(json: string): string {
+  let repaired = json.trim();
+
+  // Remove trailing commas in arrays/objects
+  repaired = repaired.replace(/,\s*([}\]])/g, "$1");
+
+  // Check if JSON ends properly
+  if (!repaired.endsWith("}") && !repaired.endsWith("]")) {
+    console.log("🔧 Attempting to close incomplete JSON...");
+
+    // Count unclosed braces
+    const openBraces = (repaired.match(/{/g) || []).length;
+    const closeBraces = (repaired.match(/}/g) || []).length;
+    const openBrackets = (repaired.match(/\[/g) || []).length;
+    const closeBrackets = (repaired.match(/]/g) || []).length;
+
+    console.log(`📊 Braces: ${openBraces} open, ${closeBraces} close`);
+    console.log(`📊 Brackets: ${openBrackets} open, ${closeBrackets} close`);
+
+    // Close unclosed arrays first (practice_questions is usually last)
+    for (let i = 0; i < openBrackets - closeBrackets; i++) {
+      repaired += "]";
+    }
+
+    // Close unclosed objects
+    for (let i = 0; i < openBraces - closeBraces; i++) {
+      repaired += "}";
+    }
+
+    console.log("✅ Added closing brackets/braces");
+  }
+
+  return repaired;
+}
+
+/**
+ * Aggressive JSON repair - removes incomplete sections
+ */
+function aggressiveJSONRepair(json: string): string {
+  console.log("🔨 Attempting aggressive JSON repair...");
+
+  let repaired = json.trim();
+
+  // Strategy 1: Remove everything after last complete object/array
+  const lastCompleteObject = repaired.lastIndexOf("}");
+  const lastCompleteArray = repaired.lastIndexOf("]");
+  const lastComplete = Math.max(lastCompleteObject, lastCompleteArray);
+
+  if (lastComplete > 0) {
+    // Check if there's garbage after this point
+    const afterLast = repaired.substring(lastComplete + 1).trim();
+    if (afterLast.length > 0 && !afterLast.match(/^[}\]]*$/)) {
+      console.log("🗑️ Removing incomplete trailing content");
+      repaired = repaired.substring(0, lastComplete + 1);
+    }
+  }
+
+  // Strategy 2: If still broken, try to extract just the core fields
+  try {
+    JSON.parse(repaired);
+    return repaired;
+  } catch (e) {
+    console.log("🔍 Trying to extract core fields only...");
+
+    // Try to extract title, summary, key_points, sections
+    const titleMatch = repaired.match(/"title"\s*:\s*"([^"]*)"/);
+    const summaryMatch = repaired.match(/"summary"\s*:\s*"([^"]*)"/);
+
+    // Find key_points array
+    const keyPointsMatch = repaired.match(/"key_points"\s*:\s*\[([\s\S]*?)\](?=\s*,\s*"sections")/);
+
+    // Find sections array (up to last valid closing)
+    const sectionsStart = repaired.indexOf('"sections"');
+    let sectionsContent = "";
+
+    if (sectionsStart > 0) {
+      const afterSections = repaired.substring(sectionsStart);
+      // Find the sections array
+      const arrayStart = afterSections.indexOf("[");
+      if (arrayStart > 0) {
+        let depth = 0;
+        let endPos = arrayStart;
+        for (let i = arrayStart; i < afterSections.length; i++) {
+          if (afterSections[i] === "[") depth++;
+          if (afterSections[i] === "]") {
+            depth--;
+            if (depth === 0) {
+              endPos = i;
+              break;
+            }
+          }
+        }
+        if (depth === 0) {
+          sectionsContent = afterSections.substring(arrayStart, endPos + 1);
+        }
+      }
+    }
+
+    // Reconstruct minimal valid JSON
+    const minimalJSON = {
+      title: titleMatch ? titleMatch[1] : "UP Police GK Notes",
+      summary: summaryMatch ? summaryMatch[1] : "Comprehensive notes for UP Police exam",
+      key_points: keyPointsMatch ? JSON.parse(`[${keyPointsMatch[1]}]`) : [],
+      sections: sectionsContent ? JSON.parse(sectionsContent) : [],
+      practice_questions: [],
+    };
+
+    console.log("✅ Extracted minimal valid structure");
+    return JSON.stringify(minimalJSON);
+  }
+}
