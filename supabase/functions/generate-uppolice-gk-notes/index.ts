@@ -122,7 +122,7 @@ Create detailed, exam-focused markdown content.`;
       systemPrompt,
       userPrompt,
       temperature: 0.4,
-      maxTokens: 6000,
+      maxTokens: 10000,
       responseFormat: "text", // Text format, not JSON
     });
 
