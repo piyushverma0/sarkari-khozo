@@ -2423,6 +2423,123 @@ export type Database = {
           },
         ]
       }
+      up_police_activity_log: {
+        Row: {
+          activity_date: string
+          activity_type: string
+          created_at: string | null
+          flashcard_id: string | null
+          id: string
+          note_id: string | null
+          question_id: string | null
+          subject: string | null
+          time_spent_seconds: number | null
+          user_id: string
+          was_correct: boolean | null
+        }
+        Insert: {
+          activity_date: string
+          activity_type: string
+          created_at?: string | null
+          flashcard_id?: string | null
+          id?: string
+          note_id?: string | null
+          question_id?: string | null
+          subject?: string | null
+          time_spent_seconds?: number | null
+          user_id: string
+          was_correct?: boolean | null
+        }
+        Update: {
+          activity_date?: string
+          activity_type?: string
+          created_at?: string | null
+          flashcard_id?: string | null
+          id?: string
+          note_id?: string | null
+          question_id?: string | null
+          subject?: string | null
+          time_spent_seconds?: number | null
+          user_id?: string
+          was_correct?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "up_police_activity_log_flashcard_id_fkey"
+            columns: ["flashcard_id"]
+            isOneToOne: false
+            referencedRelation: "note_flashcards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "up_police_activity_log_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "study_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      up_police_streaks: {
+        Row: {
+          badge_beginner_unlocked: boolean | null
+          badge_champion_unlocked: boolean | null
+          badge_consistent_unlocked: boolean | null
+          badge_legend_unlocked: boolean | null
+          created_at: string | null
+          current_streak: number | null
+          id: string
+          last_activity_date: string | null
+          longest_streak: number | null
+          streak_freeze_count: number | null
+          total_flashcards_reviewed: number | null
+          total_notes_generated: number | null
+          total_recall_questions_answered: number | null
+          total_study_days: number | null
+          total_teach_me_sessions: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          badge_beginner_unlocked?: boolean | null
+          badge_champion_unlocked?: boolean | null
+          badge_consistent_unlocked?: boolean | null
+          badge_legend_unlocked?: boolean | null
+          created_at?: string | null
+          current_streak?: number | null
+          id?: string
+          last_activity_date?: string | null
+          longest_streak?: number | null
+          streak_freeze_count?: number | null
+          total_flashcards_reviewed?: number | null
+          total_notes_generated?: number | null
+          total_recall_questions_answered?: number | null
+          total_study_days?: number | null
+          total_teach_me_sessions?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          badge_beginner_unlocked?: boolean | null
+          badge_champion_unlocked?: boolean | null
+          badge_consistent_unlocked?: boolean | null
+          badge_legend_unlocked?: boolean | null
+          created_at?: string | null
+          current_streak?: number | null
+          id?: string
+          last_activity_date?: string | null
+          longest_streak?: number | null
+          streak_freeze_count?: number | null
+          total_flashcards_reviewed?: number | null
+          total_notes_generated?: number | null
+          total_recall_questions_answered?: number | null
+          total_study_days?: number | null
+          total_teach_me_sessions?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_connections: {
         Row: {
           created_at: string | null
@@ -3016,6 +3133,19 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      update_up_police_streak: {
+        Args: {
+          p_activity_type: string
+          p_flashcard_id?: string
+          p_note_id?: string
+          p_question_id?: string
+          p_subject?: string
+          p_time_spent_seconds?: number
+          p_user_id: string
+          p_was_correct?: boolean
+        }
+        Returns: Json
       }
       use_collaboration_invite: {
         Args: { p_invite_code: string }
