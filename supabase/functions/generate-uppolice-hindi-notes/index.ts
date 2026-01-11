@@ -51,11 +51,11 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
     // Update progress
+    console.log('📊 Progress: 10% - Starting generation')
     await supabase
       .from('study_notes')
       .update({
         processing_status: 'generating',
-    console.log('📊 Progress: 10% - Starting generation')
         processing_progress: 10
       })
       .eq('id', note_id)
@@ -105,10 +105,10 @@ Include:
 Create detailed, exam-focused markdown content.`
 
     // Update progress
+    console.log('📊 Progress: 30% - Preparing AI generation')
     await supabase
       .from('study_notes')
       .update({
-    console.log('📊 Progress: 30% - Preparing AI generation')
         processing_progress: 30
       })
       .eq('id', note_id)
@@ -116,8 +116,6 @@ Create detailed, exam-focused markdown content.`
     // Call AI to generate RAW content (markdown text, not JSON)
     console.log('🤖 Calling AI for UP Police Hindi RAW content generation...')
     const aiResponse = await callAI({
-
-    console.log('✅ AI generation complete - Content length:', aiResponse.content.length)
       systemPrompt,
       userPrompt,
       temperature: 0.4,
@@ -127,15 +125,16 @@ Create detailed, exam-focused markdown content.`
 
     logAIUsage('generate-uppolice-hindi-notes', aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed)
 
+    console.log('✅ AI generation complete - Content length:', aiResponse.content.length)
     console.log('AI RAW content generation complete with', aiResponse.modelUsed, '- Length:', aiResponse.content.length)
 
     // Store raw content and mark as extracting (will be completed by generate-notes-summary)
+    console.log('📊 Progress: 50% - Storing raw content and triggering summarization')
     await supabase
       .from('study_notes')
       .update({
         raw_content: aiResponse.content,
         processing_status: 'extracting', // Will be completed by generate-notes-summary
-    console.log('📊 Progress: 50% - Storing raw content and triggering summarization')
         processing_progress: 50
       })
       .eq('id', note_id)
@@ -167,14 +166,15 @@ Create detailed, exam-focused markdown content.`
       const summaryData = await summaryResponse.json()
       console.log('✅ Summarization triggered successfully:', summaryData)
 
-    } catch (summaryError) {
+    } catch (summaryError: unknown) {
       console.error('Failed to trigger summarization:', summaryError)
+      const errorMessage = summaryError instanceof Error ? summaryError.message : 'Unknown summarization error'
       // Update note with error
       await supabase
         .from('study_notes')
         .update({
           processing_status: 'failed',
-          processing_error: `Summarization failed: ${summaryError.message}`
+          processing_error: `Summarization failed: ${errorMessage}`
         })
         .eq('id', note_id)
 
@@ -193,8 +193,9 @@ Create detailed, exam-focused markdown content.`
       }
     )
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in generate-uppolice-hindi-notes:', error)
+    const errorMessage = error instanceof Error ? error.message : 'UP Police Hindi notes generation failed'
 
     // Update note status to failed (use note_id from outer scope)
     if (note_id) {
@@ -204,7 +205,7 @@ Create detailed, exam-focused markdown content.`
           .from('study_notes')
           .update({
             processing_status: 'failed',
-            processing_error: error.message || 'UP Police Hindi notes generation failed'
+            processing_error: errorMessage
           })
           .eq('id', note_id)
       } catch (e) {
@@ -213,7 +214,7 @@ Create detailed, exam-focused markdown content.`
     }
 
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
