@@ -33,12 +33,6 @@ serve(async (req) => {
   try {
     // ✅ FIX: Parse body once and store it
     requestBody = await req.json();
-    if (!requestBody) {
-      return new Response(JSON.stringify({ error: "Invalid request body" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
     note_id = requestBody.note_id;
     user_id = requestBody.user_id;
     const topic = requestBody.topic;
@@ -50,12 +44,13 @@ serve(async (req) => {
       });
     }
 
-    console.log("Generating UP Police GK RAW content for:", note_id, "Topic:", topic || "General");
+    console.log("🚀 Generating UP Police GK RAW content for:", note_id, "Topic:", topic || "General");
 
     // Initialize Supabase client
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Update progress
+    // Update progress - Starting
+    console.log("📊 Progress: 10% - Starting generation");
     await supabase
       .from("study_notes")
       .update({
@@ -108,7 +103,8 @@ Include:
 
 Create detailed, exam-focused markdown content.`;
 
-    // Update progress
+    // Update progress - Preparing AI generation
+    console.log("📊 Progress: 30% - Preparing AI generation");
     await supabase
       .from("study_notes")
       .update({
@@ -117,7 +113,7 @@ Create detailed, exam-focused markdown content.`;
       .eq("id", note_id);
 
     // Call AI to generate RAW content (markdown text, not JSON)
-    console.log("Calling AI for UP Police GK RAW content generation...");
+    console.log("🤖 Calling AI for UP Police GK RAW content generation...");
     const aiResponse = await callAI({
       systemPrompt,
       userPrompt,
@@ -126,16 +122,19 @@ Create detailed, exam-focused markdown content.`;
       responseFormat: "text", // Text format, not JSON
     });
 
+    console.log("✅ AI generation complete - Content length:", aiResponse.content.length);
+
     logAIUsage("generate-uppolice-gk-notes", aiResponse.tokensUsed, aiResponse.webSearchUsed, aiResponse.modelUsed);
 
     console.log(
-      "AI RAW content generation complete with",
+      "✅ AI RAW content generation complete with",
       aiResponse.modelUsed,
       "- Length:",
       aiResponse.content.length,
     );
 
     // Store raw content and mark as extracting (will be completed by generate-notes-summary)
+    console.log("📊 Progress: 50% - Storing raw content and triggering summarization");
     await supabase
       .from("study_notes")
       .update({
@@ -147,6 +146,7 @@ Create detailed, exam-focused markdown content.`;
 
     // Step 2: Trigger generate-notes-summary (same pattern as PDF/YouTube/DOCX)
     console.log("📝 Triggering summarization for UP Police GK notes...");
+    console.log("📊 Progress: 60% - Starting summarization (will be handled by generate-notes-summary)");
 
     try {
       const summaryResponse = await fetch(`${SUPABASE_URL}/functions/v1/generate-notes-summary`, {
@@ -164,21 +164,20 @@ Create detailed, exam-focused markdown content.`;
 
       if (!summaryResponse.ok) {
         const errorText = await summaryResponse.text();
-        console.error("Summarization error:", errorText);
+        console.error("❌ Summarization error:", errorText);
         throw new Error(`Summarization failed: ${errorText}`);
       }
 
       const summaryData = await summaryResponse.json();
-      console.log("Summarization triggered successfully:", summaryData);
-    } catch (summaryError: unknown) {
+      console.log("✅ Summarization triggered successfully:", summaryData);
+    } catch (summaryError) {
       console.error("Failed to trigger summarization:", summaryError);
-      const errorMessage = summaryError instanceof Error ? summaryError.message : String(summaryError);
       // Update note with error
       await supabase
         .from("study_notes")
         .update({
           processing_status: "failed",
-          processing_error: `Summarization failed: ${errorMessage}`,
+          processing_error: `Summarization failed: ${summaryError.message}`,
         })
         .eq("id", note_id);
 
@@ -196,9 +195,8 @@ Create detailed, exam-focused markdown content.`;
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("❌ Error in generate-uppolice-gk-notes:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
 
     // ✅ FIX: Use stored variables instead of re-parsing body
     if (note_id) {
@@ -208,7 +206,7 @@ Create detailed, exam-focused markdown content.`;
           .from("study_notes")
           .update({
             processing_status: "failed",
-            processing_error: errorMessage || "UP Police GK notes generation failed",
+            processing_error: error.message || "UP Police GK notes generation failed",
           })
           .eq("id", note_id);
       } catch (e) {
@@ -216,7 +214,7 @@ Create detailed, exam-focused markdown content.`;
       }
     }
 
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
