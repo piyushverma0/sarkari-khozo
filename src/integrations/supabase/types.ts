@@ -1619,44 +1619,47 @@ export type Database = {
       }
       onboarding_preferences: {
         Row: {
-          completed_at: string
+          completed_at: string | null
           created_at: string
-          daily_study_hours: string
-          education_level: string
-          exam_goals: string[]
+          daily_study_hours: string | null
+          education_level: string | null
+          exam_goals: string[] | null
           id: string
-          preferred_language: string
-          profile_type: string
-          subject_interests: string[]
-          target_timeline: string
+          preferred_language: string | null
+          profile_type: string | null
+          status: string | null
+          subject_interests: string[] | null
+          target_timeline: string | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
-          completed_at?: string
+          completed_at?: string | null
           created_at?: string
-          daily_study_hours: string
-          education_level: string
-          exam_goals?: string[]
+          daily_study_hours?: string | null
+          education_level?: string | null
+          exam_goals?: string[] | null
           id?: string
-          preferred_language: string
-          profile_type: string
-          subject_interests?: string[]
-          target_timeline: string
+          preferred_language?: string | null
+          profile_type?: string | null
+          status?: string | null
+          subject_interests?: string[] | null
+          target_timeline?: string | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
-          completed_at?: string
+          completed_at?: string | null
           created_at?: string
-          daily_study_hours?: string
-          education_level?: string
-          exam_goals?: string[]
+          daily_study_hours?: string | null
+          education_level?: string | null
+          exam_goals?: string[] | null
           id?: string
-          preferred_language?: string
-          profile_type?: string
-          subject_interests?: string[]
-          target_timeline?: string
+          preferred_language?: string | null
+          profile_type?: string | null
+          status?: string | null
+          subject_interests?: string[] | null
+          target_timeline?: string | null
           updated_at?: string | null
           user_id?: string
         }
