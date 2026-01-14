@@ -3033,6 +3033,7 @@ export type Database = {
         Row: {
           calculated_at: string | null
           cheat_codes_accessed: number | null
+          created_at: string | null
           current_streak: number | null
           flashcard_mastery_rate: number | null
           flashcards_reviewed: number | null
@@ -3059,6 +3060,7 @@ export type Database = {
         Insert: {
           calculated_at?: string | null
           cheat_codes_accessed?: number | null
+          created_at?: string | null
           current_streak?: number | null
           flashcard_mastery_rate?: number | null
           flashcards_reviewed?: number | null
@@ -3085,6 +3087,7 @@ export type Database = {
         Update: {
           calculated_at?: string | null
           cheat_codes_accessed?: number | null
+          created_at?: string | null
           current_streak?: number | null
           flashcard_mastery_rate?: number | null
           flashcards_reviewed?: number | null
