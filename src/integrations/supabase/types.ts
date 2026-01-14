@@ -569,6 +569,45 @@ export type Database = {
           },
         ]
       }
+      daily_activity: {
+        Row: {
+          activity_date: string
+          activity_score: number | null
+          created_at: string | null
+          flashcards_reviewed: number | null
+          id: string
+          notes_generated: number | null
+          quizzes_taken: number | null
+          study_time_minutes: number | null
+          teach_me_sessions: number | null
+          user_id: string
+        }
+        Insert: {
+          activity_date: string
+          activity_score?: number | null
+          created_at?: string | null
+          flashcards_reviewed?: number | null
+          id?: string
+          notes_generated?: number | null
+          quizzes_taken?: number | null
+          study_time_minutes?: number | null
+          teach_me_sessions?: number | null
+          user_id: string
+        }
+        Update: {
+          activity_date?: string
+          activity_score?: number | null
+          created_at?: string | null
+          flashcards_reviewed?: number | null
+          id?: string
+          notes_generated?: number | null
+          quizzes_taken?: number | null
+          study_time_minutes?: number | null
+          teach_me_sessions?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       daily_gk_mcqs: {
         Row: {
           created_at: string
@@ -1358,6 +1397,104 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "note_highlights_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "study_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      note_performance: {
+        Row: {
+          flashcard_due_count: number | null
+          flashcard_mastery_rate: number | null
+          flashcards_mastered: number | null
+          flashcards_reviewed_today: number | null
+          flashcards_total: number | null
+          id: string
+          improvement_areas: Json | null
+          last_updated: string | null
+          mind_map_access_count: number | null
+          mock_test_average_score: number | null
+          mock_test_highest_score: number | null
+          mock_tests_attempted: number | null
+          note_id: string
+          performance_score: number | null
+          quiz_average_score: number | null
+          quiz_highest_score: number | null
+          quiz_weak_topics: Json | null
+          quizzes_taken: number | null
+          strength_areas: Json | null
+          teach_me_completed_sessions: number | null
+          teach_me_concepts_mastered: number | null
+          teach_me_progress_percentage: number | null
+          teach_me_sessions: number | null
+          teach_me_weak_areas: Json | null
+          total_time_spent_minutes: number | null
+          user_id: string
+          view_count: number | null
+        }
+        Insert: {
+          flashcard_due_count?: number | null
+          flashcard_mastery_rate?: number | null
+          flashcards_mastered?: number | null
+          flashcards_reviewed_today?: number | null
+          flashcards_total?: number | null
+          id?: string
+          improvement_areas?: Json | null
+          last_updated?: string | null
+          mind_map_access_count?: number | null
+          mock_test_average_score?: number | null
+          mock_test_highest_score?: number | null
+          mock_tests_attempted?: number | null
+          note_id: string
+          performance_score?: number | null
+          quiz_average_score?: number | null
+          quiz_highest_score?: number | null
+          quiz_weak_topics?: Json | null
+          quizzes_taken?: number | null
+          strength_areas?: Json | null
+          teach_me_completed_sessions?: number | null
+          teach_me_concepts_mastered?: number | null
+          teach_me_progress_percentage?: number | null
+          teach_me_sessions?: number | null
+          teach_me_weak_areas?: Json | null
+          total_time_spent_minutes?: number | null
+          user_id: string
+          view_count?: number | null
+        }
+        Update: {
+          flashcard_due_count?: number | null
+          flashcard_mastery_rate?: number | null
+          flashcards_mastered?: number | null
+          flashcards_reviewed_today?: number | null
+          flashcards_total?: number | null
+          id?: string
+          improvement_areas?: Json | null
+          last_updated?: string | null
+          mind_map_access_count?: number | null
+          mock_test_average_score?: number | null
+          mock_test_highest_score?: number | null
+          mock_tests_attempted?: number | null
+          note_id?: string
+          performance_score?: number | null
+          quiz_average_score?: number | null
+          quiz_highest_score?: number | null
+          quiz_weak_topics?: Json | null
+          quizzes_taken?: number | null
+          strength_areas?: Json | null
+          teach_me_completed_sessions?: number | null
+          teach_me_concepts_mastered?: number | null
+          teach_me_progress_percentage?: number | null
+          teach_me_sessions?: number | null
+          teach_me_weak_areas?: Json | null
+          total_time_spent_minutes?: number | null
+          user_id?: string
+          view_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_performance_note_id_fkey"
             columns: ["note_id"]
             isOneToOne: false
             referencedRelation: "study_notes"
@@ -2426,6 +2563,74 @@ export type Database = {
           },
         ]
       }
+      tracked_exam_progress: {
+        Row: {
+          concepts_covered: number | null
+          concepts_total: number | null
+          created_at: string | null
+          exam_date: string | null
+          exam_id: string | null
+          exam_title: string
+          id: string
+          last_updated: string | null
+          mock_test_average_score: number | null
+          preparedness_score: number | null
+          related_mock_tests_completed: number | null
+          related_notes_count: number | null
+          related_quizzes_completed: number | null
+          strong_topics: Json | null
+          suggested_actions: Json | null
+          user_id: string
+          weak_topics: Json | null
+        }
+        Insert: {
+          concepts_covered?: number | null
+          concepts_total?: number | null
+          created_at?: string | null
+          exam_date?: string | null
+          exam_id?: string | null
+          exam_title: string
+          id?: string
+          last_updated?: string | null
+          mock_test_average_score?: number | null
+          preparedness_score?: number | null
+          related_mock_tests_completed?: number | null
+          related_notes_count?: number | null
+          related_quizzes_completed?: number | null
+          strong_topics?: Json | null
+          suggested_actions?: Json | null
+          user_id: string
+          weak_topics?: Json | null
+        }
+        Update: {
+          concepts_covered?: number | null
+          concepts_total?: number | null
+          created_at?: string | null
+          exam_date?: string | null
+          exam_id?: string | null
+          exam_title?: string
+          id?: string
+          last_updated?: string | null
+          mock_test_average_score?: number | null
+          preparedness_score?: number | null
+          related_mock_tests_completed?: number | null
+          related_notes_count?: number | null
+          related_quizzes_completed?: number | null
+          strong_topics?: Json | null
+          suggested_actions?: Json | null
+          user_id?: string
+          weak_topics?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracked_exam_progress_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       up_police_activity_log: {
         Row: {
           activity_date: string
@@ -2824,6 +3029,87 @@ export type Database = {
         }
         Relationships: []
       }
+      user_stats: {
+        Row: {
+          calculated_at: string | null
+          cheat_codes_accessed: number | null
+          current_streak: number | null
+          flashcard_mastery_rate: number | null
+          flashcards_reviewed: number | null
+          id: string
+          joined_date: string
+          last_updated: string | null
+          longest_streak: number | null
+          mind_maps_generated: number | null
+          mock_test_average_score: number | null
+          mock_tests_completed: number | null
+          notes_by_category: Json | null
+          notes_by_source_type: Json | null
+          overall_performance_score: number | null
+          quiz_accuracy: number | null
+          quizzes_attempted: number | null
+          teach_me_completion_rate: number | null
+          teach_me_sessions_completed: number | null
+          total_notes_generated: number | null
+          total_study_time_minutes: number | null
+          tracked_exams: Json | null
+          user_id: string
+          weekly_activity: Json | null
+        }
+        Insert: {
+          calculated_at?: string | null
+          cheat_codes_accessed?: number | null
+          current_streak?: number | null
+          flashcard_mastery_rate?: number | null
+          flashcards_reviewed?: number | null
+          id?: string
+          joined_date: string
+          last_updated?: string | null
+          longest_streak?: number | null
+          mind_maps_generated?: number | null
+          mock_test_average_score?: number | null
+          mock_tests_completed?: number | null
+          notes_by_category?: Json | null
+          notes_by_source_type?: Json | null
+          overall_performance_score?: number | null
+          quiz_accuracy?: number | null
+          quizzes_attempted?: number | null
+          teach_me_completion_rate?: number | null
+          teach_me_sessions_completed?: number | null
+          total_notes_generated?: number | null
+          total_study_time_minutes?: number | null
+          tracked_exams?: Json | null
+          user_id: string
+          weekly_activity?: Json | null
+        }
+        Update: {
+          calculated_at?: string | null
+          cheat_codes_accessed?: number | null
+          current_streak?: number | null
+          flashcard_mastery_rate?: number | null
+          flashcards_reviewed?: number | null
+          id?: string
+          joined_date?: string
+          last_updated?: string | null
+          longest_streak?: number | null
+          mind_maps_generated?: number | null
+          mock_test_average_score?: number | null
+          mock_tests_completed?: number | null
+          notes_by_category?: Json | null
+          notes_by_source_type?: Json | null
+          overall_performance_score?: number | null
+          quiz_accuracy?: number | null
+          quizzes_attempted?: number | null
+          teach_me_completion_rate?: number | null
+          teach_me_sessions_completed?: number | null
+          total_notes_generated?: number | null
+          total_study_time_minutes?: number | null
+          tracked_exams?: Json | null
+          user_id?: string
+          weekly_activity?: Json | null
+        }
+        Relationships: []
+      }
       user_story_interactions: {
         Row: {
           clicked_source_at: string | null
@@ -2990,11 +3276,29 @@ export type Database = {
       }
     }
     Functions: {
+      calculate_activity_score: {
+        Args: {
+          p_flashcards_reviewed: number
+          p_notes_generated: number
+          p_quizzes_taken: number
+          p_study_time_minutes: number
+          p_teach_me_sessions: number
+        }
+        Returns: number
+      }
       calculate_engagement_score: {
         Args: {
           p_save_count: number
           p_share_count: number
           p_view_count: number
+        }
+        Returns: number
+      }
+      calculate_note_performance_score: {
+        Args: {
+          p_flashcard_mastery: number
+          p_quiz_average: number
+          p_teach_me_progress: number
         }
         Returns: number
       }
